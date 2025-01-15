@@ -1,3 +1,15 @@
+# Directories
+.vs/
+Binaries/
+
+# Files
+*.vcxproj
+*.vcxproj.user
+*.vcxproj.filters
+*.sln
+*.log
+Makefile
+
 # Prerequisites
 *.d
 
@@ -27,6 +39,8 @@
 *.lib
 
 # Executables
-*.exe
 *.out
 *.app
+
+#Exclude
+!3rdParty/
