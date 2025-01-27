@@ -8,7 +8,8 @@ project "Engine"
     includedirs
     {
         "Source",
-        "Source/Core/Public"
+        "Source/Core/Public",
+        "3rdParty/spdlog/include",
     }
 
     files { "Source/**.h", "Source/**.cpp" }
@@ -18,7 +19,7 @@ project "Engine"
  
     filter "system:windows"
         systemversion "latest"
-        defines { }
+        defines { "PLATFORM_WINDOWS" }
  
     filter "configurations:Debug"
         defines { "DEBUG" }

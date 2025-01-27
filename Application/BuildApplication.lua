@@ -1,5 +1,5 @@
 project "Application"
-   kind "ConsoleApp"
+   kind "WindowedApp"
    language "C++"
    cppdialect "C++20"
    targetdir "Binaries/%{cfg.buildcfg}"
@@ -12,7 +12,8 @@ project "Application"
       "Source",
 
 	  -- Include Engine
-	  "../Engine/Source/**/Public"
+	  "../Engine/Source/**/Public",
+      "../Engine/3rdParty/spdlog/include"
    }
 
    links
@@ -25,7 +26,7 @@ project "Application"
 
    filter "system:windows"
        systemversion "latest"
-       defines { "WINDOWS" }
+       defines { "PLATFORM_WINDOWS" }
 
    filter "configurations:Debug"
        defines { "DEBUG" }

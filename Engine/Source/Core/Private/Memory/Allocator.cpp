@@ -1,9 +1,7 @@
 #include "Memory/Allocator.h"
-
-#include <iostream>
+#include "Log/Log.h"
 
 void PrintHelloWorld()
 {
-	std::cout << "Hello World!\n";
-	std::cin.get();
+	LE_WARN("Hello World");
 }
