@@ -1,5 +1,6 @@
-#include "Memory/Allocator.h"
-#include "Log/Log.h"
+#pragma once
+
+#include "Scene/SceneManager.h"
 
 #if PLATFORM_WINDOWS
 #define WIN32_LEAN_AND_MEAN
@@ -10,11 +11,13 @@ int MainImpl()
 {
 	Log::Initialize();
 
+	LE::gSceneManager.LoadCurrentScene();
+
 	while (true)
 	{
-		PrintHelloWorld();
+		LE::gSceneManager.Update();
+		LE::gSceneManager.PostUpdate();
 	}
-	
 
 	return 0;
 }

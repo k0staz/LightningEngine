@@ -9,6 +9,7 @@ project "Engine"
     {
         "Source",
         "Source/Core/Public",
+        "Source/Log/Public",
         "3rdParty/spdlog/include",
     }
 

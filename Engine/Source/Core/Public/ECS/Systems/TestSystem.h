@@ -1,0 +1,25 @@
+#pragma once
+
+#include "ECS/EcsSystem.h"
+#include "EventCore/EventManager.h"
+#include "EventCore/Events/ArchetypeEvents.h"
+
+namespace LE
+{
+	class TestSystem : public EcsSystem
+	{
+	public:
+		void Initialize() override;
+		void Update() override;
+		void Shutdown() override;
+
+		void OnArchetypeMatched(const ArchetypeMatched& Event);
+		void OnArchetypeUnmatched(const ArchetypeUnmatched& Event);
+		void OnArchetypeChanged(const ArchetypeChange& Event);
+
+	private:
+		EventListener<ArchetypeMatched> ArchetypeMatchListener;
+		EventListener<ArchetypeUnmatched> ArchetypeUnmatchListener;
+		EventListener<ArchetypeChange> ArchetypeChangeListener;
+	};
+}
