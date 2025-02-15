@@ -7,21 +7,27 @@
 #include "ECS/Components/TransformComponent.h"
 #include "ECS/Ecs.h"
 
+#include "System/Public/Time/Clock.h"
+
 namespace LE
 {
+	static float locCalculateDeltaSeconds()
+	{
+		static Clock::TimePoint prev = Clock::Now();
+		const Clock::TimePoint cur = Clock::Now();
+		const float deltaSeconds = Clock::GetSecondsBetween(prev, cur);
+		prev = cur;
+
+		return deltaSeconds;
+	}
+
 	void Scene::Initialize()
 	{
 		RegisterComponents(ComponentManager);
 		RegisterSystems(SystemManager);
 
 		LE::EcsEntity& entity = *EntityManager.CreateEntity();
-
 		ComponentManager.CreateComponent<LE::TransformComponent>(entity.GetId());
-		ComponentManager.EditComponent<LE::TransformComponent>(entity.GetId());
-		//ComponentManager.DeleteComponent<LE::TransformComponent>(entity.GetId());
-
-		//EntityManager.GetEntityById(entity.GetId());
-		DeleteEntityById(entity.GetId());
 	}
 
 	void Scene::Shutdown()
@@ -31,7 +37,8 @@ namespace LE
 
 	void Scene::Update()
 	{
-		SystemManager.Update();
+		const float deltaSeconds = locCalculateDeltaSeconds();
+		SystemManager.Update(deltaSeconds);
 	}
 
 	void Scene::PostUpdate()

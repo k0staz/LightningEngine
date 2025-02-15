@@ -45,7 +45,7 @@ namespace LE
 	};
 
 	template<class ComponentClass>
-	inline ComponentTypeId GetComponentTypeId()
+	ComponentTypeId GetComponentTypeId()
 	{
 		static ComponentTypeId id = INVALID_COMPONENT_TYPE_ID;
 		if (id == INVALID_COMPONENT_TYPE_ID)
@@ -53,7 +53,7 @@ namespace LE
 			id = ++ComponentTypeIdStorage::ComponentTypeCounter;
 		}
 
-		const int maxComponentTypes = MAX_COMPONENT_TYPES;
+		constexpr int maxComponentTypes = MAX_COMPONENT_TYPES;
 		LE_ASSERT(id < maxComponentTypes, "Exceeded components type limit {}", maxComponentTypes);
 
 		return id;

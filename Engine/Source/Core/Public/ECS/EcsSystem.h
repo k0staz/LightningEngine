@@ -12,18 +12,18 @@ namespace LE
 		virtual ~EcsSystem() = default;
 
 		virtual void Initialize() = 0;
-		virtual void Update() = 0;
+		virtual void Update(const float DeltaSeconds) = 0;
 		virtual void Shutdown() = 0;
 	};
 
 	class EcsSystemManager
 	{
 	public:
-		EcsSystemManager();
+		EcsSystemManager() = default;
 		EcsSystemManager(EcsSystemManager&) = delete;
 		EcsSystemManager(EcsSystemManager&&) = delete;
 
-		void Update();
+		void Update(const float DeltaSeconds);
 
 		void Shutdown();
 

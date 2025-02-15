@@ -12,23 +12,40 @@ namespace LE
 
 		ArchetypeMatchListener = [this](const ArchetypeMatched& Event) { OnArchetypeMatched(Event); };
 		ArchetypeUnmatchListener = [this](const ArchetypeUnmatched& Event) { OnArchetypeUnmatched(Event); };
-		ArchetypeChangeListener = [this](const ArchetypeChange& Event) { OnArchetypeChanged(Event); };
 
 		gEventManager.ListenToArchetypeMatchedEvent(Archetype, ArchetypeMatchListener);
 		gEventManager.ListenToArchetypeUnmatchedEvent(Archetype, ArchetypeUnmatchListener);
-		gEventManager.ListenToArchetypeChangeEvent(Archetype, ArchetypeChangeListener);
 		
 	}
 
-	void TestSystem::Update()
+	void TestSystem::Update(const float DeltaSeconds)
 	{
+		static float time = 0.0f;
 		ComponentMask Archetype;
 		Archetype.set(GetComponentTypeId<TransformComponent>());
+
+		time += DeltaSeconds;
+		if (time > TWO_PI)
+		{
+			time = 0.0f;
+		}
 
 		auto Entities = GetArchetypeMatchedEntities(Archetype);
 		for (const EntityId& it : Entities)
 		{
-			DeleteComponent<TransformComponent>(it);
+			TransformComponent* transformComponent = EditComponent<TransformComponent>(it);
+			if (!transformComponent)
+				continue;
+
+			Vector3F pos = transformComponent->Transform.GetPosition();
+
+			pos.X = Sin(time);
+			pos.Y = Sin(time);
+			pos.Z = Sin(time);
+
+			transformComponent->Transform.Translate(pos);
+
+			LE_INFO("Change transform to X {} Y {} Z {} for Entity {}", pos.X, pos.Y, pos.Z, it);
 		}
 
 	}
@@ -44,11 +61,6 @@ namespace LE
 	}
 
 	void TestSystem::OnArchetypeUnmatched(const ArchetypeUnmatched& Event)
-	{
-		LE_INFO("Event Fired for Entity {}", Event.EntityId);
-	}
-
-	void TestSystem::OnArchetypeChanged(const ArchetypeChange& Event)
 	{
 		LE_INFO("Event Fired for Entity {}", Event.EntityId);
 	}

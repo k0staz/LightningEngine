@@ -2,15 +2,12 @@
 
 namespace LE
 {
-	EcsSystemManager::EcsSystemManager()
-	{
-	}
 
-	void EcsSystemManager::Update()
+	void EcsSystemManager::Update(const float DeltaSeconds)
 	{
 		for (auto& system : Systems)
 		{
-			system->Update();
+			system->Update(DeltaSeconds);
 		}
 	}
 

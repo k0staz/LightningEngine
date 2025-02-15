@@ -10,16 +10,14 @@ namespace LE
 	{
 	public:
 		void Initialize() override;
-		void Update() override;
+		void Update(const float DeltaSeconds) override;
 		void Shutdown() override;
 
 		void OnArchetypeMatched(const ArchetypeMatched& Event);
 		void OnArchetypeUnmatched(const ArchetypeUnmatched& Event);
-		void OnArchetypeChanged(const ArchetypeChange& Event);
 
 	private:
 		EventListener<ArchetypeMatched> ArchetypeMatchListener;
 		EventListener<ArchetypeUnmatched> ArchetypeUnmatchListener;
-		EventListener<ArchetypeChange> ArchetypeChangeListener;
 	};
 }
