@@ -1,24 +1,24 @@
 #pragma once
 
-#include "Scene/SceneManager.h"
+#include "GameEngine.h"
 
 namespace LE
 {
 	static EcsEntity* GetEntityById(EntityId EntityId)
 	{
-		return gSceneManager.CurrentScene.EntityManager.GetEntityById(EntityId);
+		return gGameEngine.GameWorld->EntityManager.GetEntityById(EntityId);
 	}
 
 	static EcsEntity* CreateEntity()
 	{
-		return gSceneManager.CurrentScene.EntityManager.CreateEntity();
+		return gGameEngine.GameWorld->EntityManager.CreateEntity();
 	}
 
 	static bool DeleteEntityById(EntityId EntityId)
 	{
-		if (gSceneManager.CurrentScene.EntityManager.DeleteEntityById(EntityId))
+		if (gGameEngine.GameWorld->EntityManager.DeleteEntityById(EntityId))
 		{
-			gSceneManager.CurrentScene.ComponentManager.OnEntityDeleted(EntityId);
+			gGameEngine.GameWorld->ComponentManager.OnEntityDeleted(EntityId);
 			return true;
 		}
 		
@@ -28,35 +28,35 @@ namespace LE
 	template<typename ComponentClass>
 	static ComponentClass& CreateComponent(const EntityId& EntityId)
 	{
-		return gSceneManager.CurrentScene.ComponentManager.CreateComponent<ComponentClass>(EntityId);
+		return gGameEngine.GameWorld->ComponentManager.CreateComponent<ComponentClass>(EntityId);
 	}
 
 	template<typename ComponentClass>
 	static const ComponentClass* ReadComponent(const EntityId& EntityId)
 	{
-		return gSceneManager.CurrentScene.ComponentManager.ReadComponent(EntityId);
+		return gGameEngine.GameWorld->ComponentManager.ReadComponent<ComponentClass>(EntityId);
 	}
 
 	template<typename ComponentClass>
 	static ComponentClass* EditComponent(const EntityId& EntityId)
 	{
-		return gSceneManager.CurrentScene.ComponentManager.EditComponent<ComponentClass>(EntityId);
+		return gGameEngine.GameWorld->ComponentManager.EditComponent<ComponentClass>(EntityId);
 	}
 
 	template<typename ComponentClass>
 	static bool HasComponent(const EntityId& EntityId)
 	{
-		return gSceneManager.CurrentScene.ComponentManager.HasComponent<ComponentClass>(EntityId);
+		return gGameEngine.GameWorld->ComponentManager.HasComponent<ComponentClass>(EntityId);
 	}
 
 	template<typename ComponentClass>
 	static void DeleteComponent(const EntityId& EntityId)
 	{
-		gSceneManager.CurrentScene.ComponentManager.DeleteComponent<ComponentClass>(EntityId);
+		gGameEngine.GameWorld->ComponentManager.DeleteComponent<ComponentClass>(EntityId);
 	}
 
 	static std::unordered_set<EntityId> GetArchetypeMatchedEntities(const ComponentMask& Archetype)
 	{
-		return gSceneManager.CurrentScene.ComponentManager.GetArchetypeMatchedEntities(Archetype);
+		return gGameEngine.GameWorld->ComponentManager.GetArchetypeMatchedEntities(Archetype);
 	}
 }

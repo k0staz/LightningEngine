@@ -34,8 +34,13 @@ namespace LE
 		constexpr static Matrix4x4<T> GetTranslation(const Vector3<T>& Vector);
 		constexpr static Matrix4x4<T> GetTranslation(const T ValueX, const T ValueY, const T ValueZ);
 
+		constexpr static Matrix4x4<T> MakeTranslation(const T ValueX, const T ValueY, const T ValueZ);
+
 		constexpr void Translate(const Vector3<T>& Vector);
 		constexpr void Translate(const T ValueX, const T ValueY, const T ValueZ);
+
+		constexpr void SetPosition(const T ValueX, const T ValueY, const T ValueZ);
+		constexpr void SetPosition(const Vector3<T>& Vector);
 
 		constexpr Vector3<T> GetPosition() const;
 
@@ -63,7 +68,14 @@ namespace LE
 		constexpr void Rotate(float Pitch, float Yaw, float Roll);
 		constexpr void Rotate(const Vector3<T>& Radians);
 
+		constexpr void SetRotationMatrix(Matrix4x4 RotationMatrix);
+
+		constexpr void RotateSelfX(float Radians);
+		constexpr void RotateSelfY(float Radians);
+		constexpr void RotateSelfZ(float Radians);
+
 		constexpr Vector3<T> GetRotation() const;
+		constexpr Matrix4x4 GetRotationMatrix() const;
 
 		constexpr static Matrix4x4 MakeReflection(const Vector3<T>& Vector);
 		constexpr static Matrix4x4 MakeInvolution(const Vector3<T>& Vector);
@@ -193,15 +205,29 @@ namespace LE
 	}
 
 	template <Numeric T>
+	constexpr Matrix4x4<T> Matrix4x4<T>::MakeTranslation(const T ValueX, const T ValueY, const T ValueZ)
+	{
+		Matrix4x4<T> result = Matrix4x4::Identity();
+		result.M[3][0] = ValueX;
+		result.M[3][1] = ValueY;
+		result.M[3][2] = ValueZ;
+		return result;
+	}
+
+	template <Numeric T>
 	constexpr void Matrix4x4<T>::Translate(const Vector3<T>& Vector)
 	{
-		M[3][0] = Vector.X;
-		M[3][1] = Vector.Y;
-		M[3][2] = Vector.Z;
+		*this *= MakeTranslation(Vector.X, Vector.Y, Vector.Z);
 	}
 
 	template <Numeric T>
 	constexpr void Matrix4x4<T>::Translate(const T ValueX, const T ValueY, const T ValueZ)
+	{
+		*this *= MakeTranslation(ValueX, ValueY, ValueZ);
+	}
+
+	template <Numeric T>
+	constexpr void Matrix4x4<T>::SetPosition(const T ValueX, const T ValueY, const T ValueZ)
 	{
 		M[3][0] = ValueX;
 		M[3][1] = ValueY;
@@ -209,9 +235,17 @@ namespace LE
 	}
 
 	template <Numeric T>
+	constexpr void Matrix4x4<T>::SetPosition(const Vector3<T>& Vector)
+	{
+		M[3][0] = Vector.X;
+		M[3][1] = Vector.Y;
+		M[3][2] = Vector.Z;
+	}
+
+	template <Numeric T>
 	constexpr Vector3<T> Matrix4x4<T>::GetPosition() const
 	{
-		return Vector3<T>(M[3][1], M[3][2], M[3][3]);
+		return Vector3<T>(M[3][0], M[3][1], M[3][2]);
 	}
 
 	template <Numeric T>
@@ -432,6 +466,40 @@ namespace LE
 	}
 
 	template <Numeric T>
+	constexpr void Matrix4x4<T>::SetRotationMatrix(Matrix4x4 RotationMatrix)
+	{
+		const Vector3<T> scale = GetScale();
+
+		M[0] = RotationMatrix[0] * scale.X;
+		M[1] = RotationMatrix[1] * scale.Y;
+		M[2] = RotationMatrix[2] * scale.Z;
+	}
+
+	template <Numeric T>
+	constexpr void Matrix4x4<T>::RotateSelfX(float Radians)
+	{
+		Matrix4x4<T> rotationMatrix = GetRotationMatrix();
+		rotationMatrix *= MakeRotationX(Radians);
+		SetRotationMatrix(rotationMatrix);
+	}
+
+	template <Numeric T>
+	constexpr void Matrix4x4<T>::RotateSelfY(float Radians)
+	{
+		Matrix4x4<T> rotationMatrix = GetRotationMatrix();
+		rotationMatrix *= MakeRotationY(Radians);
+		SetRotationMatrix(rotationMatrix);
+	}
+
+	template <Numeric T>
+	constexpr void Matrix4x4<T>::RotateSelfZ(float Radians)
+	{
+		Matrix4x4<T> rotationMatrix = GetRotationMatrix();
+		rotationMatrix *= MakeRotationZ(Radians);
+		SetRotationMatrix(rotationMatrix);
+	}
+
+	template <Numeric T>
 	constexpr Vector3<T> Matrix4x4<T>::GetRotation() const
 	{
 		const Vector3<T> scale = GetScale();
@@ -451,9 +519,21 @@ namespace LE
 		}
 		else
 		{
-			LE_ASSERT(false, "Gimbal Lock");
+			LE_ASSERT_DESC(false, "Gimbal Lock");
 			return Vector3<T>(0);
 		}
+	}
+
+	template <Numeric T>
+	constexpr Matrix4x4<T> Matrix4x4<T>::GetRotationMatrix() const
+	{
+		const Vector3<T> scale = GetScale();
+		Matrix4x4<T> result = Identity();
+		result[0] = M[0] / scale.X;
+		result[1] = M[1] / scale.Y;
+		result[2] = M[2] / scale.Z;
+
+		return result;
 	}
 
 	template <Numeric T>

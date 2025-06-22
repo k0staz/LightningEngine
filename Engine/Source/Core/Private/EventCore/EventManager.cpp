@@ -19,7 +19,7 @@ namespace LE
 				{
 					if (it->GetName() == Listener->GetName())
 					{
-						LE_ASSERT(false, "[Event Manager] Attempting to double register Event Listener");
+						LE_ASSERT_DESC(false, "[Event Manager] Attempting to double register Event Listener");
 						return;
 					}
 				}
@@ -52,7 +52,7 @@ namespace LE
 			{
 				if (it->GetName() == Listener->GetName())
 				{
-					LE_ASSERT(false, "[Event Manager] Attempting to double register Event Listener");
+					LE_ASSERT_DESC(false, "[Event Manager] Attempting to double register Event Listener");
 					return;
 				}
 			}

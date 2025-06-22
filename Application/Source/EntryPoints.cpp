@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Scene/SceneManager.h"
+#include "GameEngine.h"
 
 #include "Time/Clock.h"
 
@@ -13,15 +13,17 @@ int MainImpl()
 {
 	Log::Initialize();
 
-	LE::gSceneManager.LoadCurrentScene();
+	LE::gGameEngine.Init();
 
 	LE::gGlobalClock.Start();
 
-	while (true)
+	bool isDone = false;
+	while (!isDone)
 	{
-		LE::gSceneManager.Update();
-		LE::gSceneManager.PostUpdate();
+		LE::gGameEngine.Update(isDone);
 	}
+
+	LE::gGameEngine.Shutdown();
 
 	return 0;
 }

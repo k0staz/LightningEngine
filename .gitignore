@@ -1,6 +1,7 @@
 # Directories
 .vs/
 Binaries/
+Engine/Generated
 
 # Files
 *.vcxproj

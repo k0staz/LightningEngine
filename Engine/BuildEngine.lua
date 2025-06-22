@@ -1,3 +1,12 @@
+do
+    local script = "../Engine/Tools/GenerateShaderRegistrationFiles.py"
+    if os.isfile(script) then
+        local result = os.execute("python " .. script)
+    else
+        print("Script not found: " .. script)
+    end
+end
+
 project "Engine"
     kind "StaticLib"
     language "C++"
@@ -7,13 +16,17 @@ project "Engine"
 
     includedirs
     {
-        "Source",
-        "Source/Core/Public",
-        "Source/Log/Public",
+        "Source/**/Public",
+        "Generated/Public",
         "3rdParty/spdlog/include",
     }
 
-    files { "Source/**.h", "Source/**.cpp" }
+    files { 
+        "Source/**.h", 
+        "Source/**.cpp",
+        "Generated/**.h",
+        "Generated/**.cpp"
+    }
 
     targetdir ("../Binaries/" .. OutputDir .. "/%{prj.name}")
     objdir ("../Binaries/Intermediates/" .. OutputDir .. "/%{prj.name}")
@@ -22,6 +35,12 @@ project "Engine"
         systemversion "latest"
         defines { "PLATFORM_WINDOWS" }
  
+
+    prebuildcommands {
+        "{ECHO} Running shader registry generator...",
+        "python Tools/GenerateShaderRegistrationFiles.py"
+    }
+
     filter "configurations:Debug"
         defines { "DEBUG" }
         runtime "Debug"

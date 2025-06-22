@@ -54,7 +54,7 @@ namespace LE
 		}
 
 		constexpr int maxComponentTypes = MAX_COMPONENT_TYPES;
-		LE_ASSERT(id < maxComponentTypes, "Exceeded components type limit {}", maxComponentTypes);
+		LE_ASSERT_DESC(id < maxComponentTypes, "Exceeded components type limit {}", maxComponentTypes);
 
 		return id;
 	}
@@ -145,7 +145,7 @@ namespace LE
 	{
 		if (HasComponent(EntityId))
 		{
-			LE_ASSERT(false, "[ComponentContainer] Entity: {} already has a component: {}", EntityId, ComponentClass::GetStaticComponentName().c_str());
+			LE_ASSERT_DESC(false, "[ComponentContainer] Entity: {} already has a component: {}", EntityId, ComponentClass::GetStaticComponentName().c_str());
 		}
 
 		ComponentClass& component = Components.emplace_back(EntityId);
@@ -223,7 +223,7 @@ namespace LE
 		const ComponentTypeId componentType = GetComponentTypeId<ComponentClass>();
 		auto it = ComponentContainers.find(componentType);
 
-		LE_ASSERT(it != ComponentContainers.end(), "[ComponentManager] Failed to find container for component type {}", ComponentClass::GetStaticComponentName().c_str());
+		LE_ASSERT_DESC(it != ComponentContainers.end(), "[ComponentManager] Failed to find container for component type {}", ComponentClass::GetStaticComponentName().c_str());
 		auto container = std::static_pointer_cast<ComponentContainer<ComponentClass>>(it->second);
 		if (container->HasComponent(EntityId))
 		{
@@ -253,7 +253,7 @@ namespace LE
 		const ComponentTypeId componentType = GetComponentTypeId<ComponentClass>();
 		auto it = ComponentContainers.find(componentType);
 
-		LE_ASSERT(it != ComponentContainers.end(), "[ComponentManager] Failed to find container for component type {}", ComponentClass::GetStaticComponentName().c_str());
+		LE_ASSERT_DESC(it != ComponentContainers.end(), "[ComponentManager] Failed to find container for component type {}", ComponentClass::GetStaticComponentName().c_str());
 
 		auto container = std::static_pointer_cast<ComponentContainer<ComponentClass>>(it->second);
 		return container->GetComponent(EntityId);
@@ -265,7 +265,7 @@ namespace LE
 		const ComponentTypeId componentType = GetComponentTypeId<ComponentClass>();
 		auto it = ComponentContainers.find(componentType);
 
-		LE_ASSERT(it != ComponentContainers.end(), "[ComponentManager] Failed to find container for component type {}", ComponentClass::GetStaticComponentName().c_str());
+		LE_ASSERT_DESC(it != ComponentContainers.end(), "[ComponentManager] Failed to find container for component type {}", ComponentClass::GetStaticComponentName().c_str());
 
 		ComponentMask& entityArchetype = EntityArchetypes[EntityId];
 		if (EntityArchetypesChanged.count(EntityId) == 0)
@@ -284,7 +284,7 @@ namespace LE
 		const ComponentTypeId componentType = GetComponentTypeId<ComponentClass>();
 		auto it = ComponentContainers.find(componentType);
 
-		LE_ASSERT(it != ComponentContainers.end(), "[ComponentManager] Failed to find container for component type {}", ComponentClass::GetStaticComponentName().c_str());
+		LE_ASSERT_DESC(it != ComponentContainers.end(), "[ComponentManager] Failed to find container for component type {}", ComponentClass::GetStaticComponentName().c_str());
 
 		auto container = std::static_pointer_cast<ComponentContainer<ComponentClass>>(it->second);
 		return container->HasComponent(EntityId);
@@ -296,7 +296,7 @@ namespace LE
 		const ComponentTypeId componentType = GetComponentTypeId<ComponentClass>();
 		auto it = ComponentContainers.find(componentType);
 
-		LE_ASSERT(it != ComponentContainers.end(), "[ComponentManager] Failed to find container for component type {}", ComponentClass::GetStaticComponentName().c_str());
+		LE_ASSERT_DESC(it != ComponentContainers.end(), "[ComponentManager] Failed to find container for component type {}", ComponentClass::GetStaticComponentName().c_str());
 
 		ComponentMask& entityArchetype = EntityArchetypes[EntityId];
 		if (EntityArchetypesDirty.count(EntityId) == 0)

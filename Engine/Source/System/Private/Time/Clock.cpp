@@ -1,4 +1,4 @@
-#include "System/Public/Time/Clock.h"
+#include "Time/Clock.h"
 
 namespace LE
 {
