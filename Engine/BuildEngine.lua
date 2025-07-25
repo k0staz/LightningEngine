@@ -7,29 +7,59 @@ do
     end
 end
 
-project "Engine"
+project "EngineTemp"
     kind "StaticLib"
     language "C++"
     cppdialect "C++20"
     targetdir "Binaries/%{cfg.buildcfg}"
     staticruntime "off"
 
-    includedirs
+    publicIncludeDirs
     {
-        "Source/**/Public",
+        "Source/Client/Public",
+        "Source/Core/Public",
+        "Source/CoreECS/Public",
+        "Source/Engine/Public",
+        "Source/Renderer/Public",
+        "Source/RHI/Public",
+        "Source/RHIRuntime/Public",
+        "Source/System/Public",
+        "Source/Windows/**/Public",
+
         "Generated/Public",
-        "3rdParty/spdlog/include",
     }
 
     files { 
-        "Source/**.h", 
-        "Source/**.cpp",
+        "Source/Client/**.h", 
+        "Source/Core/**.h",
+        "Source/CoreECS/**.h",
+        "Source/Engine/**.h",
+        "Source/Renderer/**.h",
+        "Source/RHI/**.h",
+        "Source/RHIRuntime/**.h",
+        "Source/System/**.h",
+        "Source/Windows/**.h",
+
+        "Source/Client/**.cpp", 
+        "Source/Core/**.cpp",
+        "Source/CoreECS/**.cpp",
+        "Source/Engine/**.cpp",
+        "Source/Renderer/**.cpp",
+        "Source/RHI/**.cpp",
+        "Source/RHIRuntime/**.cpp",
+        "Source/System/**.cpp",
+        "Source/Windows/**.cpp",
+
         "Generated/**.h",
         "Generated/**.cpp"
     }
 
+    use_modules({"Log"})
+
     targetdir ("../Binaries/" .. OutputDir .. "/%{prj.name}")
     objdir ("../Binaries/Intermediates/" .. OutputDir .. "/%{prj.name}")
+
+    register_project(project(), path.getdirectory(_SCRIPT))
  
     filter "system:windows"
         systemversion "latest"

@@ -1,5 +1,7 @@
 #include "ShaderParameterMetadata.h"
 
+#include <algorithm>
+
 #include "DynamicRHI.h"
 #include "RHIConstantBufferInitializer.h"
 #include "ShaderCore.h"

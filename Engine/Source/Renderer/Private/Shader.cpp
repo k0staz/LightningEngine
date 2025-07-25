@@ -1,5 +1,7 @@
 #include "Shader.h"
 
+#include <algorithm>
+
 #include "ShaderParameterMetadata.h"
 #include "ShaderParameters.h"
 #include "MeshConverters/MeshConverter.h"

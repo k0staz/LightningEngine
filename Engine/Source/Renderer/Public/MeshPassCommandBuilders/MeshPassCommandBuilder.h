@@ -221,7 +221,7 @@ private:
 
 		if (!UsingInlineStorage())
 		{
-			ZeroMemory(GetData(), InSize);
+			MemsetZero(GetData(), InSize);
 		}
 	}
 
