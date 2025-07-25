@@ -1,10 +1,12 @@
 #include "Systems/RenderSystem.h"
 
 #include "EngineGlobals.h"
+#include "RendererModule.h"
 #include "Components/CameraComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "ECS/Components/TransformComponent.h"
 #include "ECS/Ecs.h"
+#include "SceneRendering/RenderScene.h"
 
 namespace LE
 {

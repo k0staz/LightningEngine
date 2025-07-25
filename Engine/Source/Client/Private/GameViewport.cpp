@@ -1,6 +1,7 @@
 #include "GameViewport.h"
 
 #include "EngineGlobals.h"
+#include "RendererModule.h"
 #include "SceneRendering/SceneView.h"
 
 namespace LE

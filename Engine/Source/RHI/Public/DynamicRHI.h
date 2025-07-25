@@ -153,5 +153,8 @@ public:
 	virtual DynamicRHI* CreateRHI() = 0;
 };
 
+void RegisterRHIModule(DynamicRHIModule* RHIModule);
+DynamicRHIModule* GetRHIModule();
+
 DynamicRHI* CreateDynamicRHI();
 }

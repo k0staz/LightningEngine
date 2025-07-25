@@ -81,12 +81,12 @@ struct RHIResourceCreateInfo
 	{
 	}
 
-	RHIResourceCreateInfo(Renderer::ResourceArrayInterface* InResourceArray)
+	RHIResourceCreateInfo(ResourceArrayInterface* InResourceArray)
 		: ResourceArray(InResourceArray)
 	{
 	}
 
-	Renderer::ResourceArrayInterface* ResourceArray;
+	ResourceArrayInterface* ResourceArray;
 };
 
 class RHIViewableResource : public RHIResource

@@ -1,10 +1,9 @@
 #pragma once
-#include "CoreDefinitions.h"
+
 #include "DynamicRHI.h"
 #include "RenderResource.h"
 
-
-namespace LE::RHI
+namespace LE::Renderer
 {
 template <typename InitializerType, typename RHIRefCountedType, typename RHIParamType>
 class StaticStateRHI
@@ -45,17 +44,17 @@ typename StaticStateRHI<InitializerType, RHIRefCountedType, RHIParamType>::Stati
 	InitializerType, RHIRefCountedType, RHIParamType>::StaticStateResource();
 
 template <bool bEnableDepthWrite = true,
-          CompareFunction DepthTest = CompareFunction::GreaterEqual,
+          RHI::CompareFunction DepthTest = RHI::CompareFunction::GreaterEqual,
           bool bEnableFrontFaceStencil = false,
-          CompareFunction FrontFaceStencilTest = CompareFunction::Always,
-          StencilOp FrontFaceStencilFailStencilOp = StencilOp::Keep,
-          StencilOp FrontFaceDepthFailStencilOp = StencilOp::Keep,
-          StencilOp FrontFaceStencilPassStencilOp = StencilOp::Keep,
+          RHI::CompareFunction FrontFaceStencilTest = RHI::CompareFunction::Always,
+          RHI::StencilOp FrontFaceStencilFailStencilOp = RHI::StencilOp::Keep,
+          RHI::StencilOp FrontFaceDepthFailStencilOp = RHI::StencilOp::Keep,
+          RHI::StencilOp FrontFaceStencilPassStencilOp = RHI::StencilOp::Keep,
           bool bEnableBackFaceStencil = false,
-          CompareFunction BackFaceStencilTest = CompareFunction::Always,
-          StencilOp BackFaceStencilFailStencilOp = StencilOp::Keep,
-          StencilOp BackFaceDepthFailStencilOp = StencilOp::Keep,
-          StencilOp BackFaceStencilPassStencilOp = StencilOp::Keep,
+          RHI::CompareFunction BackFaceStencilTest = RHI::CompareFunction::Always,
+          RHI::StencilOp BackFaceStencilFailStencilOp = RHI::StencilOp::Keep,
+          RHI::StencilOp BackFaceDepthFailStencilOp = RHI::StencilOp::Keep,
+          RHI::StencilOp BackFaceStencilPassStencilOp = RHI::StencilOp::Keep,
           uint8 StencilReadMask = 0xFF,
           uint8 StencilWriteMask = 0xFF>
 class StaticDepthStencilState : public StaticStateRHI<
@@ -75,13 +74,13 @@ class StaticDepthStencilState : public StaticStateRHI<
 			StencilReadMask,
 			StencilWriteMask
 		>,
-		RefCountingPtr<RHIDepthStencilState>
-		, RHIDepthStencilState*>
+		RefCountingPtr<RHI::RHIDepthStencilState>
+		, RHI::RHIDepthStencilState*>
 {
 public:
-	static RefCountingPtr<RHIDepthStencilState> CreateRHI()
+	static RefCountingPtr<RHI::RHIDepthStencilState> CreateRHI()
 	{
-		RHIDepthStencilStateDesc depthStencilStateDesc(
+		RHI::RHIDepthStencilStateDesc depthStencilStateDesc(
 			bEnableDepthWrite,
 			DepthTest,
 			bEnableFrontFaceStencil,

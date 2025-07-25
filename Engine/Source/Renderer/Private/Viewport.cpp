@@ -1,12 +1,11 @@
 #include "Viewport.h"
 
 #include "DynamicRHI.h"
-#include "GameViewport.h"
 #include "RenderCommandList.h"
 
 namespace LE::Renderer
 {
-Viewport::Viewport(GameViewport* Owner, RefCountingPtr<RHI::RHIViewport> ViewportRHI)
+Viewport::Viewport(IGameViewport* Owner, RefCountingPtr<RHI::RHIViewport> ViewportRHI)
 	: OwnerGameViewport(Owner)
 	  , ViewportRHI(ViewportRHI)
 	  , SizeX(0)

@@ -1,18 +1,14 @@
 #pragma once
 
+#include "IGameViewport.h"
 #include "RenderResource.h"
-
-namespace LE
-{
-class GameViewport;
-}
 
 namespace LE::Renderer
 {
 class Viewport : public RenderResource
 {
 public:
-	Viewport(GameViewport* Owner, RefCountingPtr<RHI::RHIViewport> ViewportRHI);
+	Viewport(IGameViewport* Owner, RefCountingPtr<RHI::RHIViewport> ViewportRHI);
 
 	void Draw();
 
@@ -32,7 +28,7 @@ public:
 	uint32 GetSizeY() const { return SizeY; }
 
 protected:
-	GameViewport* OwnerGameViewport;
+	IGameViewport* OwnerGameViewport;
 	RefCountingPtr<RHI::RHIViewport> ViewportRHI;
 	RefCountingPtr<RHI::RHITexture> RenderTargetTextureRHI;
 

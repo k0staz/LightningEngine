@@ -1,5 +1,5 @@
 #pragma once
-#include "GameEngine.h"
+#include "EngineRegistry.h"
 
 namespace LE::Renderer
 {
@@ -10,11 +10,11 @@ namespace LE
 {
 inline Renderer::RendererModule* GetRendererModule()
 {
-	return &gGameEngine.RendererModule;
+	return GetGameEngine()->GetRendererModule();
 }
 
-inline World* GetWorld()
+inline IWorld* GetWorld()
 {
-	return gGameEngine.GameWorld;
+	return GetGameEngine()->GetWorld();
 }
 }

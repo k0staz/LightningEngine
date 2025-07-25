@@ -56,7 +56,7 @@ local function process_module(moduleName, wasVisited)
 			includeCount = includeCount + 1 
 		end
 		for _, it in ipairs(subLink or {}) do 
-			table.insert(link, it) 
+			table.insert(links, it) 
 			linkCount = linkCount + 1 
 		end
 	end
@@ -83,9 +83,9 @@ function link_modules()
 		print(string.format("Linking transitive includes for module: %s", entry.project))
 		
 		project(entry.project)
-		
+		local wasVisited = {}
 		for _, module in ipairs(entry.modules) do
-			local includes, transitiveLinks = process_module(module)
+			local includes, transitiveLinks = process_module(module, wasVisited)
 			
 			includedirs { includes }
 			links { transitiveLinks }

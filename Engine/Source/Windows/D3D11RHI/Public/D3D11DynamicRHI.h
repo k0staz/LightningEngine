@@ -10,6 +10,7 @@
 #include <dxgi1_6.h>
 
 #include "D3D11Resources.h"
+#include "D3D11ShaderCompiler.h"
 #include "D3D11StateCache.h"
 #include "D3D11Viewport.h"
 #include "RenderResource.h"
@@ -177,4 +178,13 @@ class D3D11DynamicRHIModule : public DynamicRHIModule
 public:
 	DynamicRHI* CreateRHI() override;
 };
+
+static D3D11DynamicRHIModule gD3D11Module;
+
+// This is temp, once we have more backends we need to make them DLLs and load at runtime
+inline void UseD3D11RHIModule()
+{
+	RegisterRHIModule(&gD3D11Module);
+	UseD3D11ShaderCompiler();
+}
 }

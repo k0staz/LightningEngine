@@ -12,7 +12,7 @@ project "Application"
       "Source",
    }
 
-   use_modules({"EngineTemp"})
+   use_modules({"Engine"})
 
    targetdir ("../Binaries/" .. OutputDir .. "/%{prj.name}")
    objdir ("../Binaries/Intermediates/" .. OutputDir .. "/%{prj.name}")

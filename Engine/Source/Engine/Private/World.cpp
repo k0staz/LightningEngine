@@ -3,6 +3,8 @@
 #include "Components/CameraComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Containers/Array.h"
+#include "ECS/Ecs.h"
+#include "ECS/EcsModule.h"
 #include "ECS/Components/ComponentRegistry.h"
 #include "ECS/Components/TransformComponent.h"
 #include "ECS/Systems/SystemRegistry.h"
@@ -24,10 +26,16 @@ static float locCalculateDeltaSeconds()
 
 void World::Init()
 {
+	{
+		UniquePtr<ECSModule> module = std::make_unique<ECSModule>();
+		module->Initialize(&EntityManager, &ComponentManager, &SystemManager);
+		RegisterECSModule(std::move(module));
+	}
+	
 	RegisterComponents(ComponentManager);
 	RegisterSystems(SystemManager);
 
-	InitTestData();
+	//InitTestData();
 }
 
 void World::Shutdown()

@@ -103,7 +103,8 @@ void BuildParameterAllocationMap(ID3D11ShaderReflection* Reflection, Renderer::S
 	}
 }
 
-bool CompileShaderD3D11(const Renderer::ShaderCompilerInput& CompilerInput, Renderer::ShaderCompilerResult& CompilerResult)
+bool D3D11ShaderCompilerModule::CompileShader(const Renderer::ShaderCompilerInput& CompilerInput,
+	Renderer::ShaderCompilerResult& CompilerResult)
 {
 	HRESULT result = S_OK;
 	RefCountingPtr<ID3DBlob> shader;

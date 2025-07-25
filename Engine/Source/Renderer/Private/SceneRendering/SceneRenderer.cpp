@@ -1,7 +1,7 @@
 #include "SceneRendering/SceneRenderer.h"
 
 #include "RendererModule.h"
-#include "RHIStaticState.h"
+#include "StaticStateResource.h"
 #include "MeshPassCommandBuilders/MeshPassCommandBuilder.h"
 
 namespace LE::Renderer
@@ -58,7 +58,7 @@ void SceneRender::RenderBasePass()
 
 void SceneRender::SetupBasePassState(MeshPassRenderState& RenderState)
 {
-	RenderState.SetDepthStencilState(RHI::StaticDepthStencilState<>::GetRHI());
+	RenderState.SetDepthStencilState(StaticDepthStencilState<>::GetRHI());
 }
 
 static void RenderSceneView_RenderThread(RenderCommandList& CmdList, SceneRender* Renderer)
