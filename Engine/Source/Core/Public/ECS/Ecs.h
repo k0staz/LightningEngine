@@ -1,24 +1,30 @@
 #pragma once
 
-#include "GameEngine.h"
+#include "CoreDefinitions.h"
+#include "EcsComponent.h"
+#include "EcsEntity.h"
+#include "EcsModule.h"
 
 namespace LE
 {
+	void RegisterECSModule(UniquePtr<ECSModule> Module);
+	ECSModule& GetECSModule();
+
 	static EcsEntity* GetEntityById(EntityId EntityId)
 	{
-		return gGameEngine.GameWorld->EntityManager.GetEntityById(EntityId);
+		return GetECSModule().GetEntityManager()->GetEntityById(EntityId);
 	}
 
 	static EcsEntity* CreateEntity()
 	{
-		return gGameEngine.GameWorld->EntityManager.CreateEntity();
+		return  GetECSModule().GetEntityManager()->CreateEntity();
 	}
 
 	static bool DeleteEntityById(EntityId EntityId)
 	{
-		if (gGameEngine.GameWorld->EntityManager.DeleteEntityById(EntityId))
+		if (GetECSModule().GetEntityManager()->DeleteEntityById(EntityId))
 		{
-			gGameEngine.GameWorld->ComponentManager.OnEntityDeleted(EntityId);
+			GetECSModule().GetComponentManager()->OnEntityDeleted(EntityId);
 			return true;
 		}
 		
@@ -28,35 +34,35 @@ namespace LE
 	template<typename ComponentClass>
 	static ComponentClass& CreateComponent(const EntityId& EntityId)
 	{
-		return gGameEngine.GameWorld->ComponentManager.CreateComponent<ComponentClass>(EntityId);
+		return GetECSModule().GetComponentManager()->CreateComponent<ComponentClass>(EntityId);
 	}
 
 	template<typename ComponentClass>
 	static const ComponentClass* ReadComponent(const EntityId& EntityId)
 	{
-		return gGameEngine.GameWorld->ComponentManager.ReadComponent<ComponentClass>(EntityId);
+		return GetECSModule().GetComponentManager()->ReadComponent<ComponentClass>(EntityId);
 	}
 
 	template<typename ComponentClass>
 	static ComponentClass* EditComponent(const EntityId& EntityId)
 	{
-		return gGameEngine.GameWorld->ComponentManager.EditComponent<ComponentClass>(EntityId);
+		return GetECSModule().GetComponentManager()->EditComponent<ComponentClass>(EntityId);
 	}
 
 	template<typename ComponentClass>
 	static bool HasComponent(const EntityId& EntityId)
 	{
-		return gGameEngine.GameWorld->ComponentManager.HasComponent<ComponentClass>(EntityId);
+		return GetECSModule().GetComponentManager()->HasComponent<ComponentClass>(EntityId);
 	}
 
 	template<typename ComponentClass>
 	static void DeleteComponent(const EntityId& EntityId)
 	{
-		gGameEngine.GameWorld->ComponentManager.DeleteComponent<ComponentClass>(EntityId);
+		GetECSModule().GetComponentManager()->DeleteComponent<ComponentClass>(EntityId);
 	}
 
 	static std::unordered_set<EntityId> GetArchetypeMatchedEntities(const ComponentMask& Archetype)
 	{
-		return gGameEngine.GameWorld->ComponentManager.GetArchetypeMatchedEntities(Archetype);
+		return GetECSModule().GetComponentManager()->GetArchetypeMatchedEntities(Archetype);
 	}
 }

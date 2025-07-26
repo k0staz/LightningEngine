@@ -7,22 +7,17 @@ project "Application"
 
    files { "Source/**.h", "Source/**.cpp" }
 
-   includedirs
+   publicIncludeDirs
    {
       "Source",
-
-	  -- Include Engine
-	  "../Engine/Source/**/Public",
-      "../Engine/3rdParty/spdlog/include"
    }
 
-   links
-   {
-      "Engine"
-   }
+   use_modules({"Engine"})
 
    targetdir ("../Binaries/" .. OutputDir .. "/%{prj.name}")
    objdir ("../Binaries/Intermediates/" .. OutputDir .. "/%{prj.name}")
+
+   register_project(project(), path.getdirectory(_SCRIPT))
 
    filter "system:windows"
        systemversion "latest"

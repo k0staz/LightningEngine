@@ -3,7 +3,7 @@ import re
 import sys
 from pathlib import Path
 
-source_dir = Path("Source")
+source_dir = Path("../../Source")
 output_dir_h = Path("Generated/Public")
 output_dir_cpp = Path("Generated/Private")
 

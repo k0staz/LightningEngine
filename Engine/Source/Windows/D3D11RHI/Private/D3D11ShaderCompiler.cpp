@@ -69,7 +69,7 @@ void BuildParameterAllocationMap(ID3D11ShaderReflection* Reflection, Renderer::S
 	{
 		D3D11_SHADER_INPUT_BIND_DESC bindDesc;
 		Reflection->GetResourceBindingDesc(index, &bindDesc);
-		LE_INFO("Found parameters with name %s", bindDesc.Name);
+		LE_INFO("Found parameters with name {}", bindDesc.Name);
 
 		Renderer::ShaderReflectedParameterType type = Renderer::ShaderReflectedParameterType::Num;
 		switch (bindDesc.Type)
@@ -103,7 +103,8 @@ void BuildParameterAllocationMap(ID3D11ShaderReflection* Reflection, Renderer::S
 	}
 }
 
-bool CompileShaderD3D11(const Renderer::ShaderCompilerInput& CompilerInput, Renderer::ShaderCompilerResult& CompilerResult)
+bool D3D11ShaderCompilerModule::CompileShader(const Renderer::ShaderCompilerInput& CompilerInput,
+	Renderer::ShaderCompilerResult& CompilerResult)
 {
 	HRESULT result = S_OK;
 	RefCountingPtr<ID3DBlob> shader;

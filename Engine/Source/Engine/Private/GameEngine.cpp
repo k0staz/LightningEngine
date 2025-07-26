@@ -1,5 +1,6 @@
 #include "GameEngine.h"
 
+#include "D3D11DynamicRHI.h"
 #include "EngineGlobals.h"
 #include "GameViewport.h"
 #include "WindowsWindow.h"
@@ -12,6 +13,8 @@ GameEngine gGameEngine;
 
 void GameEngine::Init()
 {
+	RegisterEngine(this);
+	D3D11::UseD3D11RHIModule();
 	InitMaterials();
 
 	GameWorld = new World;

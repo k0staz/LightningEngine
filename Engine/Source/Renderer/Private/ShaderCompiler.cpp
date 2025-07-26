@@ -1,6 +1,5 @@
 #include "ShaderCompiler.h"
 
-#include "D3D11ShaderCompiler.h"
 #include "Shader.h"
 #include "FileManager/FileManager.h"
 #include "MeshConverters/MeshConverter.h"
@@ -8,6 +7,23 @@
 
 namespace LE::Renderer
 {
+static ShaderCompilerModule* gShaderCompilerModule = nullptr;
+
+void RegisterShaderCompilerModule(ShaderCompilerModule* CompilerModule)
+{
+	gShaderCompilerModule = CompilerModule;
+}
+
+ShaderCompilerModule* GetShaderCompilerModule()
+{
+	if (!gShaderCompilerModule)
+	{
+		LE_ERROR("Shader Compiler was not registered");
+	}
+
+	return gShaderCompilerModule;
+}
+
 bool CompileShader(const ShaderMetaType* ShaderToCompile, const MeshConverterType* MCToCompileWith, ShaderCompilerResult& Result)
 {
 	ShaderCompilerInput compilerInput;
@@ -23,6 +39,6 @@ bool CompileShader(const ShaderMetaType* ShaderToCompile, const MeshConverterTyp
 	//ShaderCompilationConfig config;
 	//MCToCompileWith->ModifyCompilationConfigFunction(config);
 
-	return D3D11::CompileShaderD3D11(compilerInput, Result);
+	return GetShaderCompilerModule()->CompileShader(compilerInput, Result);
 }
 }

@@ -1,4 +1,5 @@
 #pragma once
+#include "IGameEngine.h"
 #include "RendererModule.h"
 #include "World.h"
 
@@ -14,13 +15,17 @@ class GameViewport;
 
 namespace LE
 {
-class GameEngine
+class GameEngine : public IGameEngine
 {
 public:
 	void Init();
 	void Shutdown();
 
 	void Update(bool& IsDone);
+
+	// IGameEngine
+	Renderer::RendererModule* GetRendererModule() override { return &RendererModule; }
+	IWorld* GetWorld() override { return GameWorld; }
 
 private:
 	// This will need to be moved to a separate Platform specific application class

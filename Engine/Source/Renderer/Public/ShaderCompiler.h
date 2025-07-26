@@ -3,8 +3,17 @@
 
 namespace LE::Renderer
 {
-	class MeshConverterType;
-	class ShaderMetaType;
+class MeshConverterType;
+class ShaderMetaType;
 
-	bool CompileShader(const ShaderMetaType* ShaderToCompile, const MeshConverterType* MCToCompileWith, ShaderCompilerResult& Result);
+class ShaderCompilerModule
+{
+public:
+	virtual bool CompileShader(const ShaderCompilerInput& CompilerInput, ShaderCompilerResult& CompilerResult) = 0;
+};
+
+void RegisterShaderCompilerModule(ShaderCompilerModule* CompilerModule);
+ShaderCompilerModule* GetShaderCompilerModule();
+
+bool CompileShader(const ShaderMetaType* ShaderToCompile, const MeshConverterType* MCToCompileWith, ShaderCompilerResult& Result);
 }

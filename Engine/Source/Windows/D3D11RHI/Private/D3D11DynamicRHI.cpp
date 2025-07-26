@@ -1207,17 +1207,17 @@ DynamicRHI* D3D11DynamicRHIModule::CreateRHI()
 		if (!tempAdapter)
 			continue;
 
-		LE_INFO("Testing D3D11 Adapter %d", adapterIndex);
+		LE_INFO("Testing D3D11 Adapter {}", adapterIndex);
 		DXGI_ADAPTER_DESC adapterDesc;
 		if (HRESULT descResult = tempAdapter->GetDesc(&adapterDesc); FAILED(descResult))
 		{
-			LE_INFO("Failed to get adapter description for %d", adapterIndex);
+			LE_INFO("Failed to get adapter description for {}", adapterIndex);
 		}
 		else
 		{
-			LE_INFO("		DedicatedVideoMemory: %d", adapterDesc.DedicatedVideoMemory);
-			LE_INFO("		DedicatedSystemMemory: %d", adapterDesc.DedicatedSystemMemory);
-			LE_INFO("		SharedSystemMemory: %d", adapterDesc.SharedSystemMemory);
+			LE_INFO("		DedicatedVideoMemory: {}", adapterDesc.DedicatedVideoMemory);
+			LE_INFO("		DedicatedSystemMemory: {}", adapterDesc.DedicatedSystemMemory);
+			LE_INFO("		SharedSystemMemory: {}", adapterDesc.SharedSystemMemory);
 		}
 
 		if (TestCreateDevice(tempAdapter.GetPointer()))

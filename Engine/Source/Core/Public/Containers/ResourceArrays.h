@@ -2,7 +2,7 @@
 #include "CoreMinimum.h"
 
 
-namespace LE::Renderer
+namespace LE
 {
 class ResourceArrayInterface
 {

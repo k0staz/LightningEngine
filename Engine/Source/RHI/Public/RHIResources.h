@@ -81,12 +81,12 @@ struct RHIResourceCreateInfo
 	{
 	}
 
-	RHIResourceCreateInfo(Renderer::ResourceArrayInterface* InResourceArray)
+	RHIResourceCreateInfo(ResourceArrayInterface* InResourceArray)
 		: ResourceArray(InResourceArray)
 	{
 	}
 
-	Renderer::ResourceArrayInterface* ResourceArray;
+	ResourceArrayInterface* ResourceArray;
 };
 
 class RHIViewableResource : public RHIResource
@@ -425,7 +425,7 @@ struct RHIViewDescription
 {
 	RHIViewDescription()
 	{
-		ZeroMemory(this, sizeof(*this));
+		MemsetZero(this, sizeof(*this));
 		Common.Type = ViewType::BufferReadView;
 	}
 
@@ -535,7 +535,7 @@ struct RHIViewDescription
 protected:
 	RHIViewDescription(ViewType Type)
 	{
-		ZeroMemory(this, sizeof(*this));
+		MemsetZero(this, sizeof(*this));
 		Common.Type = Type;
 	}
 };
