@@ -2,7 +2,6 @@
 
 #include "ECS/EcsSystem.h"
 #include "EventCore/EventManager.h"
-#include "EventCore/Events/ArchetypeEvents.h"
 
 namespace LE
 {
@@ -13,11 +12,11 @@ namespace LE
 		void Update(const float DeltaSeconds) override;
 		void Shutdown() override;
 
-		void OnArchetypeMatched(const ArchetypeMatched& Event);
-		void OnArchetypeUnmatched(const ArchetypeUnmatched& Event);
+		/*void OnArchetypeMatched(const ArchetypeMatched& Event);
+		void OnArchetypeUnmatched(const ArchetypeUnmatched& Event);*/
 
 	private:
-		EventListener<ArchetypeMatched> ArchetypeMatchListener;
-		EventListener<ArchetypeUnmatched> ArchetypeUnmatchListener;
+		/*EventListener<ArchetypeMatched> ArchetypeMatchListener;
+		EventListener<ArchetypeUnmatched> ArchetypeUnmatchListener;*/
 	};
 }

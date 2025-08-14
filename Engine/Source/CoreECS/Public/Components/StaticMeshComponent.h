@@ -4,17 +4,13 @@
 
 namespace LE
 {
-class StaticMeshComponent : public EcsComponent
+struct StaticMeshComponent
 {
-public:
-	COMPONENT_CLASS("StaticMeshComponent")
+	StaticMeshComponent() = default;
 
-	StaticMeshComponent(EntityId OwnerId)
-		: EcsComponent(OwnerId)
-	{
-	}
-
-	Renderer::StaticMeshRenderData* RenderData;
-	Renderer::Material* MeshMaterial;
+	Renderer::StaticMeshRenderData* RenderData = nullptr;
+	Renderer::Material* MeshMaterial = nullptr;
 };
+
+ECS_REGISTER_COMPONENT(StaticMeshComponent, "StaticMeshComponent")
 }

@@ -4,8 +4,8 @@ namespace LE::Renderer
 {
 IMPLEMENT_GLOBAL_CONSTANT_BUFFER(ObjectShaderParameters, "ObjectShaderParameters")
 
-RenderObjectProxy::RenderObjectProxy(EntityId OwnerEntityId)
-	: Owner(OwnerEntityId)
+RenderObjectProxy::RenderObjectProxy(EcsEntity OwnerEntity)
+	: Owner(OwnerEntity)
 	  , LocalToWorld(Matrix4x4F::Identity())
 {
 }

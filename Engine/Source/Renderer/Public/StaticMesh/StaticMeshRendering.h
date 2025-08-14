@@ -95,7 +95,7 @@ struct StaticMeshRenderData
 class StaticMeshRenderProxy : public RenderObjectProxy
 {
 public:
-	StaticMeshRenderProxy(EntityId InOwnerEntityId, const StaticMeshRenderData* InRenderData, RefCountingPtr<MaterialInstance> InMaterial);
+	StaticMeshRenderProxy(EcsEntity InOwnerEntity, const StaticMeshRenderData* InRenderData, RefCountingPtr<MaterialInstance> InMaterial);
 
 	const StaticMeshRenderData* GetRenderData() const { return RenderData; }
 

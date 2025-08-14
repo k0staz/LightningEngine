@@ -1,6 +1,5 @@
 #pragma once
 #include "ECS/EcsSystem.h"
-#include "EventCore/Events/ArchetypeEvents.h"
 
 namespace LE
 {
@@ -11,10 +10,10 @@ public:
 	void Update(const float DeltaSeconds) override;
 	void Shutdown() override;
 
-	void OnArchetypeMatched(const ArchetypeMatched& Event);
-	void OnArchetypeUnmatched(const ArchetypeUnmatched& Event);
+	/*void OnArchetypeMatched(const ArchetypeMatched& Event);
+	void OnArchetypeUnmatched(const ArchetypeUnmatched& Event);*/
 private:
-	EventListener<ArchetypeMatched> ArchetypeMatchListener;
-	EventListener<ArchetypeUnmatched> ArchetypeUnmatchListener;
+	/*EventListener<ArchetypeMatched> ArchetypeMatchListener;
+	EventListener<ArchetypeUnmatched> ArchetypeUnmatchListener;*/
 };
 }

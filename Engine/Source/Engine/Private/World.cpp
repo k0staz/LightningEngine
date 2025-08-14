@@ -5,7 +5,6 @@
 #include "Containers/Array.h"
 #include "ECS/Ecs.h"
 #include "ECS/EcsModule.h"
-#include "ECS/Components/ComponentRegistry.h"
 #include "ECS/Components/TransformComponent.h"
 #include "ECS/Systems/SystemRegistry.h"
 #include "EventCore/EventManager.h"
@@ -28,14 +27,13 @@ void World::Init()
 {
 	{
 		UniquePtr<ECSModule> module = std::make_unique<ECSModule>();
-		module->Initialize(&EntityManager, &ComponentManager, &SystemManager);
+		module->Initialize(&Registry, &SystemManager);
 		RegisterECSModule(std::move(module));
 	}
-	
-	RegisterComponents(ComponentManager);
+
 	RegisterSystems(SystemManager);
 
-	//InitTestData();
+	InitTestData();
 }
 
 void World::Shutdown()
@@ -51,7 +49,6 @@ void World::Update()
 
 void World::PostUpdate()
 {
-	ComponentManager.PostUpdate();
 }
 
 void World::InitTestData()
@@ -78,13 +75,14 @@ void World::InitTestData()
 	};
 
 	{
-		LE::EcsEntity& entity = *EntityManager.CreateEntity();
-		LE::TransformComponent& transformComponent = ComponentManager.CreateComponent<LE::TransformComponent>(entity.GetId());
+		LE::EcsEntity entity = Registry.CreateEntity();
+		LE::TransformComponent transformComponent;
 		transformComponent.Transform.SetPosition(0.0f, 2.0f, 5.0f);
 		transformComponent.Transform.RotateSelfZ(1.2f);
 		transformComponent.Transform.RotateSelfX(1.2f);
+		Registry.AddComponentToEntity<TransformComponent>(entity, transformComponent);
 
-		LE::StaticMeshComponent& staticMeshComponent = ComponentManager.CreateComponent<LE::StaticMeshComponent>(entity.GetId());
+		LE::StaticMeshComponent staticMeshComponent;
 		staticMeshComponent.RenderData = new Renderer::StaticMeshRenderData();
 
 		staticMeshComponent.RenderData->PrimitiveType = RHI::PrimitiveType::TriangleList;
@@ -95,15 +93,16 @@ void World::InitTestData()
 		staticMeshComponent.RenderData->InitResources();
 
 		staticMeshComponent.MeshMaterial = Renderer::Material::GetMaterialByName("BaseMaterial");
+		Registry.AddComponentToEntity<StaticMeshComponent>(entity, staticMeshComponent);
 	}
 
 	{
-		LE::EcsEntity& entity = *EntityManager.CreateEntity();
-		LE::TransformComponent& transformComponent = ComponentManager.CreateComponent<LE::TransformComponent>(entity.GetId());
+		LE::EcsEntity entity = Registry.CreateEntity();
+		LE::TransformComponent& transformComponent = Registry.AddComponentToEntity<LE::TransformComponent>(entity);
 		transformComponent.Transform.SetPosition(0.0f, -2.0f, 5.0f);
 		transformComponent.Transform.RotateSelfX(1.2f);
 
-		LE::StaticMeshComponent& staticMeshComponent = ComponentManager.CreateComponent<LE::StaticMeshComponent>(entity.GetId());
+		LE::StaticMeshComponent& staticMeshComponent = Registry.AddComponentToEntity<LE::StaticMeshComponent>(entity);
 		staticMeshComponent.RenderData = new Renderer::StaticMeshRenderData();
 
 		staticMeshComponent.RenderData->PrimitiveType = RHI::PrimitiveType::TriangleList;
@@ -117,11 +116,11 @@ void World::InitTestData()
 	}
 
 	{
-		LE::EcsEntity& entity = *EntityManager.CreateEntity();
-		LE::TransformComponent& transformComponent = ComponentManager.CreateComponent<LE::TransformComponent>(entity.GetId());
+		LE::EcsEntity entity = Registry.CreateEntity();
+		LE::TransformComponent& transformComponent = Registry.AddComponentToEntity<LE::TransformComponent>(entity);
 		transformComponent.Transform.SetPosition(0.0f, 0.0f, 0.0f);
 
-		ComponentManager.CreateComponent<LE::CameraComponent>(entity.GetId());
+		Registry.AddComponentToEntity<LE::CameraComponent>(entity);
 	}
 }
 }

@@ -3,16 +3,12 @@
 
 namespace LE
 {
-class CameraComponent : public EcsComponent
+struct CameraComponent
 {
-public:
-	COMPONENT_CLASS("CameraComponent")
-
-	CameraComponent(EntityId OwnerId)
-		: EcsComponent(OwnerId)
-	{
-	}
+	CameraComponent() = default;
 
 	float FOV = 90.0f;
 };
+
+ECS_REGISTER_COMPONENT(CameraComponent, "CameraComponent")
 }

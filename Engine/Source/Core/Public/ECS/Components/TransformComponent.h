@@ -6,17 +6,12 @@
 
 namespace LE
 {
-	class TransformComponent : public EcsComponent
-	{
-	public:
-		COMPONENT_CLASS("TransformComponent")
+struct TransformComponent
+{
+	TransformComponent() = default;
 
-		TransformComponent(EntityId OwnerId)
-			: EcsComponent(OwnerId)
-			  , Transform(Matrix4x4F::Identity())
-		{
-		}
+	Matrix4x4F Transform;
+};
 
-		Matrix4x4F Transform;
-	};
+ECS_REGISTER_COMPONENT(TransformComponent, "TransformComponent")
 }

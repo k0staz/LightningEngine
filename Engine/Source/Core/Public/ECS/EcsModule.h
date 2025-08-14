@@ -1,10 +1,9 @@
 #pragma once
+#include "EcsRegistry.h"
 
 
 namespace LE
 {
-class EcsEntityManager;
-class EcsComponentManager;
 class EcsSystemManager;
 
 class ECSModule
@@ -12,15 +11,13 @@ class ECSModule
 public:
 	ECSModule() = default;
 
-	void Initialize(EcsEntityManager* EntityManager, EcsComponentManager* ComponentManager, EcsSystemManager* SystemManager);
+	void Initialize(EcsRegistry<EcsEntity>* InRegistry, EcsSystemManager* SystemManager);
 
-	EcsEntityManager* GetEntityManager() { return EntityManager; }
-	EcsComponentManager* GetComponentManager() { return ComponentManager; }
+	EcsRegistry<EcsEntity>* GetRegistry() { return Registry; }
 	EcsSystemManager* GetSystemManager() { return SystemManager; }
 
 private:
-	EcsEntityManager* EntityManager;
-	EcsComponentManager* ComponentManager;
+	EcsRegistry<EcsEntity>* Registry;
 	EcsSystemManager* SystemManager;
 };
 }

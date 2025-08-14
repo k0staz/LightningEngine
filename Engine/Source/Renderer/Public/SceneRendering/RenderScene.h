@@ -18,12 +18,12 @@ public:
 	RenderScene& operator=(RenderScene&&) = delete;
 	~RenderScene() override;
 
-	const Map<EntityId, RenderObjectProxy*>& GetProxyMap() const { return RenderObjectProxies; }
+	const Map<EcsEntity, RenderObjectProxy*>& GetProxyMap() const { return RenderObjectProxies; }
 
-	StaticMeshRenderProxy* CreateStaticMeshRenderProxy(EntityId EntityId, const StaticMeshRenderData* RenderData, const Material* MeshMaterial);
-	void DeleteRenderObjectProxy(EntityId EntityId);
+	StaticMeshRenderProxy* CreateStaticMeshRenderProxy(EcsEntity Entity, const StaticMeshRenderData* RenderData, const Material* MeshMaterial);
+	void DeleteRenderObjectProxy(EcsEntity Entity);
 
 private:
-	Map<EntityId, RenderObjectProxy*> RenderObjectProxies;
+	Map<EcsEntity, RenderObjectProxy*> RenderObjectProxies;
 };
 }

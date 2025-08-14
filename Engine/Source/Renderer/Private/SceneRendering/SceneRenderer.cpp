@@ -38,7 +38,7 @@ void SceneRender::RenderBasePass()
 	commandBuilder.PassType = RenderPassType::Base;
 	SetupBasePassState(commandBuilder.PassRenderState);
 
-	const Map<EntityId, RenderObjectProxy*>& proxies = Scene->GetProxyMap();
+	const Map<EcsEntity, RenderObjectProxy*>& proxies = Scene->GetProxyMap();
 	for (auto& it : proxies)
 	{
 		MeshGroup meshGroup;

@@ -7,62 +7,65 @@
 
 namespace LE
 {
-	void RegisterECSModule(UniquePtr<ECSModule> Module);
-	ECSModule& GetECSModule();
+void RegisterECSModule(UniquePtr<ECSModule> Module);
+ECSModule& GetECSModule();
 
-	static EcsEntity* GetEntityById(EntityId EntityId)
+static EcsEntity CreateEntity()
+{
+	return GetECSModule().GetRegistry()->CreateEntity();
+}
+
+static bool IsEntityValid(const EcsEntity Entity)
+{
+	return GetECSModule().GetRegistry()->IsEntityValid(Entity);
+}
+
+static bool DeleteEntityByEntityHandle(const EcsEntity Entity)
+{
+	if (IsEntityValid(Entity))
 	{
-		return GetECSModule().GetEntityManager()->GetEntityById(EntityId);
+		GetECSModule().GetRegistry()->DeleteEntity(Entity);
+		return true;
 	}
 
-	static EcsEntity* CreateEntity()
-	{
-		return  GetECSModule().GetEntityManager()->CreateEntity();
-	}
+	return false;
+}
 
-	static bool DeleteEntityById(EntityId EntityId)
-	{
-		if (GetECSModule().GetEntityManager()->DeleteEntityById(EntityId))
-		{
-			GetECSModule().GetComponentManager()->OnEntityDeleted(EntityId);
-			return true;
-		}
-		
-		return false;
-	}
+template <typename ComponentType, typename... ComponentArgs>
+static ComponentType& AddComponentToEntity(const EcsEntity Entity, ComponentArgs&&... Args)
+{
+	return GetECSModule().GetRegistry()->AddComponentToEntity<ComponentType>(Entity, std::forward<ComponentArgs>(Args)...);
+}
 
-	template<typename ComponentClass>
-	static ComponentClass& CreateComponent(const EntityId& EntityId)
-	{
-		return GetECSModule().GetComponentManager()->CreateComponent<ComponentClass>(EntityId);
-	}
+template <typename... ComponentType>
+static bool HasAllComponents(const EcsEntity Entity)
+{
+	return GetECSModule().GetRegistry()->HasAllComponents<ComponentType...>(Entity);
+}
 
-	template<typename ComponentClass>
-	static const ComponentClass* ReadComponent(const EntityId& EntityId)
-	{
-		return GetECSModule().GetComponentManager()->ReadComponent<ComponentClass>(EntityId);
-	}
+template <typename... ComponentType>
+static bool HasAnyComponents(const EcsEntity Entity)
+{
+	return GetECSModule().GetRegistry()->HasAnyComponents<ComponentType...>(Entity);
+}
 
-	template<typename ComponentClass>
-	static ComponentClass* EditComponent(const EntityId& EntityId)
-	{
-		return GetECSModule().GetComponentManager()->EditComponent<ComponentClass>(EntityId);
-	}
+template <typename... ComponentType>
+static decltype(auto) GetComponent(const EcsEntity Entity)
+{
+	return GetECSModule().GetRegistry()->GetComponent<ComponentType...>(Entity);
+}
 
-	template<typename ComponentClass>
-	static bool HasComponent(const EntityId& EntityId)
-	{
-		return GetECSModule().GetComponentManager()->HasComponent<ComponentClass>(EntityId);
-	}
+template <typename ComponentType, typename... OtherComponents>
+static void DeleteComponent(const EcsEntity Entity)
+{
+	GetECSModule().GetRegistry()->DeleteComponent<ComponentType, OtherComponents...>(Entity);
+}
 
-	template<typename ComponentClass>
-	static void DeleteComponent(const EntityId& EntityId)
-	{
-		GetECSModule().GetComponentManager()->DeleteComponent<ComponentClass>(EntityId);
-	}
-
-	static std::unordered_set<EntityId> GetArchetypeMatchedEntities(const ComponentMask& Archetype)
-	{
-		return GetECSModule().GetComponentManager()->GetArchetypeMatchedEntities(Archetype);
-	}
+template <typename... ComponentType, typename... ExcludedComponents>
+static EcsStorageView<IncludedComponentTypes<EcsComponentStorage<ComponentType, EcsEntity>...>, ExcludedComponentTypes<EcsComponentStorage<
+	ExcludedComponents, EcsEntity>...>>
+	ViewComponents(ExcludedComponentTypes<ExcludedComponents...> Excluded = ExcludedComponentTypes{})
+{
+	return GetECSModule().GetRegistry()->View<ComponentType..., ExcludedComponents...>(Excluded);
+}
 }

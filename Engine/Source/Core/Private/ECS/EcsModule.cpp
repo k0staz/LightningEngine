@@ -2,10 +2,9 @@
 
 namespace LE
 {
-void ECSModule::Initialize(EcsEntityManager* InEntityManager, EcsComponentManager* InComponentManager, EcsSystemManager* InSystemManager)
+void ECSModule::Initialize(EcsRegistry<EcsEntity>* InRegistry, EcsSystemManager* InSystemManager)
 {
-	EntityManager = InEntityManager;
-	ComponentManager = InComponentManager;
+	Registry = InRegistry;
 	SystemManager = InSystemManager;
 }
 }

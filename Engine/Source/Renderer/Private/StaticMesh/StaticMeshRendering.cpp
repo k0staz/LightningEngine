@@ -190,9 +190,9 @@ void StaticMeshRenderData::InitResources()
 	});
 }
 
-StaticMeshRenderProxy::StaticMeshRenderProxy(EntityId InOwnerEntityId, const StaticMeshRenderData* InRenderData,
+StaticMeshRenderProxy::StaticMeshRenderProxy(EcsEntity InOwnerEntity, const StaticMeshRenderData* InRenderData,
                                              RefCountingPtr<MaterialInstance> InMaterial)
-	: RenderObjectProxy(InOwnerEntityId)
+	: RenderObjectProxy(InOwnerEntity)
 	  , RenderData(InRenderData)
 	  , MeshMaterial(InMaterial)
 {

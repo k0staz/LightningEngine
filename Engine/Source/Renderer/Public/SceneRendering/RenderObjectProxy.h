@@ -16,9 +16,9 @@ class RenderObjectProxy
 {
 public:
 	virtual ~RenderObjectProxy() = default;
-	RenderObjectProxy(EntityId OwnerEntityId);
+	RenderObjectProxy(EcsEntity OwnerEntity);
 
-	EntityId GetOwnerEntityId() const { return Owner; }
+	EcsEntity GetOwnerEntity() const { return Owner; }
 	const Matrix4x4F& GetTransform() const { return LocalToWorld; }
 
 	void CreateConstantBuffer();
@@ -34,7 +34,7 @@ public:
 	virtual void GetMeshGroup(MeshGroup& OutMeshGroup) = 0;
 
 protected:
-	EntityId Owner;
+	EcsEntity Owner;
 	Matrix4x4F LocalToWorld;
 	ConstantBufferRef<ObjectShaderParameters> ConstantBuffer;
 };

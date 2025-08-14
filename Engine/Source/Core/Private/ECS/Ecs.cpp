@@ -1,5 +1,7 @@
 #include "ECS/Ecs.h"
 
+#include "Log.h"
+
 
 namespace LE
 {
