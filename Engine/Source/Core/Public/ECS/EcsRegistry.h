@@ -64,7 +64,10 @@ public:
 		LE_ASSERT_DESC(IsEntityValid(EcsEntity), "Attempting to delete an invalid Entity")
 		for (auto& storage : ComponentStorages)
 		{
-			storage.second->Delete(EcsEntity);
+			if (storage.second->Has(EcsEntity))
+			{
+				storage.second->Delete(EcsEntity);
+			}
 		}
 		return EntityStorage.Delete(EcsEntity);
 	}
@@ -163,6 +166,24 @@ public:
 	View(ExcludedComponentTypes<ExcludedComponents...>  = ExcludedComponentTypes{})
 	{
 		return { GetCreateComponentStorage<ComponentType>()..., GetCreateComponentStorage<ExcludedComponents>()... };
+	}
+
+	template<typename ComponentType>
+	auto GetOnAddedSink()
+	{
+		return GetCreateComponentStorage<ComponentType>().GetOnAddedSink();
+	}
+
+	template<typename ComponentType>
+	auto GetOnRemovedSink()
+	{
+		return GetCreateComponentStorage<ComponentType>().GetOnRemovedSink();
+	}
+
+	template<typename ComponentType>
+	auto GetOnUpdatedSink()
+	{
+		return GetCreateComponentStorage<ComponentType>().GetOnUpdatedSink();
 	}
 
 private:

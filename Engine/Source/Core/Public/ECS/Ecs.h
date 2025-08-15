@@ -4,11 +4,21 @@
 #include "EcsComponent.h"
 #include "EcsEntity.h"
 #include "EcsModule.h"
+#include "EcsObserver.h"
 
 namespace LE
 {
 void RegisterECSModule(UniquePtr<ECSModule> Module);
 ECSModule& GetECSModule();
+
+template<typename ComponentType>
+using ComponentStorageForType = EcsComponentStorage<ComponentType, EcsEntity>;
+
+template<typename ...ComponentType>
+using ObservedComponentTypes = IncludedComponentTypes<EcsComponentStorage<ComponentType, EcsEntity>...>;
+
+template<typename ...ComponentType>
+using FilteredComponentTypes = ExcludedComponentTypes<EcsComponentStorage<ComponentType, EcsEntity>...>;
 
 static EcsEntity CreateEntity()
 {
@@ -62,10 +72,18 @@ static void DeleteComponent(const EcsEntity Entity)
 }
 
 template <typename... ComponentType, typename... ExcludedComponents>
-static EcsStorageView<IncludedComponentTypes<EcsComponentStorage<ComponentType, EcsEntity>...>, ExcludedComponentTypes<EcsComponentStorage<
-	ExcludedComponents, EcsEntity>...>>
+static EcsStorageView<IncludedComponentTypes<ComponentStorageForType<ComponentType>...>, ExcludedComponentTypes<ComponentStorageForType<
+	ExcludedComponents>...>>
 	ViewComponents(ExcludedComponentTypes<ExcludedComponents...> Excluded = ExcludedComponentTypes{})
 {
 	return GetECSModule().GetRegistry()->View<ComponentType..., ExcludedComponents...>(Excluded);
+}
+
+template <typename... ComponentType, typename... ExcludedComponents>
+static EcsObserver<IncludedComponentTypes<ComponentStorageForType<ComponentType>...>, ExcludedComponentTypes<ComponentStorageForType<ExcludedComponents>...>>
+	ObserverComponents(ComponentChangeType InObserverType, ExcludedComponentTypes<ExcludedComponents...> Excluded = ExcludedComponentTypes{})
+{
+	EcsRegistry<EcsEntity>& registry = *GetECSModule().GetRegistry();
+	return { InObserverType, registry, registry.View<ComponentType..., ExcludedComponents...>(Excluded) };
 }
 }

@@ -1,6 +1,7 @@
 #pragma once
 #include "SparseSet.h"
 #include "ECS/EcsComponent.h"
+#include "ECS/EcsSignals.h"
 
 namespace LE
 {
@@ -134,6 +135,7 @@ public:
 	using const_iterator = iterator;
 	using reverse_iterator = std::reverse_iterator<iterator>;
 	using const_reverse_iterator = std::reverse_iterator<const_iterator>;
+	using signal_type = Signal<void(const Entity)>;
 
 	EcsComponentStorage()
 		: base_type(base_type::Usage::Component)
@@ -145,6 +147,9 @@ public:
 	EcsComponentStorage(EcsComponentStorage&& Other) noexcept
 		: base_type(std::move(Other))
 		  , ComponentContainer(std::move(Other.ComponentContainer))
+		  , AddedSignal(std::move(Other.AddedSignal))
+		  , RemovedSignal(std::move(Other.RemovedSignal))
+		  , UpdatedSignal(std::move(Other.UpdatedSignal))
 	{
 	}
 
@@ -164,6 +169,9 @@ public:
 	void Swap(EcsComponentStorage& Other) noexcept
 	{
 		std::swap(ComponentContainer, Other.ComponentContainer);
+		std::swap(AddedSignal, Other.AddedSignal);
+		std::swap(RemovedSignal, Other.RemovedSignal);
+		std::swap(UpdatedSignal, Other.UpdatedSignal);
 		base_type::Swap(Other);
 	}
 
@@ -236,6 +244,7 @@ public:
 
 	ComponentType& GetComponent(const Entity EcsEntity) noexcept
 	{
+		UpdatedSignal.Dispatch(EcsEntity);
 		return GetComponentRef(base_type::GetSparseIndex(EcsEntity));
 	}
 
@@ -246,6 +255,7 @@ public:
 
 	std::tuple<ComponentType&> GetComponentAsTuple(const Entity EcsEntity) noexcept
 	{
+		UpdatedSignal.Dispatch(EcsEntity);
 		return std::forward_as_tuple(GetComponent(EcsEntity));
 	}
 
@@ -253,6 +263,7 @@ public:
 	ComponentType& CreateComponent(const Entity EcsEntity, Args&&... InArgs)
 	{
 		const typename base_type::iterator it = CreateComponentImpl(EcsEntity, std::forward<Args>(InArgs)...);
+		AddedSignal.Dispatch(EcsEntity);
 		return GetComponentRef(it.Index());
 	}
 
@@ -282,10 +293,26 @@ public:
 	template <typename... Func>
 	ComponentType& RunOnComponent(const Entity EcsEntity, Func&&... InFunc)
 	{
+		UpdatedSignal.Dispatch(EcsEntity);
 		const size_type idx = base_type::GetSparseIndex(EcsEntity);
 		ComponentType& component = GetComponentRef(idx);
 		(std::forward<Func>(InFunc)(component), ...);
 		return component;
+	}
+
+	auto GetOnAddedSink() noexcept
+	{
+		return Sink{ AddedSignal };
+	}
+
+	auto GetOnRemovedSink() noexcept
+	{
+		return Sink{ RemovedSignal };
+	}
+
+	auto GetOnUpdatedSink() noexcept
+	{
+		return Sink{ UpdatedSignal };
 	}
 
 protected:
@@ -293,6 +320,7 @@ protected:
 	{
 		for (typename base_type::iterator current = Begin; current != End; ++current)
 		{
+			RemovedSignal.Dispatch(*current);
 			ComponentType& component = GetComponentRef(base_type::GetSparseIndex(*current));
 			ComponentType& lastComponent = GetComponentRef(static_cast<size_type>(base_type::Count() - 1));
 			std::exchange(component, std::move(lastComponent));
@@ -305,6 +333,7 @@ protected:
 	{
 		for (typename base_type::iterator current = base_type::begin(); current.Index() >= 0; ++current)
 		{
+			RemovedSignal.Dispatch(*current);
 			base_type::SwapPop(current);
 			ComponentType& component = GetComponentRef(current.Index());
 			std::destroy_at(std::addressof(component));
@@ -354,6 +383,9 @@ private:
 
 private:
 	std::vector<ComponentType*> ComponentContainer;
+	signal_type AddedSignal;
+	signal_type RemovedSignal;
+	signal_type UpdatedSignal; // Doesn't handle iterator
 };
 
 template <typename Entity>

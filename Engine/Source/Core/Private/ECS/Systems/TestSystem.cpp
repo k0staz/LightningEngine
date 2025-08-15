@@ -15,6 +15,8 @@ namespace LE
 
 		gEventManager.ListenToArchetypeMatchedEvent(Archetype, ArchetypeMatchListener);
 		gEventManager.ListenToArchetypeUnmatchedEvent(Archetype, ArchetypeUnmatchListener);*/
+
+		TestObserver = ObserverComponents<TransformComponent>(ComponentChangeType::ComponentAdded);
 		
 	}
 
@@ -43,6 +45,12 @@ namespace LE
 
 			LE_INFO("Change transform to X {} Y {} Z {} for Entity {}", pos.X, pos.Y, pos.Z, entity);
 		}
+
+		for (auto entity : TestObserver)
+		{
+			LE_INFO("Observed change for entity: {}", entity);
+		}
+		TestObserver.ClearObserverEntities();
 
 	}
 

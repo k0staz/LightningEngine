@@ -3,9 +3,11 @@
 #include <vector>
 #include <memory>
 
+#include "Templates/NonCopyable.h"
+
 namespace LE
 {
-	class EcsSystem
+	class EcsSystem : public NonCopyable
 	{
 	public:
 		EcsSystem() {};

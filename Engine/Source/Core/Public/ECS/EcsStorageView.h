@@ -5,6 +5,8 @@
 
 #include <array>
 
+#include "Templates/TypeHelpers.h"
+
 namespace LE
 {
 template <typename Iterator, typename Entity>
@@ -99,21 +101,6 @@ struct ComponentStorageType<0u, ComponentTypeList<FirstType, OtherTypes...>>
 
 template <std::size_t Index, typename List>
 using ComponentStorageTypeAtIndex = typename ComponentStorageType<Index, List>::Type;
-
-template <typename To, typename From>
-struct TransferConstness
-{
-	using Type = std::remove_const_t<To>;
-};
-
-template <typename To, typename From>
-struct TransferConstness<To, const From>
-{
-	using Type = const To;
-};
-
-template <typename To, typename From>
-using TransferConstnessType = typename TransferConstness<To, From>::Type;
 
 template <typename BaseStorageType, std::size_t Num, std::size_t ExcludeNum>
 class EcsComponentStorageViewIterator
@@ -235,6 +222,8 @@ public:
 	using difference_type = std::ptrdiff_t;
 	using iterator = EcsComponentStorageViewIterator<BaseStorageType, Num, ExcludeNum>;
 
+	virtual ~EcsComponentStorageViewBase() = default;
+
 	void RefreshLeadingStorage() noexcept
 	{
 		if (LeadingStorageIndex == Num)
@@ -253,7 +242,14 @@ public:
 		UpdateLeadingStorageIndex();
 	}
 
-	const base_storage_type* GetLeadingStorage() const noexcept
+	void Swap(EcsComponentStorageViewBase& Other)
+	{
+		std::swap(ComponentStorages, Other.ComponentStorages);
+		std::swap(ExcludedComponentStorages, Other.ExcludedComponentStorages);
+		std::swap(LeadingStorageIndex, Other.LeadingStorageIndex);
+	}
+
+	virtual const base_storage_type* GetLeadingStorage() const noexcept
 	{
 		return LeadingStorageIndex != Num ? ComponentStorages[LeadingStorageIndex] : nullptr;
 	}
@@ -271,7 +267,7 @@ public:
 		}
 
 		return {
-			ComponentStorages[LeadingStorageIndex]->end() - static_cast<difference_type>(GetLeadingStorageSize()), ComponentStorages,
+			GetLeadingStorage()->end() - static_cast<difference_type>(GetLeadingStorageSize()), ComponentStorages,
 			ExcludedComponentStorages, LeadingStorageIndex
 		};
 	}
@@ -283,7 +279,7 @@ public:
 			return {};
 		}
 
-		return {ComponentStorages[LeadingStorageIndex]->end(), ComponentStorages, ExcludedComponentStorages, LeadingStorageIndex};
+		return { GetLeadingStorage()->end(), ComponentStorages, ExcludedComponentStorages, LeadingStorageIndex};
 	}
 
 	entity_type front() const noexcept
@@ -319,7 +315,7 @@ public:
 			return end();
 		}
 
-		return {ComponentStorages[LeadingStorageIndex]->Find(Entity), ComponentStorages, ExcludedComponentStorages, LeadingStorageIndex};
+		return { GetLeadingStorage()->Find(Entity), ComponentStorages, ExcludedComponentStorages, LeadingStorageIndex};
 	}
 
 	explicit operator bool() const noexcept
@@ -388,7 +384,7 @@ private:
 
 	size_type GetLeadingStorageSize() const noexcept
 	{
-		return ComponentStorages[LeadingStorageIndex]->Count();
+		return GetLeadingStorage()->Count();
 	}
 
 private:
@@ -423,6 +419,11 @@ public:
 	EcsStorageView(Components&... ComponentsIn, ExcludedComponents&... Excluded) noexcept
 		: base_type({&ComponentsIn...}, {&Excluded...})
 	{
+	}
+
+	void Swap(EcsStorageView& Other)
+	{
+		base_type::Swap(Other);
 	}
 
 	template <typename ComponentType>
@@ -463,7 +464,7 @@ public:
 		}
 	}
 
-private:
+protected:
 	template <typename ComponentType>
 	static constexpr size_type ComponentStorageIndex = ComponentIndexInList<
 		ComponentType, ComponentTypeList<typename Components::value_type...>>;
