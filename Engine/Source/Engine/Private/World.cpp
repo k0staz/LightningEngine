@@ -99,7 +99,26 @@ void World::InitTestData()
 	{
 		LE::EcsEntity entity = Registry.CreateEntity();
 		LE::TransformComponent& transformComponent = Registry.AddComponentToEntity<LE::TransformComponent>(entity);
-		transformComponent.Transform.SetPosition(0.0f, -2.0f, 5.0f);
+		transformComponent.Transform.SetPosition(-5.0f, -2.0f, 5.0f);
+		transformComponent.Transform.RotateSelfX(1.2f);
+
+		LE::StaticMeshComponent& staticMeshComponent = Registry.AddComponentToEntity<LE::StaticMeshComponent>(entity);
+		staticMeshComponent.RenderData = new Renderer::StaticMeshRenderData();
+
+		staticMeshComponent.RenderData->PrimitiveType = RHI::PrimitiveType::TriangleList;
+
+		staticMeshComponent.RenderData->VertexBuffers.Init(vertices);
+		staticMeshComponent.RenderData->IndexBuffer.Init(indices);
+
+		staticMeshComponent.RenderData->InitResources();
+
+		staticMeshComponent.MeshMaterial = Renderer::Material::GetMaterialByName("BaseMaterial");
+	}
+
+	{
+		LE::EcsEntity entity = Registry.CreateEntity();
+		LE::TransformComponent& transformComponent = Registry.AddComponentToEntity<LE::TransformComponent>(entity);
+		transformComponent.Transform.SetPosition(5.0f, -2.0f, 5.0f);
 		transformComponent.Transform.RotateSelfX(1.2f);
 
 		LE::StaticMeshComponent& staticMeshComponent = Registry.AddComponentToEntity<LE::StaticMeshComponent>(entity);

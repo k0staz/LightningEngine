@@ -603,6 +603,13 @@ void D3D11DynamicRHI::SetRenderTargets(const RHIRenderTargetView* NewRenderTarge
 		renderTargetView = newRenderTarget->GetRenderTargetView(0);
 
 		ClearShaderResource(newRenderTarget);
+		// TODO: REMOVE THIS ONCE RENDER GRAPH IS IMPLEMENTED, IT SHOULD BE CLEANED ON RENDER PASS BEGIN VIA RENDER PASS INFO
+		float color[4];
+		color[0] = 0.0f;
+		color[1] = 0.0f;
+		color[2] = 0.0f;
+		color[3] = 0.0f;
+		ImmediateContext->ClearRenderTargetView(renderTargetView, color);
 	}
 
 	if (CurrentRenderTarget.GetPointer() != renderTargetView)

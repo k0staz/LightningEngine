@@ -23,10 +23,11 @@ namespace LE
 
 			Vector3F pos = transformComponent.Transform.GetPosition();
 
-			static constexpr float freq = 0.00002f;
-			static constexpr float amp = 2.2f;
+			static constexpr float freq = 0.2f;
+			static constexpr float amp = 0.0002f;
 
-			pos.Y += amp * Sin(TWO_PI * time * freq);
+			pos.Y += amp * Sin(PI * time * freq);
+			pos.X += amp * Sin(PI * time * freq);
 
 			transformComponent.Transform.SetPosition(pos);
 
