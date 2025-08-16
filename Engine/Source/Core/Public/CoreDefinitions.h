@@ -11,6 +11,8 @@ namespace LE
 {
 #define FLOAT_MAX 3.402823466e+38F
 
+#define ENTITY_SPARSE_PAGE 4096
+
 template <typename T>
 using UniquePtr = std::unique_ptr<T>;
 
@@ -40,4 +42,6 @@ typedef int32_t int32;
 typedef int64_t int64;
 
 typedef std::string String;
+
+template<class> struct AlwaysFalse : std::false_type {};
 }

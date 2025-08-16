@@ -5,6 +5,7 @@
 #include <utility>
 
 #include "CoreConcepts.h"
+#include "CoreMinimum.h"
 
 #undef max
 #undef min
@@ -90,5 +91,24 @@ inline int32_t CountBits(uint64_t Bits)
 	Bits = (Bits & 0x3333333333333333ull) + ((Bits >> 2) & 0x3333333333333333ull);
 	Bits = (Bits + (Bits >> 4)) & 0x0f0f0f0f0f0f0f0full;
 	return (Bits * 0x0101010101010101) >> 56;
+}
+
+template<Unsigned T>
+T FastMod(const T Value, const T PowerOfTwoMod) noexcept
+{
+	LE_ASSERT_DESC(std::has_single_bit(PowerOfTwoMod), "Mod must be power of two, supplied mode: {}", PowerOfTwoMod)
+	return Value & (PowerOfTwoMod - 1);
+}
+
+constexpr uint32 FNV1AHash(std::string_view String)
+{
+	uint32 result = 2166136261u; // Offset Basis
+	for (const char c : String)
+	{
+		result ^= static_cast<unsigned char>(c);
+		result *= 16777619u; // FNV Prime
+	}
+
+	return result;
 }
 }

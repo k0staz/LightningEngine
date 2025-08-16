@@ -12,11 +12,6 @@ namespace LE
 {
 	using EventType = std::string;
 
-	class ArchetypeEvent;
-	class ArchetypeMatched;
-	class ArchetypeUnmatched;
-	class ArchetypeChange;
-
 	class Event
 	{
 	public:
@@ -88,25 +83,15 @@ namespace LE
 		void Shutdown();  
 
 		void ListenToEvent(EventType EventType, std::unique_ptr<IEventListenerWrapper>&& Listener);
-		void ListenToArchetypeMatchedEvent(ComponentMask Archetype, const EventListener<ArchetypeMatched>& Callback);
-		void ListenToArchetypeUnmatchedEvent(ComponentMask Archetype, const EventListener<ArchetypeUnmatched>& Callback);
-		void ListenToArchetypeChangeEvent(ComponentMask Archetype, const EventListener<ArchetypeChange>& Callback);
 		void Unsubscribe(EventType EventType, const std::string& ListenerName);
 		void QueueEvent(std::unique_ptr<Event>&& Event);
-		void QueueCoreEvent(std::unique_ptr<ArchetypeEvent>&& Event);
 		void DispatchEvents();
 
 	private:
-		void DispatchCoreEvents();
 		void DispatchEvent(const Event& Event);
 
 		std::vector<std::unique_ptr<Event>> EventQueue; // TODO: Circular bufffer?
-		std::vector<std::unique_ptr<ArchetypeEvent>> CoreEventQueue;
 		std::unordered_map<EventType, std::vector<std::unique_ptr<IEventListenerWrapper>>> Listeners;
-		
-		std::unordered_map<ComponentMask, std::vector<std::unique_ptr<IEventListenerWrapper>>> ArchetypeMatchedListeners;
-		std::unordered_map<ComponentMask, std::vector<std::unique_ptr<IEventListenerWrapper>>> ArchetypeUnmatchedListeners;
-		std::unordered_map<ComponentMask, std::vector<std::unique_ptr<IEventListenerWrapper>>> ArchetypeChangeListeners;
 		
 	};
 
@@ -129,10 +114,5 @@ namespace LE
 	inline void QueueEvent(std::unique_ptr<Event>&& QueuedEvent)
 	{
 		gEventManager.QueueEvent(std::forward<std::unique_ptr<Event>>(QueuedEvent));
-	}
-
-	inline void QueueCoreEvent(std::unique_ptr<ArchetypeEvent>&& QueuedEvent)
-	{
-		gEventManager.QueueCoreEvent(std::forward<std::unique_ptr<ArchetypeEvent>>(QueuedEvent));
 	}
 }

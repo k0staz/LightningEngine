@@ -1,6 +1,7 @@
 #pragma once
 #include "IWorld.h"
 #include "ECS/EcsComponent.h"
+#include "ECS/EcsRegistry.h"
 #include "ECS/EcsSystem.h"
 #include "SceneRendering/SceneView.h"
 
@@ -22,8 +23,7 @@ private:
 	void InitTestData();
 
 public:
-	EcsEntityManager EntityManager;
-	EcsComponentManager ComponentManager;
+	EcsRegistry<EcsEntity> Registry;
 	EcsSystemManager SystemManager;
 
 private:
