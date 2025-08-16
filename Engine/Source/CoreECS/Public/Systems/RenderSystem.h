@@ -1,4 +1,8 @@
 #pragma once
+#include "Components/StaticMeshComponent.h"
+#include "Components/TransformComponent.h"
+#include "ECS/Ecs.h"
+#include "ECS/EcsObserver.h"
 #include "ECS/EcsSystem.h"
 
 namespace LE
@@ -10,10 +14,10 @@ public:
 	void Update(const float DeltaSeconds) override;
 	void Shutdown() override;
 
-	/*void OnArchetypeMatched(const ArchetypeMatched& Event);
-	void OnArchetypeUnmatched(const ArchetypeUnmatched& Event);*/
 private:
-	/*EventListener<ArchetypeMatched> ArchetypeMatchListener;
-	EventListener<ArchetypeUnmatched> ArchetypeUnmatchListener;*/
+	EcsObserver<ObservedComponentTypes<StaticMeshComponent, TransformComponent>, FilteredComponentTypes<>> OnAddObserver;
+	EcsObserver<ObservedComponentTypes<StaticMeshComponent, TransformComponent>, FilteredComponentTypes<>> OnRemoveObserver;
 };
+
+REGISTER_ECS_SYSTEM(RenderSystem)
 }

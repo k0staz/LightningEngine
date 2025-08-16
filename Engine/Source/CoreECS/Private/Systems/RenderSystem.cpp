@@ -4,7 +4,7 @@
 #include "RendererModule.h"
 #include "Components/CameraComponent.h"
 #include "Components/StaticMeshComponent.h"
-#include "ECS/Components/TransformComponent.h"
+#include "Components/TransformComponent.h"
 #include "ECS/Ecs.h"
 #include "SceneRendering/RenderScene.h"
 
@@ -12,20 +12,36 @@ namespace LE
 {
 void RenderSystem::Initialize()
 {
-	/*ComponentMask archetype;
-	archetype.set(GetComponentTypeId<StaticMeshComponent>());
-	archetype.set(GetComponentTypeId<TransformComponent>());
-
-	ArchetypeMatchListener = [this](const ArchetypeMatched& Event) { OnArchetypeMatched(Event); };
-	ArchetypeUnmatchListener = [this](const ArchetypeUnmatched& Event) { OnArchetypeUnmatched(Event); };
-
-	gEventManager.ListenToArchetypeMatchedEvent(archetype, ArchetypeMatchListener);
-	gEventManager.ListenToArchetypeUnmatchedEvent(archetype, ArchetypeUnmatchListener);*/
+	OnAddObserver = ObserverComponents<StaticMeshComponent, TransformComponent>(ComponentChangeType::ComponentAdded);
+	OnRemoveObserver = ObserverComponents<StaticMeshComponent, TransformComponent>(ComponentChangeType::ComponentRemoved);
 }
 
 void RenderSystem::Update(const float DeltaSeconds)
 {
 	Renderer::RenderScene& renderScene = GetRendererModule()->GetRenderScene();
+	for (auto entity : OnAddObserver)
+	{
+		const StaticMeshComponent& staticMeshComponent = OnAddObserver.GetComponents<StaticMeshComponent>(entity);
+		const TransformComponent& transformComponent = OnAddObserver.GetComponents<TransformComponent>(entity);
+
+		Renderer::StaticMeshRenderProxy* proxy = renderScene.CreateStaticMeshRenderProxy(entity, staticMeshComponent.RenderData, staticMeshComponent.MeshMaterial);
+		if (!proxy)
+		{
+			LE_ASSERT_DESC(false, "Failed to create static mesh render proxy for entity {}", entity)
+			continue;
+		}
+
+		proxy->SetTransform(transformComponent.Transform);
+		proxy->CreateConstantBuffer();
+	}
+	OnAddObserver.ResetObservedEntities();
+
+	for (auto entity : OnRemoveObserver)
+	{
+		renderScene.DeleteRenderObjectProxy(entity);
+	}
+	OnRemoveObserver.ResetObservedEntities();
+
 	const auto& proxyMap = renderScene.GetProxyMap();
 
 	auto view = ViewComponents<StaticMeshComponent, TransformComponent>();
@@ -59,43 +75,5 @@ void RenderSystem::Update(const float DeltaSeconds)
 
 void RenderSystem::Shutdown()
 {
-	/*gEventManager.Unsubscribe(ArchetypeMatched::GetStaticEventType(), ArchetypeMatchListener.target_type().name());
-	gEventManager.Unsubscribe(ArchetypeUnmatched::GetStaticEventType(), ArchetypeUnmatchListener.target_type().name());*/
 }
-
-//void RenderSystem::OnArchetypeMatched(const ArchetypeMatched& Event)
-//{
-//	Renderer::RenderScene& renderScene = GetRendererModule()->GetRenderScene();
-//
-//	const StaticMeshComponent* staticMeshComponent = ReadComponent<StaticMeshComponent>(Event.EntityId);
-//	if (!staticMeshComponent)
-//	{
-//		LE_ASSERT(false)
-//		return;
-//	}
-//
-//	const TransformComponent* transformComponent = ReadComponent<TransformComponent>(Event.EntityId);
-//	if (!transformComponent)
-//	{
-//		LE_ASSERT(false)
-//		return;
-//	}
-//
-//	Renderer::StaticMeshRenderProxy* proxy = renderScene.CreateStaticMeshRenderProxy(
-//		Event.EntityId, staticMeshComponent->RenderData, staticMeshComponent->MeshMaterial);
-//	if (!proxy)
-//	{
-//		LE_ASSERT(false)
-//		return;
-//	}
-//
-//	proxy->SetTransform(transformComponent->Transform);
-//	proxy->CreateConstantBuffer();
-//}
-//
-//void RenderSystem::OnArchetypeUnmatched(const ArchetypeUnmatched& Event)
-//{
-//	Renderer::RenderScene& renderScene = GetRendererModule()->GetRenderScene();
-//	renderScene.DeleteRenderObjectProxy(Event.EntityId);
-//}
 }

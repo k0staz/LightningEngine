@@ -9,99 +9,6 @@
 
 namespace LE
 {
-template <typename Iterator, typename Entity>
-bool EachContainerHas(Iterator FirstContainer, Iterator LastContainer, const Entity EcsEntity) noexcept
-{
-	for (Iterator current = FirstContainer; current != LastContainer; ++current)
-	{
-		if (!(*current)->Has(EcsEntity))
-		{
-			return false;
-		}
-	}
-
-	return true;
-}
-
-template <typename Iterator, typename Entity>
-bool NoneOfContainersHas(Iterator FirstContainer, Iterator LastContainer, const Entity EcsEntity) noexcept
-{
-	for (Iterator current = FirstContainer; current != LastContainer; ++current)
-	{
-		if ((*current)->Has(EcsEntity))
-		{
-			return false;
-		}
-	}
-
-	return true;
-}
-
-template <typename... ComponentType>
-struct ComponentTypeList
-{
-	using Type = ComponentTypeList;
-	static constexpr std::size_t ListSize = sizeof...(ComponentType);
-};
-
-template <typename, typename>
-struct ComponentTypeListIndex;
-
-template <typename ComponentType>
-struct ComponentTypeListIndex<ComponentType, ComponentTypeList<>>
-{
-	static_assert(AlwaysFalse<ComponentType>::value, "ComponentType is not in ComponentTypeList");
-	static constexpr std::size_t Index = 0u;
-};
-
-template <typename ComponentType, typename... Other>
-struct ComponentTypeListIndex<ComponentType, ComponentTypeList<ComponentType, Other...>>
-{
-	static constexpr std::size_t Index = 0u;
-};
-
-template <typename ComponentType, typename First, typename... Other>
-struct ComponentTypeListIndex<ComponentType, ComponentTypeList<First, Other...>>
-{
-	static constexpr std::size_t Index = 1u + ComponentTypeListIndex<ComponentType, ComponentTypeList<Other...>>::Index;
-};
-
-template <typename ComponentType, typename List>
-inline constexpr std::size_t ComponentIndexInList = ComponentTypeListIndex<ComponentType, List>::Index;
-
-template <typename... ComponentTypes>
-struct IncludedComponentTypes final : ComponentTypeList<ComponentTypes...>
-{
-	explicit constexpr IncludedComponentTypes() = default;
-};
-
-template <typename... ExcludedComponents>
-struct ExcludedComponentTypes final : ComponentTypeList<ExcludedComponents...>
-{
-	explicit constexpr ExcludedComponentTypes() = default;
-};
-
-template <typename... ExcludedComponents>
-inline constexpr ExcludedComponentTypes<ExcludedComponents...> ExcludeComponentTypes{};
-
-template <std::size_t, typename>
-struct ComponentStorageType;
-
-template <std::size_t Index, typename FirstType, typename... OtherTypes>
-struct ComponentStorageType<Index, ComponentTypeList<FirstType, OtherTypes...>>
-	: ComponentStorageType<Index - 1u, ComponentTypeList<OtherTypes...>>
-{
-};
-
-template <typename FirstType, typename... OtherTypes>
-struct ComponentStorageType<0u, ComponentTypeList<FirstType, OtherTypes...>>
-{
-	using Type = FirstType;
-};
-
-template <std::size_t Index, typename List>
-using ComponentStorageTypeAtIndex = typename ComponentStorageType<Index, List>::Type;
-
 template <typename BaseStorageType, std::size_t Num, std::size_t ExcludeNum>
 class EcsComponentStorageViewIterator
 {
@@ -130,6 +37,7 @@ public:
 		  , ExcludedComponentStorages(ExcludedStorages)
 		  , Index(static_cast<difference_type>(IndexIn))
 	{
+		Advance();
 	}
 
 	EcsComponentStorageViewIterator& operator++() noexcept
@@ -165,8 +73,7 @@ private:
 	{
 		if (Num != 1u)
 		{
-			if (!EachContainerHas(ComponentStorages.begin(), ComponentStorages.begin() + Index, Entity) ||
-				!EachContainerHas(ComponentStorages.begin() + Index + 1, ComponentStorages.end(), Entity))
+			if (!AllIncludedContainerHave(Entity))
 			{
 				return false;
 			}
@@ -183,6 +90,12 @@ private:
 		return true;
 	}
 
+	bool AllIncludedContainerHave(const typename iterator_traits::value_type Entity) const noexcept
+	{
+		return EachContainerHas(ComponentStorages.begin(), ComponentStorages.begin() + Index, Entity)
+			&& EachContainerHas(ComponentStorages.begin() + Index + 1, ComponentStorages.end(), Entity);
+		
+	}
 
 	void Advance()
 	{
@@ -222,8 +135,6 @@ public:
 	using difference_type = std::ptrdiff_t;
 	using iterator = EcsComponentStorageViewIterator<BaseStorageType, Num, ExcludeNum>;
 
-	virtual ~EcsComponentStorageViewBase() = default;
-
 	void RefreshLeadingStorage() noexcept
 	{
 		if (LeadingStorageIndex == Num)
@@ -249,7 +160,7 @@ public:
 		std::swap(LeadingStorageIndex, Other.LeadingStorageIndex);
 	}
 
-	virtual const base_storage_type* GetLeadingStorage() const noexcept
+	const base_storage_type* GetLeadingStorage() const noexcept
 	{
 		return LeadingStorageIndex != Num ? ComponentStorages[LeadingStorageIndex] : nullptr;
 	}
@@ -279,7 +190,7 @@ public:
 			return {};
 		}
 
-		return { GetLeadingStorage()->end(), ComponentStorages, ExcludedComponentStorages, LeadingStorageIndex};
+		return {GetLeadingStorage()->end(), ComponentStorages, ExcludedComponentStorages, LeadingStorageIndex};
 	}
 
 	entity_type front() const noexcept
@@ -315,7 +226,7 @@ public:
 			return end();
 		}
 
-		return { GetLeadingStorage()->Find(Entity), ComponentStorages, ExcludedComponentStorages, LeadingStorageIndex};
+		return {GetLeadingStorage()->Find(Entity), ComponentStorages, ExcludedComponentStorages, LeadingStorageIndex};
 	}
 
 	explicit operator bool() const noexcept
@@ -387,7 +298,7 @@ private:
 		return GetLeadingStorage()->Count();
 	}
 
-private:
+protected:
 	std::array<const BaseStorageType*, Num> ComponentStorages;
 	std::array<const BaseStorageType*, ExcludeNum> ExcludedComponentStorages;
 	size_type LeadingStorageIndex;
@@ -419,11 +330,6 @@ public:
 	EcsStorageView(Components&... ComponentsIn, ExcludedComponents&... Excluded) noexcept
 		: base_type({&ComponentsIn...}, {&Excluded...})
 	{
-	}
-
-	void Swap(EcsStorageView& Other)
-	{
-		base_type::Swap(Other);
 	}
 
 	template <typename ComponentType>
@@ -464,7 +370,7 @@ public:
 		}
 	}
 
-protected:
+private:
 	template <typename ComponentType>
 	static constexpr size_type ComponentStorageIndex = ComponentIndexInList<
 		ComponentType, ComponentTypeList<typename Components::value_type...>>;

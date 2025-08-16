@@ -5,6 +5,7 @@ namespace LE
 {
 enum class ComponentChangeType : uint8
 {
+	None,
 	ComponentAdded,
 	ComponentRemoved,
 	ComponentUpdated

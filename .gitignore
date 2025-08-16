@@ -1,7 +1,7 @@
 # Directories
 .vs/
 Binaries/
-Engine/Generated
+Engine/**/Generated/*
 
 # Files
 *.vcxproj
@@ -45,3 +45,4 @@ Makefile
 
 #Exclude
 !3rdParty/
+vs-chromium-project.txt

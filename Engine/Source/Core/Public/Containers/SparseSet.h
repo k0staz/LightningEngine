@@ -415,13 +415,10 @@ protected:
 
 		// Swap Entities
 		Type& swapEntity = GetSparseRef(Packed.back());
-		if (swapEntity != entityToDelete)
-		{
-			swapEntity = Traits::CreateCombined(deletePos, Traits::GetGenerationAsValue(Packed.back())); // Swap Entities
-			Packed[deletePos] = Packed.back();
-			Packed.back() = EcsEntityNull;
-			entityToDelete = EcsEntityNull;
-		}
+		swapEntity = Traits::CreateCombined(deletePos, Traits::GetGenerationAsValue(Packed.back())); // Swap Entities
+		Packed[deletePos] = Packed.back();
+		Packed.back() = EcsEntityNull;
+		entityToDelete = EcsEntityNull;
 
 		Packed.pop_back();
 	}

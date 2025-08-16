@@ -72,18 +72,16 @@ static void DeleteComponent(const EcsEntity Entity)
 }
 
 template <typename... ComponentType, typename... ExcludedComponents>
-static EcsStorageView<IncludedComponentTypes<ComponentStorageForType<ComponentType>...>, ExcludedComponentTypes<ComponentStorageForType<
-	ExcludedComponents>...>>
-	ViewComponents(ExcludedComponentTypes<ExcludedComponents...> Excluded = ExcludedComponentTypes{})
+static EcsStorageView<IncludedComponentTypes<ComponentStorageForType<ComponentType>...>, ExcludedComponentTypes<ComponentStorageForType<ExcludedComponents>...>>
+	ViewComponents(ExcludedComponentTypes<ExcludedComponents...>  = ExcludedComponentTypes{})
 {
-	return GetECSModule().GetRegistry()->View<ComponentType..., ExcludedComponents...>(Excluded);
+	return GetECSModule().GetRegistry()->View<ComponentType...>(ExcludedComponentTypes<ExcludedComponents...>{});
 }
 
 template <typename... ComponentType, typename... ExcludedComponents>
 static EcsObserver<IncludedComponentTypes<ComponentStorageForType<ComponentType>...>, ExcludedComponentTypes<ComponentStorageForType<ExcludedComponents>...>>
-	ObserverComponents(ComponentChangeType InObserverType, ExcludedComponentTypes<ExcludedComponents...> Excluded = ExcludedComponentTypes{})
+	ObserverComponents(ComponentChangeType InObserverType, ExcludedComponentTypes<ExcludedComponents...> = ExcludedComponentTypes{})
 {
-	EcsRegistry<EcsEntity>& registry = *GetECSModule().GetRegistry();
-	return { InObserverType, registry, registry.View<ComponentType..., ExcludedComponents...>(Excluded) };
+	return GetECSModule().GetRegistry()->Observe<ComponentType...>(InObserverType, ExcludedComponentTypes<ExcludedComponents...>{});
 }
 }

@@ -7,6 +7,9 @@
 
 namespace LE
 {
+// TODO: Temp decision until I came up with something better
+#define REGISTER_ECS_SYSTEM(SystemName)
+
 	class EcsSystem : public NonCopyable
 	{
 	public:

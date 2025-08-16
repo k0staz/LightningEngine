@@ -1,6 +1,8 @@
 #pragma once
 #include <algorithm>
 
+#include "EcsDefinitions.h"
+#include "EcsObserver.h"
 #include "EcsStorageView.h"
 #include "Containers/ECSStorage.h"
 #include "Containers/SparseSet.h"
@@ -184,6 +186,14 @@ public:
 	auto GetOnUpdatedSink()
 	{
 		return GetCreateComponentStorage<ComponentType>().GetOnUpdatedSink();
+	}
+
+	template <typename... ComponentType, typename... ExcludedComponents>
+	EcsObserver<IncludedComponentTypes<EcsComponentStorage<ComponentType, Entity>...>, ExcludedComponentTypes<EcsComponentStorage<
+		            ExcludedComponents, Entity>...>>
+		Observe(ComponentChangeType InType, ExcludedComponentTypes<ExcludedComponents...> = ExcludedComponentTypes{})
+	{
+		return { InType , GetCreateComponentStorage<ComponentType>()..., GetCreateComponentStorage<ExcludedComponents>()... };
 	}
 
 private:

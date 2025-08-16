@@ -1,12 +1,12 @@
 #include "World.h"
 
+#include "../../CoreECS/Generated/Public/ECSSystemAutoRegistration.h"
 #include "Components/CameraComponent.h"
 #include "Components/StaticMeshComponent.h"
+#include "Components/TransformComponent.h"
 #include "Containers/Array.h"
 #include "ECS/Ecs.h"
 #include "ECS/EcsModule.h"
-#include "ECS/Components/TransformComponent.h"
-#include "ECS/Systems/SystemRegistry.h"
 #include "EventCore/EventManager.h"
 #include "StaticMesh/StaticMeshRendering.h"
 #include "Time/Clock.h"
@@ -29,9 +29,9 @@ void World::Init()
 		UniquePtr<ECSModule> module = std::make_unique<ECSModule>();
 		module->Initialize(&Registry, &SystemManager);
 		RegisterECSModule(std::move(module));
-	}
 
-	RegisterSystems(SystemManager);
+		LE::ECSSystemRegistration::RegisterAllSystems(SystemManager); // TODO: Temp decision until I came up with something better
+	}
 
 	InitTestData();
 }
