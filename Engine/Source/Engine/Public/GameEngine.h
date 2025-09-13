@@ -35,6 +35,8 @@ private:
 
 	void InitMaterials();
 
+	void ConstructUpdateGraph();
+
 public:
 	RefCountingPtr<SystemWindow> Window;
 

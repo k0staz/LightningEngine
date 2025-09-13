@@ -1,13 +1,19 @@
 #include "Systems/TestSystem.h"
 
+#include "CoreECSUpdatePasses.h"
 #include "Components/CameraComponent.h"
 #include "Components/TransformComponent.h"
 #include "ECS/Ecs.h"
+#include "Multithreading/UpdateJobs.h"
+#include "Multithreading/UpdatePasses.h"
 
 namespace LE
 {
 	void TestSystem::Initialize()
 	{
+		TestSystemUpdate.UpdateFunction.Attach<&TestSystem::Update>(this);
+		TestSystemUpdate.WritesComponents<TransformComponent>();
+		UpdatePass::AddJob<TestUpdatePass>(&TestSystemUpdate);
 	}
 
 	void TestSystem::Update(const float DeltaSeconds)

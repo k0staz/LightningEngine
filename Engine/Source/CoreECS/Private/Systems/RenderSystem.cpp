@@ -1,11 +1,13 @@
 #include "Systems/RenderSystem.h"
 
+#include "CoreECSUpdatePasses.h"
 #include "EngineGlobals.h"
 #include "RendererModule.h"
 #include "Components/CameraComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Components/TransformComponent.h"
 #include "ECS/Ecs.h"
+#include "Multithreading/UpdatePasses.h"
 #include "SceneRendering/RenderScene.h"
 
 namespace LE
@@ -14,6 +16,10 @@ void RenderSystem::Initialize()
 {
 	OnAddObserver = ObserverComponents<StaticMeshComponent, TransformComponent>(ComponentChangeType::ComponentAdded);
 	OnRemoveObserver = ObserverComponents<StaticMeshComponent, TransformComponent>(ComponentChangeType::ComponentRemoved);
+
+	RenderUpdate.UpdateFunction.Attach<&RenderSystem::Update>(this);
+	RenderUpdate.ReadsComponents<StaticMeshComponent, TransformComponent, CameraComponent>();
+	UpdatePass::AddJob<RenderPass>(&RenderUpdate);
 }
 
 void RenderSystem::Update(const float DeltaSeconds)

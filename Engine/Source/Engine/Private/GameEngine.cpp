@@ -6,6 +6,7 @@
 #include "WindowsWindow.h"
 #include "Application/SystemWindow.h"
 #include "EventCore/EventManager.h"
+#include "Multithreading/JobScheduler.h"
 
 namespace LE
 {
@@ -19,6 +20,8 @@ void GameEngine::Init()
 
 	GameWorld = new World;
 	GameWorld->Init();
+
+	ConstructUpdateGraph();
 
 	RHI::InitRHI();
 
@@ -108,5 +111,11 @@ void GameEngine::InitMaterials()
 	{
 		LE_INFO("{}", it.first.c_str());
 	}
+}
+
+void GameEngine::ConstructUpdateGraph()
+{
+	JobScheduler* scheduler = JobScheduler::Get();
+	scheduler->ConstructUpdateGraph();
 }
 }
