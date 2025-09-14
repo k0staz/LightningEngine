@@ -1,5 +1,7 @@
 #include "GameEngine.h"
 
+#include <thread>
+
 #include "D3D11DynamicRHI.h"
 #include "EngineGlobals.h"
 #include "GameViewport.h"
@@ -7,6 +9,7 @@
 #include "Application/SystemWindow.h"
 #include "EventCore/EventManager.h"
 #include "Multithreading/JobScheduler.h"
+#include "Time/Clock.h"
 
 namespace LE
 {
@@ -21,7 +24,7 @@ void GameEngine::Init()
 	GameWorld = new World;
 	GameWorld->Init();
 
-	ConstructUpdateGraph();
+	InitJobScheduler();
 
 	RHI::InitRHI();
 
@@ -35,6 +38,9 @@ void GameEngine::Init()
 
 void GameEngine::Shutdown()
 {
+	JobScheduler* scheduler = JobScheduler::Get();
+	scheduler->Shutdown();
+
 	GameWorld->Shutdown();
 	delete GameWorld;
 	delete Viewport;
@@ -67,8 +73,11 @@ void GameEngine::Update(bool& IsDone)
 
 	gEventManager.DispatchEvents();
 
-	GameWorld->Update();
-	GameWorld->PostUpdate();
+	Clock::StartFrame();
+
+	JobScheduler* scheduler = JobScheduler::Get();
+	scheduler->StartFrame();
+	scheduler->WaitForAll(); // TODO: Use function do jobs or smth like this, so GT would do something as well
 
 	DrawViewport();
 }
@@ -113,9 +122,9 @@ void GameEngine::InitMaterials()
 	}
 }
 
-void GameEngine::ConstructUpdateGraph()
+void GameEngine::InitJobScheduler()
 {
 	JobScheduler* scheduler = JobScheduler::Get();
-	scheduler->ConstructUpdateGraph();
+	scheduler->Init(static_cast<int>(std::thread::hardware_concurrency()) - 2);
 }
 }

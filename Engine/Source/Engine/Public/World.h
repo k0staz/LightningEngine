@@ -13,9 +13,6 @@ public:
 	void Init();
 	void Shutdown();
 
-	void Update();
-	void PostUpdate();
-
 	void SetPrimaryViewInfo(const Renderer::SceneViewInfo& ViewInfo) override { PrimaryViewInfo = ViewInfo; }
 	const Renderer::SceneViewInfo& GetPrimaryViewInfo() const override { return PrimaryViewInfo; }
 

@@ -28,8 +28,6 @@ namespace LE
 		EcsSystemManager(EcsSystemManager&) = delete;
 		EcsSystemManager(EcsSystemManager&&) = delete;
 
-		void Update(const float DeltaSeconds);
-
 		void Shutdown();
 
 		template<typename System>

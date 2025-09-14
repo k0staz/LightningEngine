@@ -35,7 +35,7 @@ private:
 
 	void InitMaterials();
 
-	void ConstructUpdateGraph();
+	void InitJobScheduler();
 
 public:
 	RefCountingPtr<SystemWindow> Window;

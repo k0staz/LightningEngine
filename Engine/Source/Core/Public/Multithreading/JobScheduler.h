@@ -2,6 +2,9 @@
 #include <atomic>
 #include <unordered_set>
 
+#include "Thread.h"
+#include "Multithreading/JobNode.h"
+
 #include "UpdatePasses.h"
 #include "ECS/EcsComponent.h"
 #include "Templates/NonCopyable.h"
@@ -14,97 +17,31 @@ struct UpdatePass;
 
 namespace LE
 {
-class JobScheduler;
-
-class JobNode : public RefCountableBase
-{
-	friend JobScheduler;
-
-public:
-	JobNode(JobScheduler* InOwner, std::string_view InJobName, UpdateJobType InType, UpdatePassType InPassType)
-		: JobName(InJobName)
-		  , Type(InType)
-		  , PassType(InPassType)
-		  , Owner(InOwner)
-		  , DefaultDependencies(0)
-	{
-	}
-
-	void AddDependentJob(JobNode& Job)
-	{
-		if (DependentJobs.contains(&Job))
-		{
-			return;
-		}
-
-		DependentJobs.emplace(&Job);
-		Job.IncrementDependencyCounter();
-		++Job.DefaultDependencies;
-	}
-
-	bool IsReady() const
-	{
-		return GetCurrentRemainingJobCount() == 0;
-	}
-
-	uint32 GetCurrentRemainingJobCount() const
-	{
-		return JobsTillReady.load(std::memory_order_acquire);
-	}
-
-	uint32 GetDefaultRemainingJobCount() const
-	{
-		return DefaultDependencies;
-	}
-
-	const std::unordered_set<RefCountingPtr<JobNode>>& GetDependentJobs() const
-	{
-		return DependentJobs;
-	}
-
-	std::string_view GetName() const
-	{
-		return JobName;
-	}
-
-	UpdateJobType GetType() const
-	{
-		return Type;
-	}
-
-	UpdatePassType GetUpdatePassType() const
-	{
-		return PassType;
-	}
-
-protected:
-	void IncrementDependencyCounter();
-	void DecrementDependencyCounter();
-	void OnCompleted();
-
-private:
-	std::unordered_set<RefCountingPtr<JobNode>> DependentJobs;
-	std::string_view JobName;
-	UpdateJobType Type;
-	UpdatePassType PassType;
-	JobScheduler* Owner;
-	std::atomic_uint JobsTillReady;
-	uint32 DefaultDependencies;
-};
-
 class JobScheduler : public NonCopyable
 {
 public:
 	static JobScheduler* Get();
 
+	void Init(int WorkerThreadsNum);
+	void Shutdown();
+
 	void ConstructUpdateGraph();
 
+	void StartFrame();
 	void OnJobBecameAvailable(RefCountingPtr<JobNode> JobNode);
-	void OnJobReadyForNextFrame(RefCountingPtr<JobNode> JobNode);
+	void OnJobFinished();
+
+	bool AreAllFinished() const;
+	void WaitForAll();
+
+	bool TryStealJobFromThread(uint8 RequestingThreadIdx, RefCountingPtr<JobNode>& OutJob);
+
+private:
+	void PushJob(RefCountingPtr<JobNode> JobNode);
 
 private:
 	JobScheduler()
-		: IsExecuting(false)
+		:ThreadCount(0)
 	{
 	}
 
@@ -120,8 +57,15 @@ private:
 	bool ValidateGraph();
 
 	std::vector<RefCountingPtr<JobNode>> AvailableJobs;
-	std::vector<RefCountingPtr<JobNode>> NextFrameJobs;
 	std::vector<RefCountingPtr<JobNode>> Jobs;
-	bool IsExecuting;
+
+	std::atomic<uint32_t> ActiveJobs;
+	std::condition_variable FrameFinishedCV;
+	std::mutex FrameFinishedMutex;
+
+	std::atomic<uint32> CurrentThreadForPush;
+
+	uint32 ThreadCount;
+	std::vector<Thread> ThreadPool;
 };
 }

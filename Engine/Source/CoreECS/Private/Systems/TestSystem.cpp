@@ -36,8 +36,6 @@ namespace LE
 			pos.X += amp * Sin(PI * time * freq);
 
 			transformComponent.Transform.SetPosition(pos);
-
-			LE_INFO("Change transform to X {} Y {} Z {} for Entity {}", pos.X, pos.Y, pos.Z, entity);
 		}
 	}
 

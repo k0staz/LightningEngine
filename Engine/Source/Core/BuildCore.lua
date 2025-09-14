@@ -15,7 +15,7 @@ project "Core"
         "Private/**.cpp",
     }
 
-    use_modules({"Log"})
+    use_modules({"Log", "System"})
 
     targetdir ("../Binaries/" .. OutputDir .. "/%{prj.name}")
     objdir ("../Binaries/Intermediates/" .. OutputDir .. "/%{prj.name}")

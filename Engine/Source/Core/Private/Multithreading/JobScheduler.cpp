@@ -7,29 +7,6 @@ namespace LE
 {
 static JobScheduler* gJobScheduler = nullptr;
 
-void JobNode::IncrementDependencyCounter()
-{
-	JobsTillReady.fetch_add(1, std::memory_order_relaxed);
-}
-
-void JobNode::DecrementDependencyCounter()
-{
-	uint32 newValue = JobsTillReady.fetch_sub(1, std::memory_order_acq_rel) - 1;
-	if (newValue == 0)
-	{
-		Owner->OnJobBecameAvailable(this);
-	}
-}
-
-void JobNode::OnCompleted()
-{
-	for (auto& dependentJob : DependentJobs)
-	{
-		dependentJob->DecrementDependencyCounter();
-	}
-	JobsTillReady.store(DefaultDependencies);
-	Owner->OnJobReadyForNextFrame(this);
-}
 
 JobScheduler* JobScheduler::Get()
 {
@@ -41,10 +18,38 @@ JobScheduler* JobScheduler::Get()
 	return gJobScheduler;
 }
 
+void JobScheduler::Init(int WorkerThreadsNum)
+{
+	if (WorkerThreadsNum <= 0)
+	{
+		return;
+	}
+	ThreadCount = WorkerThreadsNum;
+
+	ConstructUpdateGraph();
+	LE_INFO("-------------------------Spawning worker threads-------------------------");
+	ThreadPool.reserve(WorkerThreadsNum);
+	for (uint8 i = 0; i < static_cast<uint8>(WorkerThreadsNum); ++i)
+	{
+		const std::string threadName = std::format("Worker Thread {}", i);
+		ThreadPool.emplace_back(i, threadName, this);
+		LE_INFO("Thread {} was created", threadName);
+		ThreadPool[i].Start();
+	}
+	LE_INFO("-------------------------Finished Spawning worker threads-------------------------");
+}
+
+void JobScheduler::Shutdown()
+{
+	for (Thread& thread : ThreadPool)
+	{
+		thread.Stop();
+	}
+}
+
 void JobScheduler::ConstructUpdateGraph()
 {
 	AvailableJobs.clear();
-	NextFrameJobs.clear();
 	Jobs.clear();
 
 	std::vector<const UpdatePass*>& updatePasses = UpdatePass::GetUpdatePasses();
@@ -61,16 +66,72 @@ void JobScheduler::ConstructUpdateGraph()
 	LE_INFO("-------------------------Finished Update graph construction-------------------------");
 }
 
-void JobScheduler::OnJobBecameAvailable(RefCountingPtr<JobNode> JobNode)
+void JobScheduler::StartFrame()
 {
-	// TODO: We need mutex here, or do it per thread
-	AvailableJobs.push_back(JobNode);
+	ActiveJobs.store(0);
+	CurrentThreadForPush.store(0);
+	for (auto& job : AvailableJobs)
+	{
+		PushJob(job);
+	}
 }
 
-void JobScheduler::OnJobReadyForNextFrame(RefCountingPtr<JobNode> JobNode)
+void JobScheduler::OnJobBecameAvailable(RefCountingPtr<JobNode> JobNode)
 {
-	// TODO: We need mutex here, or do it per thread
-	NextFrameJobs.emplace_back(JobNode);
+	PushJob(JobNode);
+}
+
+void JobScheduler::OnJobFinished()
+{
+	if (ActiveJobs.fetch_sub(1, std::memory_order_acq_rel) == 1)
+	{
+		std::lock_guard lock(FrameFinishedMutex);
+		FrameFinishedCV.notify_all();
+	}
+}
+
+bool JobScheduler::AreAllFinished() const
+{
+	return ActiveJobs.load(std::memory_order_acquire) == 0;
+}
+
+void JobScheduler::WaitForAll()
+{
+	LE_INFO("Waiting For All");
+	std::unique_lock lock(FrameFinishedMutex);
+	FrameFinishedCV.wait(lock, [this] { return ActiveJobs.load(std::memory_order_acquire) == 0; });
+	LE_INFO("Stopped Waiting For All");
+}
+
+bool JobScheduler::TryStealJobFromThread(uint8 RequestingThreadIdx, RefCountingPtr<JobNode>& OutJob)
+{
+	uint8 threadIdxToSteal = (RequestingThreadIdx + 1) % ThreadCount;
+	while (threadIdxToSteal != RequestingThreadIdx)
+	{
+		if (ThreadPool[threadIdxToSteal].TryStealJob(OutJob))
+		{
+			return true;
+		}
+		threadIdxToSteal = (threadIdxToSteal + 1) % ThreadCount;
+	}
+
+	return false;
+}
+
+void JobScheduler::PushJob(RefCountingPtr<JobNode> JobNode)
+{
+	ActiveJobs.fetch_add(1, std::memory_order_acq_rel);
+
+	uint32 idx = CurrentThreadForPush.fetch_add(1, std::memory_order_acq_rel) + 1;
+	for (uint32 i = 0; i != ThreadCount; ++i)
+	{
+		if (ThreadPool[(i + idx) % ThreadCount].TryPushJob(JobNode))
+		{
+			return;
+		}
+	}
+
+	ThreadPool[idx % ThreadCount].PushJob(JobNode);
 }
 
 void JobScheduler::ConstructUpdateGraphForPass(const UpdatePass* Pass, GraphBuildContext& Context)
@@ -175,7 +236,7 @@ void JobScheduler::ConstructUpdateGraphForJobs(const UpdatePass* Pass, GraphBuil
 	{
 		for (const UpdateJob* job : jobs)
 		{
-			RefCountingPtr<JobNode> jobNode = new JobNode(this, job->GetName(), job->GetType(), Pass->GetType());
+			RefCountingPtr<JobNode> jobNode = new JobNode(this, job->GetName(), job->UpdateFunction, job->GetType(), Pass->GetType());
 			Jobs.push_back(jobNode);
 
 			// Setup dependencies
@@ -210,17 +271,31 @@ void JobScheduler::ConstructUpdateGraphForJobs(const UpdatePass* Pass, GraphBuil
 
 bool JobScheduler::ValidateGraph()
 {
-	LE_ASSERT_DESC(!IsExecuting, "Don't validate graph during execution")
+	std::unordered_map<UpdateJobType, uint32> counter;
+	std::vector<RefCountingPtr<JobNode>> currentJobs = AvailableJobs;
 
-	uint32 jobsExecuted = 0;
-	while (!AvailableJobs.empty())
+	uint32 executed = 0;
+	while (!currentJobs.empty())
 	{
-		++jobsExecuted;
-		RefCountingPtr<JobNode> job = AvailableJobs.back();
-		AvailableJobs.pop_back();
-		job->OnCompleted();
+		RefCountingPtr<JobNode> job = currentJobs.back();
+		currentJobs.pop_back();
+		++executed;
+
+		for (auto& dependent : job->GetDependentJobs())
+		{
+			UpdateJobType type = dependent->GetType();
+			if (!counter.contains(type))
+			{
+				counter[type] = dependent->GetDefaultRemainingJobCount();
+			}
+			--counter[type];
+			if (counter[type] == 0)
+			{
+				currentJobs.push_back(dependent);
+			}
+		}
 	}
 
-	return jobsExecuted == Jobs.size();
+	return executed == Jobs.size();
 }
 }
