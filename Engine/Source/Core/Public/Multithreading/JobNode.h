@@ -36,6 +36,17 @@ public:
 		++Job.DefaultDependencies;
 	}
 
+	void RemoveDependentJob(JobNode& Job)
+	{
+		if (!DependentJobs.contains(&Job))
+		{
+			return;
+		}
+
+		DependentJobs.erase(&Job);
+		--Job.DefaultDependencies;
+	}
+
 	bool IsReady() const
 	{
 		return GetCurrentRemainingJobCount() == 0;

@@ -56,6 +56,7 @@ void GameEngine::Shutdown()
 
 void GameEngine::Update(bool& IsDone)
 {
+	const Clock::TimePoint frameBeginning = Clock::Now();
 	// TODO: This needs to be abstracted at some point
 	MSG msg;
 	ZeroMemory(&msg, sizeof(MSG));
@@ -78,6 +79,9 @@ void GameEngine::Update(bool& IsDone)
 	JobScheduler* scheduler = JobScheduler::Get();
 	scheduler->StartFrame();
 	scheduler->WaitForAll(); // TODO: Use function do jobs or smth like this, so GT would do something as well
+
+	const Clock::TimePoint frameEnd = Clock::Now();
+	LE_INFO("Frame Finished, took {}ms", Clock::GetMsBetween(frameBeginning, frameEnd));
 
 	DrawViewport();
 }

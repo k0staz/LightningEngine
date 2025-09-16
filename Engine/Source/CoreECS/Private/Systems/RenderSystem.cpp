@@ -14,40 +14,32 @@ namespace LE
 {
 void RenderSystem::Initialize()
 {
-	OnAddObserver = ObserverComponents<StaticMeshComponent, TransformComponent>(ComponentChangeType::ComponentAdded);
-	OnRemoveObserver = ObserverComponents<StaticMeshComponent, TransformComponent>(ComponentChangeType::ComponentRemoved);
+	OnAddObserver.ReadsComponents<StaticMeshComponent, TransformComponent>();
+	OnAddObserver.AddsResources<Renderer::StaticMeshRenderProxy>();
+	OnAddObserver.GetDelegate().Attach<&RenderSystem::OnAdd>(this);
+	UpdatePass::AddJob<RenderPass>(&OnAddObserver);
 
-	RenderUpdate.UpdateFunction.Attach<&RenderSystem::Update>(this);
-	RenderUpdate.ReadsComponents<StaticMeshComponent, TransformComponent, CameraComponent>();
-	UpdatePass::AddJob<RenderPass>(&RenderUpdate);
+	OnRemoveObserver.DeletesResources<Renderer::StaticMeshRenderProxy>();
+	OnRemoveObserver.GetDelegate().Attach<&RenderSystem::OnRemove>(this);
+	UpdatePass::AddJob<RenderPass>(&OnRemoveObserver);
+
+	RenderUpdateStaticMesh.GetDelegate().Attach<&RenderSystem::UpdateStaticMeshes>(this);
+	RenderUpdateStaticMesh.ReadsComponents<StaticMeshComponent, TransformComponent>();
+	RenderUpdateStaticMesh.ReadsResources<Renderer::StaticMeshRenderProxy>();
+	UpdatePass::AddJob<RenderPass>(&RenderUpdateStaticMesh);
+
+	RenderUpdateCamera.GetDelegate().Attach<&RenderSystem::UpdateCamera>(this);
+	RenderUpdateCamera.ReadsComponents<CameraComponent, TransformComponent>();
+	UpdatePass::AddJob<RenderPass>(&RenderUpdateCamera);
 }
 
-void RenderSystem::Update(const float DeltaSeconds)
+void RenderSystem::Shutdown()
+{
+}
+
+void RenderSystem::UpdateStaticMeshes(const float DeltaSeconds)
 {
 	Renderer::RenderScene& renderScene = GetRendererModule()->GetRenderScene();
-	for (auto entity : OnAddObserver)
-	{
-		const StaticMeshComponent& staticMeshComponent = OnAddObserver.GetComponents<StaticMeshComponent>(entity);
-		const TransformComponent& transformComponent = OnAddObserver.GetComponents<TransformComponent>(entity);
-
-		Renderer::StaticMeshRenderProxy* proxy = renderScene.CreateStaticMeshRenderProxy(entity, staticMeshComponent.RenderData, staticMeshComponent.MeshMaterial);
-		if (!proxy)
-		{
-			LE_ASSERT_DESC(false, "Failed to create static mesh render proxy for entity {}", entity)
-			continue;
-		}
-
-		proxy->SetTransform(transformComponent.Transform);
-		proxy->CreateConstantBuffer();
-	}
-	OnAddObserver.ResetObservedEntities();
-
-	for (auto entity : OnRemoveObserver)
-	{
-		renderScene.DeleteRenderObjectProxy(entity);
-	}
-	OnRemoveObserver.ResetObservedEntities();
-
 	const auto& proxyMap = renderScene.GetProxyMap();
 
 	auto view = ViewComponents<StaticMeshComponent, TransformComponent>();
@@ -64,7 +56,10 @@ void RenderSystem::Update(const float DeltaSeconds)
 		proxy->SetTransform(transformComponent.Transform);
 		proxy->UpdateConstantBuffer(Renderer::RenderCommandList::Get());
 	}
+}
 
+void RenderSystem::UpdateCamera(const float DeltaSeconds)
+{
 	auto cameraView = ViewComponents<CameraComponent, TransformComponent>();
 	for (const EcsEntity& entity : cameraView)
 	{
@@ -79,7 +74,32 @@ void RenderSystem::Update(const float DeltaSeconds)
 	}
 }
 
-void RenderSystem::Shutdown()
+void RenderSystem::OnAdd(const OnAddObserverType::ObserverType& Observer)
 {
+	Renderer::RenderScene& renderScene = GetRendererModule()->GetRenderScene();
+	for (auto entity : Observer)
+	{
+		const StaticMeshComponent& staticMeshComponent = Observer.GetComponents<StaticMeshComponent>(entity);
+		const TransformComponent& transformComponent = Observer.GetComponents<TransformComponent>(entity);
+
+		Renderer::StaticMeshRenderProxy* proxy = renderScene.CreateStaticMeshRenderProxy(entity, staticMeshComponent.RenderData, staticMeshComponent.MeshMaterial);
+		if (!proxy)
+		{
+			LE_ASSERT_DESC(false, "Failed to create static mesh render proxy for entity {}", entity)
+				continue;
+		}
+
+		proxy->SetTransform(transformComponent.Transform);
+		proxy->CreateConstantBuffer();
+	}
+}
+
+void RenderSystem::OnRemove(const OnRemoveObserverType::ObserverType& Observer)
+{
+	Renderer::RenderScene& renderScene = GetRendererModule()->GetRenderScene();
+	for (auto entity : Observer)
+	{
+		renderScene.DeleteRenderObjectProxy(entity);
+	}
 }
 }

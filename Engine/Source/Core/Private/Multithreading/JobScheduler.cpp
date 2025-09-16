@@ -97,10 +97,8 @@ bool JobScheduler::AreAllFinished() const
 
 void JobScheduler::WaitForAll()
 {
-	LE_INFO("Waiting For All");
 	std::unique_lock lock(FrameFinishedMutex);
 	FrameFinishedCV.wait(lock, [this] { return ActiveJobs.load(std::memory_order_acquire) == 0; });
-	LE_INFO("Stopped Waiting For All");
 }
 
 bool JobScheduler::TryStealJobFromThread(uint8 RequestingThreadIdx, RefCountingPtr<JobNode>& OutJob)
@@ -210,29 +208,116 @@ void JobScheduler::ConstructUpdateGraphForJobs(const UpdatePass* Pass, GraphBuil
 		LE_WARN("Detected job: {} which doesn't do anything, it will be skipped", job->GetName());
 	}
 
-	auto setupDependencyFunc = [&Context](RefCountingPtr<JobNode>& job,
-	                                      const std::unordered_set<EcsComponentType>& components)
+	// This is to remove the number of dependency links, if it was accounted by predecessors
+	auto addDependency = [&Context](RefCountingPtr<JobNode>& prevJob, RefCountingPtr<JobNode>& dependentJob)
 	{
-		for (EcsComponentType component : components)
+		if (!Context.AccountedDependencies[dependentJob].contains(prevJob))
 		{
-			auto it = Context.LastJobPerComponent.find(component);
-			if (it != Context.LastJobPerComponent.end())
+			Context.AccountedDependencies[dependentJob].insert(Context.AccountedDependencies[prevJob].begin(),
+			                                                   Context.AccountedDependencies[prevJob].end());
+			Context.AccountedDependencies[dependentJob].emplace(prevJob);
+			prevJob->AddDependentJob(*dependentJob);
+		}
+
+		for (auto& accountedJob : Context.AccountedDependencies[prevJob])
+		{
+			if (Context.AccountedDependencies[dependentJob].contains(accountedJob))
 			{
-				it->second->AddDependentJob(*job);
+				accountedJob->RemoveDependentJob(*dependentJob);
 			}
 		}
 	};
 
-	auto updateLastJobsFunc = [&Context](RefCountingPtr<JobNode>& job,
-	                                     const std::unordered_set<EcsComponentType>& components)
+	auto setupComponentDependencyFunc = [&Context, &addDependency](RefCountingPtr<JobNode>& job,
+	                                               const std::unordered_set<EcsComponentType>& components, bool isReading)
 	{
 		for (EcsComponentType component : components)
 		{
-			Context.LastJobPerComponent[component] = job;
+			if (!isReading)
+			{
+				auto itReading = Context.LastReadingJobsPerComponent.find(component);
+				if (itReading != Context.LastReadingJobsPerComponent.find(component))
+				{
+					for (RefCountingPtr<JobNode> readingJob : itReading->second)
+					{
+						addDependency(readingJob, job);
+					}
+
+					return;
+				}
+			}
+
+			auto it = Context.LastModifyingJobPerComponent.find(component);
+			if (it != Context.LastModifyingJobPerComponent.end())
+			{
+				addDependency(it->second, job);
+			}
 		}
 	};
 
-	auto scheduleDependencyFunc = [&setupDependencyFunc, &updateLastJobsFunc, &Pass, this](const std::vector<const UpdateJob*>& jobs)
+	auto setupResourceDependencyFunc = [&Context, &addDependency](RefCountingPtr<JobNode>& job,
+	                                              const std::unordered_set<SharedResourceType>& resources, bool isReading)
+	{
+		for (SharedResourceType component : resources)
+		{
+			if (!isReading)
+			{
+				auto itReading = Context.LastReadingJobsPerResource.find(component);
+				if (itReading != Context.LastReadingJobsPerResource.find(component))
+				{
+					for (RefCountingPtr<JobNode> readingJob : itReading->second)
+					{
+						addDependency(readingJob, job);
+					}
+
+					return;
+				}
+			}
+
+			auto it = Context.LastModifyingJobPerResource.find(component);
+			if (it != Context.LastModifyingJobPerResource.end())
+			{
+				addDependency(it->second, job);
+			}
+		}
+	};
+
+	auto updateComponentLastJobsFunc = [&Context](RefCountingPtr<JobNode>& job,
+	                                              const std::unordered_set<EcsComponentType>& components, bool isReading)
+	{
+		for (EcsComponentType component : components)
+		{
+			if (!isReading)
+			{
+				Context.LastModifyingJobPerComponent[component] = job;
+				Context.LastReadingJobsPerComponent.erase(component);
+			}
+			else
+			{
+				Context.LastReadingJobsPerComponent[component].emplace(job);
+			}
+		}
+	};
+
+	auto updateResourceLastJobsFunc = [&Context](RefCountingPtr<JobNode>& job,
+	                                             const std::unordered_set<SharedResourceType>& resources, bool isReading)
+	{
+		for (SharedResourceType component : resources)
+		{
+			if (!isReading)
+			{
+				Context.LastModifyingJobPerResource[component] = job;
+				Context.LastReadingJobsPerResource.erase(component);
+			}
+			else
+			{
+				Context.LastReadingJobsPerResource[component].emplace(job);
+			}
+		}
+	};
+
+	auto scheduleDependencyFunc = [&setupResourceDependencyFunc, &setupComponentDependencyFunc, &updateComponentLastJobsFunc,
+			&updateResourceLastJobsFunc, &Pass, this](const std::vector<const UpdateJob*>& jobs)
 	{
 		for (const UpdateJob* job : jobs)
 		{
@@ -240,15 +325,25 @@ void JobScheduler::ConstructUpdateGraphForJobs(const UpdatePass* Pass, GraphBuil
 			Jobs.push_back(jobNode);
 
 			// Setup dependencies
-			setupDependencyFunc(jobNode, job->GetDeleteComponents());
-			setupDependencyFunc(jobNode, job->GetAddComponents());
-			setupDependencyFunc(jobNode, job->GetWriteComponents());
-			setupDependencyFunc(jobNode, job->GetReadComponents());
+			setupComponentDependencyFunc(jobNode, job->GetDeleteComponents(), false);
+			setupComponentDependencyFunc(jobNode, job->GetAddComponents(), false);
+			setupComponentDependencyFunc(jobNode, job->GetWriteComponents(), false);
+			setupComponentDependencyFunc(jobNode, job->GetReadComponents(), true);
 
-			updateLastJobsFunc(jobNode, job->GetDeleteComponents());
-			updateLastJobsFunc(jobNode, job->GetAddComponents());
-			updateLastJobsFunc(jobNode, job->GetWriteComponents());
-			updateLastJobsFunc(jobNode, job->GetReadComponents());
+			setupResourceDependencyFunc(jobNode, job->GetDeleteResources(), false);
+			setupResourceDependencyFunc(jobNode, job->GetAddResources(), false);
+			setupResourceDependencyFunc(jobNode, job->GetWriteResources(), false);
+			setupResourceDependencyFunc(jobNode, job->GetReadResources(), true);
+
+			updateComponentLastJobsFunc(jobNode, job->GetDeleteComponents(), false);
+			updateComponentLastJobsFunc(jobNode, job->GetAddComponents(), false);
+			updateComponentLastJobsFunc(jobNode, job->GetWriteComponents(), false);
+			updateComponentLastJobsFunc(jobNode, job->GetReadComponents(), true);
+
+			updateResourceLastJobsFunc(jobNode, job->GetDeleteResources(), false);
+			updateResourceLastJobsFunc(jobNode, job->GetAddResources(), false);
+			updateResourceLastJobsFunc(jobNode, job->GetWriteResources(), false);
+			updateResourceLastJobsFunc(jobNode, job->GetReadResources(), true);
 
 			if (jobNode->IsReady())
 			{

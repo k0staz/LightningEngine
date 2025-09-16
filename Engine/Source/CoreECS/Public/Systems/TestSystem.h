@@ -13,7 +13,7 @@ class TestSystem : public EcsSystem
 {
 public:
 	void Initialize() override;
-	void Update(const float DeltaSeconds) override;
+	void Update(const float DeltaSeconds);
 	REGISTER_UPDATE_JOB(TestSystemUpdate)
 	void Shutdown() override;
 

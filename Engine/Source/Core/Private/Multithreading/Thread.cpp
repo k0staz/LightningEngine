@@ -27,14 +27,12 @@ void Thread::Main()
 	while (IsRunning.load(std::memory_order_relaxed))
 	{
 		IsReady.acquire();
-		LE_INFO("{} woke up", Name);
 
 		RefCountingPtr<JobNode> currentJob = nullptr;
 		while (NextJob(currentJob))
 		{
 			currentJob->Execute();
 		}
-		LE_INFO("{} no jobs", Name);
 	}
 }
 
@@ -46,7 +44,6 @@ bool Thread::TryPushJob(RefCountingPtr<JobNode> JobToAdd)
 		return false;
 	}
 
-	LE_INFO("{} Job Queued On {}", JobToAdd->GetName(), Name);
 	LocalQueue.push_front(JobToAdd);
 	IsReady.release();
 	return true;
@@ -54,7 +51,6 @@ bool Thread::TryPushJob(RefCountingPtr<JobNode> JobToAdd)
 
 void Thread::PushJob(RefCountingPtr<JobNode> JobToAdd)
 {
-	LE_INFO("{} Job Queued On {}", JobToAdd->GetName(), Name);
 	std::unique_lock lock(LocalQueueMutex);
 	LocalQueue.push_front(JobToAdd);
 	IsReady.release();
@@ -74,7 +70,6 @@ bool Thread::TryStealJob(RefCountingPtr<JobNode>& JobOut)
 	}
 
 	JobOut = LocalQueue.front();
-	LE_INFO("{} Job Was Stollen by {}", JobOut->GetName(), Name);
 	LocalQueue.pop_front();
 
 	return true;

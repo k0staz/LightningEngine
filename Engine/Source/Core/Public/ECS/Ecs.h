@@ -80,7 +80,7 @@ static EcsStorageView<IncludedComponentTypes<ComponentStorageForType<ComponentTy
 
 template <typename... ComponentType, typename... ExcludedComponents>
 static EcsObserver<IncludedComponentTypes<ComponentStorageForType<ComponentType>...>, ExcludedComponentTypes<ComponentStorageForType<ExcludedComponents>...>>
-	ObserverComponents(ComponentChangeType InObserverType, ExcludedComponentTypes<ExcludedComponents...> = ExcludedComponentTypes{})
+	ObserveComponents(ComponentChangeType InObserverType, ExcludedComponentTypes<ExcludedComponents...> = ExcludedComponentTypes{})
 {
 	return GetECSModule().GetRegistry()->Observe<ComponentType...>(InObserverType, ExcludedComponentTypes<ExcludedComponents...>{});
 }

@@ -11,7 +11,7 @@ namespace LE
 {
 	void TestSystem::Initialize()
 	{
-		TestSystemUpdate.UpdateFunction.Attach<&TestSystem::Update>(this);
+		TestSystemUpdate.GetDelegate().Attach<&TestSystem::Update>(this);
 		TestSystemUpdate.WritesComponents<TransformComponent>();
 		UpdatePass::AddJob<TestUpdatePass>(&TestSystemUpdate);
 	}

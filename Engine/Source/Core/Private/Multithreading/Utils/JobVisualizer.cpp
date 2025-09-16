@@ -64,22 +64,29 @@ void JobVisualizer::Dump(Path SavePath)
 
 	std::vector<JobNodeDescriptor*> currentJobs = StartingJobs;
 	std::vector<JobNodeDescriptor*> nextJobs;
+	std::unordered_set<JobNodeDescriptor*> processedJobs;
 	while (!currentJobs.empty())
 	{
 		for (JobNodeDescriptor* job : currentJobs)
 		{
+			if (processedJobs.contains(job))
+			{
+				continue;
+			}
+
 			WriteJob(os, *job);
 
 			for (JobNodeDescriptor* dependentJob : job->DependentJobs)
 			{
 				nextJobs.push_back(dependentJob);
 			}
+			processedJobs.emplace(job);
 		}
 
 		currentJobs = nextJobs;
 		nextJobs.clear();
 	}
-	
+
 
 	os << "}\n";
 }

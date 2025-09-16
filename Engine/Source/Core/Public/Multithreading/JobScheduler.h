@@ -41,13 +41,20 @@ private:
 
 private:
 	JobScheduler()
-		:ThreadCount(0)
+		: ThreadCount(0)
 	{
 	}
 
 	struct GraphBuildContext
 	{
-		std::unordered_map<EcsComponentType, RefCountingPtr<JobNode>> LastJobPerComponent;
+		std::unordered_map<SharedResourceType, std::unordered_set<RefCountingPtr<JobNode>>> LastReadingJobsPerResource;
+		std::unordered_map<EcsComponentType, std::unordered_set<RefCountingPtr<JobNode>>> LastReadingJobsPerComponent;
+
+		std::unordered_map<SharedResourceType, RefCountingPtr<JobNode>> LastModifyingJobPerResource;
+		std::unordered_map<EcsComponentType, RefCountingPtr<JobNode>> LastModifyingJobPerComponent;
+
+		std::unordered_map<RefCountingPtr<JobNode>, std::unordered_set<RefCountingPtr<JobNode>>> AccountedDependencies;
+
 		std::unordered_map<UpdatePassType, std::unordered_set<UpdatePassType>> UpdatePassDependencies;
 		std::unordered_map<UpdatePassType, bool> ProcessedUpdatePasses;
 	};
