@@ -10,9 +10,16 @@ project "Core"
         "Public"
     }
 
+    publicIncludeDirs
+    {
+        "../../3rdParty/tracy/public/",
+    }
+
     files { 
         "Public/**.h",
         "Private/**.cpp",
+        "../../3rdParty/tracy/public/TracyClient.cpp",
+        "../../3rdParty/tracy/public/**.hpp",
     }
 
     use_modules({"Log", "System"})

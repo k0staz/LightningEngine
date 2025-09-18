@@ -9,6 +9,7 @@
 #include "ECS/Ecs.h"
 #include "Multithreading/UpdatePasses.h"
 #include "SceneRendering/RenderScene.h"
+#include "tracy/Tracy.hpp"
 
 namespace LE
 {
@@ -39,6 +40,7 @@ void RenderSystem::Shutdown()
 
 void RenderSystem::UpdateStaticMeshes(const float DeltaSeconds)
 {
+	ZoneScopedN("RenderSystem::UpdateStaticMeshes");
 	Renderer::RenderScene& renderScene = GetRendererModule()->GetRenderScene();
 	auto view = ViewComponents<StaticMeshComponent, TransformComponent>();
 	for (const EcsEntity& entity : view)
@@ -50,6 +52,7 @@ void RenderSystem::UpdateStaticMeshes(const float DeltaSeconds)
 
 void RenderSystem::UpdateCamera(const float DeltaSeconds)
 {
+	ZoneScopedN("RenderSystem::UpdateCamera");
 	auto cameraView = ViewComponents<CameraComponent, TransformComponent>();
 	for (const EcsEntity& entity : cameraView)
 	{
@@ -66,6 +69,7 @@ void RenderSystem::UpdateCamera(const float DeltaSeconds)
 
 void RenderSystem::OnAdd(const OnAddObserverType::ObserverType& Observer)
 {
+	ZoneScopedN("RenderSystem::OnAdd");
 	Renderer::RenderScene& renderScene = GetRendererModule()->GetRenderScene();
 	for (auto entity : Observer)
 	{
@@ -78,6 +82,7 @@ void RenderSystem::OnAdd(const OnAddObserverType::ObserverType& Observer)
 
 void RenderSystem::OnRemove(const OnRemoveObserverType::ObserverType& Observer)
 {
+	ZoneScopedN("RenderSystem::OnRemove");
 	Renderer::RenderScene& renderScene = GetRendererModule()->GetRenderScene();
 	for (auto entity : Observer)
 	{

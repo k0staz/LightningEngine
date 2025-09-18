@@ -6,6 +6,7 @@
 #include "ECS/Ecs.h"
 #include "Multithreading/UpdateJobs.h"
 #include "Multithreading/UpdatePasses.h"
+#include "tracy/Tracy.hpp"
 
 namespace LE
 {
@@ -18,6 +19,7 @@ namespace LE
 
 	void TestSystem::Update(const float DeltaSeconds)
 	{
+		ZoneScopedN("TestSystem::Update");
 		static float time = 0.0f;
 
 		time += DeltaSeconds;

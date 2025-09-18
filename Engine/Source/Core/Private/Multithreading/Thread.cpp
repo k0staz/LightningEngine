@@ -1,6 +1,7 @@
 #include "Multithreading/Thread.h"
 
 #include "Multithreading/JobScheduler.h"
+#include "common/TracySystem.hpp"
 
 #if PLATFORM_WINDOWS
 #include <Windows.h>
@@ -108,6 +109,7 @@ bool Thread::NextJob(RefCountingPtr<JobNode>& JobOut)
 void Thread::SetThreadDescription()
 {
 	LE_INFO("Thread {} started", Name);
+	tracy::SetThreadNameWithHint(Name.c_str(), static_cast<int32_t>(Type));
 #if PLATFORM_WINDOWS
 	using SetThreadDescriptionFunc = HRESULT(WINAPI*)(HANDLE hThread, PCWSTR lpThreadDescription);
 	static SetThreadDescriptionFunc SetThreadDescription = reinterpret_cast<SetThreadDescriptionFunc>(GetProcAddress(GetModuleHandleW(L"Kernel32.dll"), "SetThreadDescription"));

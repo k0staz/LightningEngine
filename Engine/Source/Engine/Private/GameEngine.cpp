@@ -7,9 +7,11 @@
 #include "GameViewport.h"
 #include "WindowsWindow.h"
 #include "Application/SystemWindow.h"
+#include "common/TracySystem.hpp"
 #include "EventCore/EventManager.h"
 #include "Multithreading/JobScheduler.h"
 #include "Time/Clock.h"
+#include "tracy/Tracy.hpp"
 
 namespace LE
 {
@@ -17,6 +19,7 @@ GameEngine gGameEngine;
 
 void GameEngine::Init()
 {
+	tracy::SetThreadName("Main thread");
 	RegisterEngine(this);
 	D3D11::UseD3D11RHIModule();
 	InitMaterials();
@@ -85,6 +88,7 @@ void GameEngine::Update(bool& IsDone)
 
 	const Clock::TimePoint frameEnd = Clock::Now();
 	LE_INFO("Frame Finished, took {}ms", Clock::GetMsBetween(frameBeginning, frameEnd));
+	FrameMarkNamed("Game Frame");
 
 	DrawViewport();
 	Delegate<void(const float)> renderDelegate;
@@ -94,9 +98,11 @@ void GameEngine::Update(bool& IsDone)
 
 void GameEngine::DrawFrame(const float)
 {
+	ZoneScopedN("Draw Frame");
 	JobScheduler* scheduler = JobScheduler::Get();
 	scheduler->IncrementRenderThreadCount();
 	Renderer::RenderCommandList::StartExecution();
+	FrameMark;
 }
 
 void GameEngine::MakeWindow()

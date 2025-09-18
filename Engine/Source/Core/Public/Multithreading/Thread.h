@@ -16,7 +16,7 @@ namespace LE
 {
 enum class ThreadType : uint8_t
 {
-	Worker,
+	Worker = 1,
 	Render
 };
 
