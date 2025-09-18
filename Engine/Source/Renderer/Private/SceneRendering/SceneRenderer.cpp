@@ -27,11 +27,6 @@ void SceneRender::BeginInitViews()
 	View.InitResourcesRHI();
 }
 
-void SceneRender::RenderThreadEnd(SceneRender* Renderer)
-{
-	delete Renderer;
-}
-
 void SceneRender::RenderBasePass()
 {
 	MessPassCommandBuilder commandBuilder;
@@ -65,7 +60,7 @@ static void RenderSceneView_RenderThread(RenderCommandList& CmdList, SceneRender
 {
 	Renderer->Render();
 
-	SceneRender::RenderThreadEnd(Renderer);
+	delete Renderer;
 }
 
 void RendererModule::BeginRendering(const SceneView& View)

@@ -8,6 +8,7 @@ namespace LE
 {
 class JobScheduler;
 
+// Will probably need to split into Gameplay Work and Render Work
 class JobNode : public RefCountableBase
 {
 	friend JobScheduler;

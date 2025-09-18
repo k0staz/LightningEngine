@@ -44,7 +44,9 @@ private:
 class RenderCommandList
 {
 public:
-	static RenderCommandList& Get();
+	static RenderCommandList& Get(); // Should be called on GT
+	static void StartFrameRenderCommandList(); // Should be called on GT
+	static void StartExecution(); // Should be called on Render Thread
 
 	void Execute();
 	void Clear();

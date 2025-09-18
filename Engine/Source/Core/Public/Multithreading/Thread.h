@@ -14,11 +14,18 @@ class JobScheduler;
 
 namespace LE
 {
-class Thread : RefCountableBase
+enum class ThreadType : uint8_t
+{
+	Worker,
+	Render
+};
+
+class Thread : public RefCountableBase
 {
 public:
-	Thread(uint8 InIndex, std::string InName, JobScheduler* InOwner)
+	Thread(uint8 InIndex, std::string InName, ThreadType InType, JobScheduler* InOwner)
 		: Index(InIndex)
+		  , Type(InType)
 		  , Owner(InOwner)
 		  , Name(std::move(InName))
 	{
@@ -29,6 +36,7 @@ public:
 	Thread(Thread&& Other) noexcept
 	{
 		Index = Other.Index;
+		Type = Other.Type;
 		Owner = Other.Owner;
 		Name = Other.Name;
 		std::swap(ThreadImpl, Other.ThreadImpl);
@@ -40,6 +48,7 @@ public:
 	Thread& operator=(Thread&& Other) noexcept
 	{
 		std::swap(Index, Other.Index);
+		std::swap(Type, Other.Type);
 		std::swap(Owner, Other.Owner);
 		std::swap(Name, Other.Name);
 		std::swap(ThreadImpl, Other.ThreadImpl);
@@ -55,6 +64,11 @@ public:
 		}
 	}
 
+	ThreadType GetType() const
+	{
+		return Type;
+	}
+
 	void Start();
 	void Stop();
 
@@ -64,18 +78,23 @@ public:
 	void PushJob(RefCountingPtr<JobNode> JobToAdd);
 	bool TryStealJob(RefCountingPtr<JobNode>& JobOut);
 
-private:
+	void IncrementFrameCounter();
+	uint64 GetCurrentFrame() const;
+
+protected:
 	bool NextJob(RefCountingPtr<JobNode>& JobOut);
 
 	void SetThreadDescription();
 
-private:
+protected:
 	uint8 Index;
+	ThreadType Type;
 	JobScheduler* Owner;
 	std::string Name;
 	std::thread ThreadImpl;
 	std::atomic<bool> IsRunning{false};
 	std::binary_semaphore IsReady{0};
+	std::atomic<uint64> CurrentFrame;
 	std::deque<RefCountingPtr<JobNode>> LocalQueue;
 	std::mutex LocalQueueMutex;
 };

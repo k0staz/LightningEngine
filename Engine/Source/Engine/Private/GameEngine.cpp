@@ -74,16 +74,29 @@ void GameEngine::Update(bool& IsDone)
 
 	gEventManager.DispatchEvents();
 
+	Renderer::RenderCommandList::StartFrameRenderCommandList();
 	Clock::StartFrame();
 
 	JobScheduler* scheduler = JobScheduler::Get();
 	scheduler->StartFrame();
-	scheduler->WaitForAll(); // TODO: Use function do jobs or smth like this, so GT would do something as well
+	scheduler->HelpWorkerThreads();
+
+	scheduler->WaitForAll();
 
 	const Clock::TimePoint frameEnd = Clock::Now();
 	LE_INFO("Frame Finished, took {}ms", Clock::GetMsBetween(frameBeginning, frameEnd));
 
 	DrawViewport();
+	Delegate<void(const float)> renderDelegate;
+	renderDelegate.Attach<&GameEngine::DrawFrame>(this);
+	scheduler->StartFrameRender(renderDelegate);
+}
+
+void GameEngine::DrawFrame(const float)
+{
+	JobScheduler* scheduler = JobScheduler::Get();
+	scheduler->IncrementRenderThreadCount();
+	Renderer::RenderCommandList::StartExecution();
 }
 
 void GameEngine::MakeWindow()
@@ -108,8 +121,6 @@ void GameEngine::MakeWindow()
 void GameEngine::DrawViewport()
 {
 	Viewport->Viewport->Draw();
-	Renderer::RenderCommandList::Get().Execute();
-	Renderer::RenderCommandList::Get().Clear();
 }
 
 void GameEngine::InitMaterials()

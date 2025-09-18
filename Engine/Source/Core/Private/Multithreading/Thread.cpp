@@ -75,6 +75,16 @@ bool Thread::TryStealJob(RefCountingPtr<JobNode>& JobOut)
 	return true;
 }
 
+void Thread::IncrementFrameCounter()
+{
+	CurrentFrame.fetch_add(1, std::memory_order_relaxed);
+}
+
+uint64 Thread::GetCurrentFrame() const
+{
+	return CurrentFrame.load(std::memory_order_acquire);
+}
+
 bool Thread::NextJob(RefCountingPtr<JobNode>& JobOut)
 {
 	{
@@ -85,6 +95,11 @@ bool Thread::NextJob(RefCountingPtr<JobNode>& JobOut)
 			LocalQueue.pop_front();
 			return true;
 		}
+	}
+
+	if (Type == ThreadType::Render)
+	{
+		return false;
 	}
 
 	return Owner->TryStealJobFromThread(Index, JobOut);

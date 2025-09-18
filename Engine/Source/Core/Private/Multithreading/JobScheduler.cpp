@@ -32,11 +32,17 @@ void JobScheduler::Init(int WorkerThreadsNum)
 	for (uint8 i = 0; i < static_cast<uint8>(WorkerThreadsNum); ++i)
 	{
 		const std::string threadName = std::format("Worker Thread {}", i);
-		ThreadPool.emplace_back(i, threadName, this);
+		ThreadPool.emplace_back(i, threadName, ThreadType::Worker, this);
 		LE_INFO("Thread {} was created", threadName);
 		ThreadPool[i].Start();
 	}
 	LE_INFO("-------------------------Finished Spawning worker threads-------------------------");
+
+	LE_INFO("-------------------------Spawning render thread-------------------------");
+	const std::string renderThreadName = "Render Thread";
+	RenderThread = new Thread(ThreadCount + 1, renderThreadName, ThreadType::Render, this);
+	RenderThread->Start();
+	LE_INFO("-------------------------Finished Spawning render thread-------------------------");
 }
 
 void JobScheduler::Shutdown()
@@ -45,6 +51,8 @@ void JobScheduler::Shutdown()
 	{
 		thread.Stop();
 	}
+
+	RenderThread->Stop();
 }
 
 void JobScheduler::ConstructUpdateGraph()
@@ -68,12 +76,30 @@ void JobScheduler::ConstructUpdateGraph()
 
 void JobScheduler::StartFrame()
 {
+	++FrameCounter;
 	ActiveJobs.store(0);
 	CurrentThreadForPush.store(0);
+	for (auto& workerThread : ThreadPool)
+	{
+		workerThread.IncrementFrameCounter();
+	}
+
 	for (auto& job : AvailableJobs)
 	{
 		PushJob(job);
 	}
+}
+
+void JobScheduler::StartFrameRender(Delegate<void(const float)> Delegate)
+{
+	// TODO: This needs to be reworked once actual multithreading for render part is done
+	RefCountingPtr<JobNode> job = new JobNode(nullptr, "Render Kick-Off job", Delegate, UpdateJobType(), UpdatePassType());
+	RenderThread->PushJob(job);
+}
+
+void JobScheduler::IncrementRenderThreadCount()
+{
+	RenderThread->IncrementFrameCounter();
 }
 
 void JobScheduler::OnJobBecameAvailable(RefCountingPtr<JobNode> JobNode)
@@ -101,7 +127,19 @@ void JobScheduler::WaitForAll()
 	FrameFinishedCV.wait(lock, [this] { return ActiveJobs.load(std::memory_order_acquire) == 0; });
 }
 
-bool JobScheduler::TryStealJobFromThread(uint8 RequestingThreadIdx, RefCountingPtr<JobNode>& OutJob)
+void JobScheduler::HelpWorkerThreads()
+{
+	uint8 threadIdxToSteal = 0;
+
+	RefCountingPtr<JobNode> currentJob = nullptr;
+	while (TryStealJobFromThread(threadIdxToSteal, currentJob))
+	{
+		currentJob->Execute();
+		threadIdxToSteal = (threadIdxToSteal + 1) % ThreadCount;
+	}
+}
+
+bool JobScheduler::TryStealJobFromThread(uint8 RequestingThreadIdx, RefCountingPtr<JobNode>& OutJob, ThreadType StealingType)
 {
 	uint8 threadIdxToSteal = (RequestingThreadIdx + 1) % ThreadCount;
 	while (threadIdxToSteal != RequestingThreadIdx)

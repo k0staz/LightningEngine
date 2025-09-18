@@ -40,21 +40,11 @@ void RenderSystem::Shutdown()
 void RenderSystem::UpdateStaticMeshes(const float DeltaSeconds)
 {
 	Renderer::RenderScene& renderScene = GetRendererModule()->GetRenderScene();
-	const auto& proxyMap = renderScene.GetProxyMap();
-
 	auto view = ViewComponents<StaticMeshComponent, TransformComponent>();
 	for (const EcsEntity& entity : view)
 	{
 		const TransformComponent& transformComponent = view.GetComponents<TransformComponent>(entity);
-
-		if (!proxyMap.contains(entity))
-		{
-			continue;
-		}
-
-		Renderer::RenderObjectProxy* proxy = proxyMap.at(entity);
-		proxy->SetTransform(transformComponent.Transform);
-		proxy->UpdateConstantBuffer(Renderer::RenderCommandList::Get());
+		renderScene.UpdateStaticMeshProxyTransform(entity, transformComponent.Transform);
 	}
 }
 
@@ -82,15 +72,7 @@ void RenderSystem::OnAdd(const OnAddObserverType::ObserverType& Observer)
 		const StaticMeshComponent& staticMeshComponent = Observer.GetComponents<StaticMeshComponent>(entity);
 		const TransformComponent& transformComponent = Observer.GetComponents<TransformComponent>(entity);
 
-		Renderer::StaticMeshRenderProxy* proxy = renderScene.CreateStaticMeshRenderProxy(entity, staticMeshComponent.RenderData, staticMeshComponent.MeshMaterial);
-		if (!proxy)
-		{
-			LE_ASSERT_DESC(false, "Failed to create static mesh render proxy for entity {}", entity)
-				continue;
-		}
-
-		proxy->SetTransform(transformComponent.Transform);
-		proxy->CreateConstantBuffer();
+		renderScene.CreateStaticMeshRenderProxy(entity, transformComponent.Transform, staticMeshComponent.RenderData, staticMeshComponent.MeshMaterial);
 	}
 }
 

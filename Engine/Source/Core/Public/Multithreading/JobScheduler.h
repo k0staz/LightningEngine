@@ -12,11 +12,10 @@
 
 namespace LE
 {
-struct UpdatePass;
-}
+#define RENDER_THREAD_FRAME_BEHIND_MAX 2
 
-namespace LE
-{
+struct UpdatePass;
+
 class JobScheduler : public NonCopyable
 {
 public:
@@ -28,13 +27,17 @@ public:
 	void ConstructUpdateGraph();
 
 	void StartFrame();
+	void StartFrameRender(Delegate<void(const float)> Delegate);
+	void IncrementRenderThreadCount();
+
 	void OnJobBecameAvailable(RefCountingPtr<JobNode> JobNode);
 	void OnJobFinished();
 
 	bool AreAllFinished() const;
 	void WaitForAll();
+	void HelpWorkerThreads(); // Should be called from MT. Do jobs till all are completed
 
-	bool TryStealJobFromThread(uint8 RequestingThreadIdx, RefCountingPtr<JobNode>& OutJob);
+	bool TryStealJobFromThread(uint8 RequestingThreadIdx, RefCountingPtr<JobNode>& OutJob, ThreadType StealingType = ThreadType::Worker);
 
 private:
 	void PushJob(RefCountingPtr<JobNode> JobNode);
@@ -42,6 +45,7 @@ private:
 private:
 	JobScheduler()
 		: ThreadCount(0)
+		  , FrameCounter(0)
 	{
 	}
 
@@ -72,7 +76,10 @@ private:
 
 	std::atomic<uint32> CurrentThreadForPush;
 
-	uint32 ThreadCount;
+	uint8 ThreadCount;
 	std::vector<Thread> ThreadPool;
+	RefCountingPtr<Thread> RenderThread;
+
+	uint64 FrameCounter;
 };
 }

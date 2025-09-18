@@ -22,7 +22,10 @@ void JobNode::DecrementDependencyCounter()
 	uint32 newValue = JobsTillReady.fetch_sub(1, std::memory_order_acq_rel) - 1;
 	if (newValue == 0)
 	{
-		Owner->OnJobBecameAvailable(this);
+		if (Owner)
+		{
+			Owner->OnJobBecameAvailable(this);
+		}
 	}
 }
 
@@ -33,6 +36,9 @@ void JobNode::OnCompleted()
 		dependentJob->DecrementDependencyCounter();
 	}
 	JobsTillReady.store(DefaultDependencies);
-	Owner->OnJobFinished();
+	if (Owner)
+	{
+		Owner->OnJobFinished();
+	}
 }
 }

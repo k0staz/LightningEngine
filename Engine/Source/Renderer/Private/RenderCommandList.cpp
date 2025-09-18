@@ -1,14 +1,47 @@
 #include "RenderCommandList.h"
 
+#include <deque>
+#include <mutex>
+
 #include "DynamicRHI.h"
 
 namespace LE::Renderer
 {
+
+// TODO: This mess down here should be burned down, and its needs to be build anew
 static RenderCommandList gRenderCommands;
+static RenderCommandList gRunningRenderCommands;
+static std::mutex gRenderCommandsMutex;
+static std::atomic_bool IsRunning;
+static std::condition_variable IsRunningCV;
 
 RenderCommandList& RenderCommandList::Get()
 {
 	return gRenderCommands;
+}
+
+void RenderCommandList::StartFrameRenderCommandList()
+{
+	std::unique_lock lock(gRenderCommandsMutex);
+	IsRunningCV.wait(lock, [] {return IsRunning.load(std::memory_order_acquire) == false; });
+
+	gRunningRenderCommands = gRenderCommands;
+	gRenderCommands.Clear();
+}
+
+void RenderCommandList::StartExecution()
+{
+	{
+		std::unique_lock lock(gRenderCommandsMutex);
+		IsRunning.store(true, std::memory_order_relaxed);
+		IsRunningCV.notify_all();
+	}
+	gRunningRenderCommands.Execute();
+	{
+		std::unique_lock lock(gRenderCommandsMutex);
+		IsRunning.store(false, std::memory_order_relaxed);
+		IsRunningCV.notify_all();
+	}
 }
 
 void RenderCommandList::Execute()
@@ -18,6 +51,8 @@ void RenderCommandList::Execute()
 	{
 		renderCommand.Execute(*this);
 	}
+
+	RenderCommands.clear();
 	IsExecuting = false;
 }
 
