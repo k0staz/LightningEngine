@@ -15,8 +15,6 @@ public:
 
 	void BeginInitViews();
 
-	static void RenderThreadEnd(SceneRender* Renderer);
-
 	void RenderBasePass();
 	void SetupBasePassState(MeshPassRenderState& RenderState);
 

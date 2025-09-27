@@ -12,6 +12,8 @@ namespace LE
 
 		static TimePoint Now();
 
+		static void StartFrame();
+		static float GetElapsedSeconds();
 		static float GetSecondsBetween(const TimePoint& Begin, const TimePoint& Stop);
 		static float GetSecondsFrom(const TimePoint& Begin);
 

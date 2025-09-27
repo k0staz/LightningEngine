@@ -3,10 +3,24 @@
 namespace LE
 {
 	Clock gGlobalClock;
+	static Clock::TimePoint PrevFrame = Clock::Now();
+	static float ElapsedTime;
 
 	Clock::TimePoint Clock::Now()
 	{
 		return ClockClass::now();
+	}
+
+	void Clock::StartFrame()
+	{
+		const Clock::TimePoint current = Clock::Now();
+		ElapsedTime = Clock::GetSecondsBetween(PrevFrame, current);
+		PrevFrame = current;
+	}
+
+	float Clock::GetElapsedSeconds()
+	{
+		return ElapsedTime;
 	}
 
 	float Clock::GetSecondsBetween(const TimePoint& Begin, const TimePoint& Stop)

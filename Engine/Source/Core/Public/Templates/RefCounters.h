@@ -4,13 +4,6 @@
 
 namespace LE
 {
-template <typename T>
-concept RefCounterInterface = requires(T* Ptr)
-{
-	Ptr->AddRef();
-	Ptr->Release();
-};
-
 class RefCountableBase
 {
 public:
@@ -22,13 +15,13 @@ public:
 
 	uint32 AddRef() const
 	{
-		uint32 newValue = RefsNum.fetch_add(1, std::memory_order_acquire) + 1;
+		uint32 newValue = RefsNum.fetch_add(1, std::memory_order_relaxed) + 1;
 		return newValue;
 	}
 
 	uint32 Release() const
 	{
-		uint32 newValue = RefsNum.fetch_sub(1, std::memory_order_acquire) - 1;
+		uint32 newValue = RefsNum.fetch_sub(1, std::memory_order_acq_rel) - 1;
 		if (newValue == 0)
 		{
 			delete this;
@@ -43,6 +36,19 @@ public:
 
 private:
 	mutable std::atomic_uint RefsNum = {0};
+};
+
+template<class T>
+concept DerivesFromRefBase = requires(std::remove_cv_t<std::remove_reference_t<T>>*Ptr)
+{
+	static_cast<RefCountableBase const*>(Ptr);
+};
+
+template <typename T>
+concept RefCounterInterface = DerivesFromRefBase<T> || requires(T* Ptr)
+{
+	Ptr->AddRef();
+	Ptr->Release();
 };
 
 template <RefCounterInterface PointedType>
@@ -224,5 +230,17 @@ private:
 
 	template <RefCounterInterface OtherType>
 	friend class RefCountingPtr;
+};
+}
+
+namespace std
+{
+template<typename T>
+struct hash<LE::RefCountingPtr<T>>
+{
+	size_t operator()(const LE::RefCountingPtr<T>& p) const noexcept
+	{
+		return hash<typename LE::RefCountingPtr<T>::PointerType>{}(p.GetPointer());
+	}
 };
 }

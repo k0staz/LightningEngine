@@ -10,12 +10,19 @@ project "Core"
         "Public"
     }
 
+    publicIncludeDirs
+    {
+        "../../3rdParty/tracy/public/",
+    }
+
     files { 
         "Public/**.h",
         "Private/**.cpp",
+        "../../3rdParty/tracy/public/TracyClient.cpp",
+        "../../3rdParty/tracy/public/**.hpp",
     }
 
-    use_modules({"Log"})
+    use_modules({"Log", "System"})
 
     targetdir ("../Binaries/" .. OutputDir .. "/%{prj.name}")
     objdir ("../Binaries/Intermediates/" .. OutputDir .. "/%{prj.name}")

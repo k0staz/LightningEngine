@@ -1,3 +1,6 @@
 [submodule "Engine/3rdParty/spdlog"]
 	path = Engine/3rdParty/spdlog
 	url = https://github.com/gabime/spdlog
+[submodule "Engine/3rdParty/tracy"]
+	path = Engine/3rdParty/tracy
+	url = https://github.com/wolfpld/tracy.git

@@ -1,31 +1,78 @@
 #include "RenderCommandList.h"
 
 #include "DynamicRHI.h"
+#include "Multithreading/Thread.h"
+
+namespace
+{
+LE::Renderer::RenderCommandList gRenderCommands;
+}
 
 namespace LE::Renderer
 {
-static RenderCommandList gRenderCommands;
-
 RenderCommandList& RenderCommandList::Get()
 {
 	return gRenderCommands;
 }
 
-void RenderCommandList::Execute()
+RenderCommandList::RenderCommandList()
 {
-	IsExecuting = true;
-	for (auto& renderCommand : RenderCommands)
-	{
-		renderCommand.Execute(*this);
-	}
-	IsExecuting = false;
+	WriteRenderCommands.resize(1);
 }
 
-void RenderCommandList::Clear()
+void RenderCommandList::Initialize(int8 WorkerThreadNum)
 {
-	RenderCommands.clear();
-	IsExecuting = false;
-	ScratchShaderParametersCollection.Reset();
+	WriteRenderCommands.resize(WorkerThreadNum + 1);
+	RenderThreadFinished.release();
+}
+
+void RenderCommandList::EnqueueLambdaCommand(const RenderCommand& LambdaCommand)
+{
+	if (Thread::IsRenderThread())
+	{
+		LambdaCommand(*this);
+	}
+	else
+	{
+		const int8 workerThreadIdx = Thread::IsMainThread()? static_cast<int8>(0) : Thread::GetWorkerThreadIndex();
+		LE_ASSERT_DESC(workerThreadIdx >= 0, "Trying to enqueue render command from non-working thread")
+		WriteRenderCommands[workerThreadIdx].emplace_back(LambdaCommand);
+	}
+}
+
+void RenderCommandList::FinalizeFrame()
+{
+	std::vector<RenderCommandWrapper> finalRenderCommandList;
+
+	size_t finalSize = 0;
+	for (const std::vector<RenderCommandWrapper>& commandList : WriteRenderCommands)
+	{
+		finalSize += commandList.size();
+	}
+
+	finalRenderCommandList.reserve(finalSize);
+	for (std::vector<RenderCommandWrapper>& commandList : WriteRenderCommands)
+	{
+		finalRenderCommandList.insert(finalRenderCommandList.end(), commandList.begin(), commandList.end());
+		commandList.clear();
+	}
+
+	// Wait for the render frame to finish
+	RenderThreadFinished.acquire();
+
+	ReadRenderCommands.reserve(finalSize);
+	ReadRenderCommands.insert(ReadRenderCommands.end(), finalRenderCommandList.begin(), finalRenderCommandList.end());
+}
+
+void RenderCommandList::Render_ExecuteFrame()
+{
+	for (RenderCommandWrapper& command : ReadRenderCommands)
+	{
+		command.Execute(*this);
+	}
+
+	ReadRenderCommands.clear();
+	RenderThreadFinished.release();
 }
 
 RefCountingPtr<RHI::RHIBuffer> RenderCommandList::CreateBuffer(uint32 Size, RHI::BufferUsageFlags UsageFlags, uint32 Stride,
@@ -49,7 +96,7 @@ RefCountingPtr<RHI::RHIBuffer> RenderCommandList::CreateVertexBuffer(uint32 Size
 }
 
 RefCountingPtr<RHI::RHIBuffer> RenderCommandList::CreateIndexBuffer(uint32 Stride, uint32 Size, RHI::BufferUsageFlags UsageFlags,
-	RHI::RHIResourceCreateInfo& CreateInfo)
+                                                                    RHI::RHIResourceCreateInfo& CreateInfo)
 {
 	return CreateBuffer(Size, UsageFlags, Stride, CreateInfo);
 }
@@ -70,18 +117,6 @@ void RenderCommandList::EndDrawingViewport(RHI::RHIViewport* Viewport)
 	RHI::gDynamicRHI->RHIEndDrawingViewport(Viewport);
 }
 
-void RenderCommandList::EnqueueLambdaCommand(const RenderCommand& LambdaCommand)
-{
-	if (IsExecuting)
-	{
-		LambdaCommand(*this);
-	}
-	else
-	{
-		RenderCommands.emplace_back(LambdaCommand);
-	}
-}
-
 void RenderCommandList::SetGraphicsPSO(RHI::RHIPipelineStateObject* RHIPipelineStateObject, uint32 StencilRef)
 {
 	GetContext().RHISetPSO(RHIPipelineStateObject, StencilRef);
@@ -94,7 +129,8 @@ void RenderCommandList::DrawIndexedPrimitive(RHI::RHIBuffer* IndexBuffer, uint32
 
 void RenderCommandList::SetShaderParametersCollection(RHI::RHIShader* Shader, RHI::RHIShaderParametersCollection& ParametersCollection)
 {
-	GetContext().RHISetShaderParameters(Shader, ParametersCollection.ParametersData, ParametersCollection.Parameters, ParametersCollection.ResourceParameters);
+	GetContext().RHISetShaderParameters(Shader, ParametersCollection.ParametersData, ParametersCollection.Parameters,
+	                                    ParametersCollection.ResourceParameters);
 	ParametersCollection.Reset();
 }
 

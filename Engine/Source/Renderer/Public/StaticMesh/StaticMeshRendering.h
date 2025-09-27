@@ -3,6 +3,7 @@
 #include "CoreDefinitions.h"
 #include "Math/Vector3.h"
 #include "MeshConverters/StaticMeshConverter.h"
+#include "Multithreading/SharedResource.h"
 #include "SceneRendering/RenderObjectProxy.h"
 
 
@@ -106,3 +107,8 @@ private:
 	RefCountingPtr<MaterialInstance> MeshMaterial;
 };
 };
+
+namespace LE
+{
+	REGISTER_SHARED_RESOURCE(Renderer::StaticMeshRenderProxy, "StaticMeshRenderProxy")
+}

@@ -1,17 +1,25 @@
 #include "Systems/TestSystem.h"
 
+#include "CoreECSUpdatePasses.h"
 #include "Components/CameraComponent.h"
 #include "Components/TransformComponent.h"
 #include "ECS/Ecs.h"
+#include "Multithreading/UpdateJobs.h"
+#include "Multithreading/UpdatePasses.h"
+#include "tracy/Tracy.hpp"
 
 namespace LE
 {
 	void TestSystem::Initialize()
 	{
+		TestSystemUpdate.GetDelegate().Attach<&TestSystem::Update>(this);
+		TestSystemUpdate.WritesComponents<TransformComponent>();
+		UpdatePass::AddJob<TestUpdatePass>(&TestSystemUpdate);
 	}
 
 	void TestSystem::Update(const float DeltaSeconds)
 	{
+		ZoneScopedN("TestSystem::Update");
 		static float time = 0.0f;
 
 		time += DeltaSeconds;
@@ -30,8 +38,6 @@ namespace LE
 			pos.X += amp * Sin(PI * time * freq);
 
 			transformComponent.Transform.SetPosition(pos);
-
-			LE_INFO("Change transform to X {} Y {} Z {} for Entity {}", pos.X, pos.Y, pos.Z, entity);
 		}
 	}
 

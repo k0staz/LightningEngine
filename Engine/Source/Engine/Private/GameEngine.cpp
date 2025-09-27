@@ -1,11 +1,17 @@
 #include "GameEngine.h"
 
+#include <thread>
+
 #include "D3D11DynamicRHI.h"
 #include "EngineGlobals.h"
 #include "GameViewport.h"
 #include "WindowsWindow.h"
 #include "Application/SystemWindow.h"
+#include "common/TracySystem.hpp"
 #include "EventCore/EventManager.h"
+#include "Multithreading/JobScheduler.h"
+#include "Time/Clock.h"
+#include "tracy/Tracy.hpp"
 
 namespace LE
 {
@@ -13,12 +19,15 @@ GameEngine gGameEngine;
 
 void GameEngine::Init()
 {
+	tracy::SetThreadName("Main thread");
 	RegisterEngine(this);
 	D3D11::UseD3D11RHIModule();
 	InitMaterials();
 
 	GameWorld = new World;
 	GameWorld->Init();
+
+	InitJobScheduler();
 
 	RHI::InitRHI();
 
@@ -32,6 +41,9 @@ void GameEngine::Init()
 
 void GameEngine::Shutdown()
 {
+	JobScheduler* scheduler = JobScheduler::Get();
+	scheduler->Shutdown();
+
 	GameWorld->Shutdown();
 	delete GameWorld;
 	delete Viewport;
@@ -47,6 +59,7 @@ void GameEngine::Shutdown()
 
 void GameEngine::Update(bool& IsDone)
 {
+	const Clock::TimePoint frameBeginning = Clock::Now();
 	// TODO: This needs to be abstracted at some point
 	MSG msg;
 	ZeroMemory(&msg, sizeof(MSG));
@@ -64,10 +77,32 @@ void GameEngine::Update(bool& IsDone)
 
 	gEventManager.DispatchEvents();
 
-	GameWorld->Update();
-	GameWorld->PostUpdate();
+	Clock::StartFrame();
+
+	JobScheduler* scheduler = JobScheduler::Get();
+	scheduler->StartFrame();
+	scheduler->HelpWorkerThreads();
+
+	scheduler->WaitForAll();
+
+	const Clock::TimePoint frameEnd = Clock::Now();
+	LE_INFO("Frame Finished, took {}ms", Clock::GetMsBetween(frameBeginning, frameEnd));
+	FrameMarkNamed("Game Frame");
 
 	DrawViewport();
+	Delegate<void(const float)> renderDelegate;
+	renderDelegate.Attach<&GameEngine::DrawFrame>(this);
+	Renderer::RenderCommandList::Get().FinalizeFrame();
+	scheduler->StartFrameRender(renderDelegate);
+}
+
+void GameEngine::DrawFrame(const float)
+{
+	ZoneScopedN("Draw Frame");
+	JobScheduler* scheduler = JobScheduler::Get();
+	scheduler->IncrementRenderThreadCount();
+	Renderer::RenderCommandList::Get().Render_ExecuteFrame();
+	FrameMark;
 }
 
 void GameEngine::MakeWindow()
@@ -92,8 +127,6 @@ void GameEngine::MakeWindow()
 void GameEngine::DrawViewport()
 {
 	Viewport->Viewport->Draw();
-	Renderer::RenderCommandList::Get().Execute();
-	Renderer::RenderCommandList::Get().Clear();
 }
 
 void GameEngine::InitMaterials()
@@ -108,5 +141,18 @@ void GameEngine::InitMaterials()
 	{
 		LE_INFO("{}", it.first.c_str());
 	}
+}
+
+void GameEngine::InitJobScheduler()
+{
+	JobScheduler* scheduler = JobScheduler::Get();
+	const int availableThreadCount = std::thread::hardware_concurrency();
+	const int capCount = Min(availableThreadCount, static_cast<int>(Constants<int8>::CMax));
+	const int8 workerThreadCount = static_cast<int8>(capCount - 2);
+
+	scheduler->Init(workerThreadCount);
+
+	Renderer::RenderCommandList::Get().Initialize(workerThreadCount);
+	scheduler->StartRenderThread();
 }
 }

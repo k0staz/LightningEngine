@@ -20,8 +20,9 @@ public:
 
 	const Map<EcsEntity, RenderObjectProxy*>& GetProxyMap() const { return RenderObjectProxies; }
 
-	StaticMeshRenderProxy* CreateStaticMeshRenderProxy(EcsEntity Entity, const StaticMeshRenderData* RenderData, const Material* MeshMaterial);
+	void CreateStaticMeshRenderProxy(EcsEntity Entity, const Matrix4x4F& Transform, const StaticMeshRenderData* RenderData, const Material* MeshMaterial);
 	void DeleteRenderObjectProxy(EcsEntity Entity);
+	void UpdateStaticMeshProxyTransform(EcsEntity Entity, const Matrix4x4F& Transform);
 
 private:
 	Map<EcsEntity, RenderObjectProxy*> RenderObjectProxies;

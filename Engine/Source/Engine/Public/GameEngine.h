@@ -27,6 +27,8 @@ public:
 	Renderer::RendererModule* GetRendererModule() override { return &RendererModule; }
 	IWorld* GetWorld() override { return GameWorld; }
 
+	void DrawFrame(const float);
+
 private:
 	// This will need to be moved to a separate Platform specific application class
 	void MakeWindow();
@@ -34,6 +36,8 @@ private:
 	void DrawViewport();
 
 	void InitMaterials();
+
+	void InitJobScheduler();
 
 public:
 	RefCountingPtr<SystemWindow> Window;

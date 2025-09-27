@@ -17,7 +17,6 @@ namespace LE
 		virtual ~EcsSystem() = default;
 
 		virtual void Initialize() = 0;
-		virtual void Update(const float DeltaSeconds) = 0;
 		virtual void Shutdown() = 0;
 	};
 
@@ -27,8 +26,6 @@ namespace LE
 		EcsSystemManager() = default;
 		EcsSystemManager(EcsSystemManager&) = delete;
 		EcsSystemManager(EcsSystemManager&&) = delete;
-
-		void Update(const float DeltaSeconds);
 
 		void Shutdown();
 

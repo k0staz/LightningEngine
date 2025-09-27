@@ -13,16 +13,6 @@
 
 namespace LE
 {
-static float locCalculateDeltaSeconds()
-{
-	static Clock::TimePoint prev = Clock::Now();
-	const Clock::TimePoint cur = Clock::Now();
-	const float deltaSeconds = Clock::GetSecondsBetween(prev, cur);
-	prev = cur;
-
-	return deltaSeconds;
-}
-
 void World::Init()
 {
 	{
@@ -39,16 +29,6 @@ void World::Init()
 void World::Shutdown()
 {
 	SystemManager.Shutdown();
-}
-
-void World::Update()
-{
-	const float deltaSeconds = locCalculateDeltaSeconds();
-	SystemManager.Update(deltaSeconds);
-}
-
-void World::PostUpdate()
-{
 }
 
 void World::InitTestData()
