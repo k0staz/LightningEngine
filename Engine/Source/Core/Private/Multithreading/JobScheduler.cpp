@@ -18,7 +18,7 @@ JobScheduler* JobScheduler::Get()
 	return gJobScheduler;
 }
 
-void JobScheduler::Init(int WorkerThreadsNum)
+void JobScheduler::Init(int8 WorkerThreadsNum)
 {
 	if (WorkerThreadsNum <= 0)
 	{
@@ -32,15 +32,18 @@ void JobScheduler::Init(int WorkerThreadsNum)
 	for (uint8 i = 0; i < static_cast<uint8>(WorkerThreadsNum); ++i)
 	{
 		const std::string threadName = std::format("Worker Thread {}", i);
-		ThreadPool.emplace_back(i, threadName, ThreadType::Worker, this);
+		ThreadPool.emplace_back(i + 1, threadName, ThreadType::Worker, this);
 		LE_INFO("Thread {} was created", threadName);
 		ThreadPool[i].Start();
 	}
 	LE_INFO("-------------------------Finished Spawning worker threads-------------------------");
+}
 
+void JobScheduler::StartRenderThread()
+{
 	LE_INFO("-------------------------Spawning render thread-------------------------");
 	const std::string renderThreadName = "Render Thread";
-	RenderThread = new Thread(ThreadCount + 1, renderThreadName, ThreadType::Render, this);
+	RenderThread = new Thread(-1, renderThreadName, ThreadType::Render, this);
 	RenderThread->Start();
 	LE_INFO("-------------------------Finished Spawning render thread-------------------------");
 }

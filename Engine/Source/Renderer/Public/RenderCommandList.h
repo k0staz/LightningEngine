@@ -1,4 +1,6 @@
 #pragma once
+#include <semaphore>
+
 #include "RHIContext.h"
 #include "RHIResources.h"
 #include "RHIShaderParameters.h"
@@ -11,28 +13,15 @@ class RenderCommandList;
 
 using RenderCommand = std::function<void(RenderCommandList& CmdList)>;
 
-class ICommandWrapper
+class RenderCommandWrapper
 {
 public:
-	void Execute(RenderCommandList& CmdList)
-	{
-		Call(CmdList);
-	}
-
-protected:
-	virtual void Call(RenderCommandList& CmdList) = 0;
-};
-
-class CommandWrapper final : public ICommandWrapper
-{
-public:
-	explicit CommandWrapper(RenderCommand InCommand)
+	explicit RenderCommandWrapper(RenderCommand InCommand)
 		: Command(std::move(InCommand))
 	{
 	}
 
-protected:
-	virtual void Call(RenderCommandList& CmdList) override
+	void Execute(RenderCommandList& CmdList) const
 	{
 		Command(CmdList);
 	}
@@ -45,11 +34,14 @@ class RenderCommandList
 {
 public:
 	static RenderCommandList& Get(); // Should be called on GT
-	static void StartFrameRenderCommandList(); // Should be called on GT
-	static void StartExecution(); // Should be called on Render Thread
 
-	void Execute();
-	void Clear();
+	RenderCommandList();
+
+	void Initialize(int8 WorkerThreadNum);
+	void EnqueueLambdaCommand(const RenderCommand& LambdaCommand);
+
+	void FinalizeFrame(); // Joins commands from worker thread and puts them into reading list
+	void Render_ExecuteFrame(); // Should be called from render frame
 
 	RefCountingPtr<RHI::RHIBuffer> CreateBuffer(uint32 Size, RHI::BufferUsageFlags UsageFlags, uint32 Stride,
 	                                            RHI::RHIResourceCreateInfo& CreateInfo);
@@ -64,8 +56,6 @@ public:
 
 	void BeginDrawingViewport(RHI::RHIViewport* Viewport);
 	void EndDrawingViewport(RHI::RHIViewport* Viewport);
-
-	void EnqueueLambdaCommand(const RenderCommand& LambdaCommand);
 
 	void SetGraphicsPSO(RHI::RHIPipelineStateObject* RHIPipelineStateObject, uint32 StencilRef);
 	void DrawIndexedPrimitive(RHI::RHIBuffer* IndexBuffer, uint32 BaseVertexIndex, uint32 StartIndex, uint32 PrimitiveCount);
@@ -89,7 +79,9 @@ protected:
 	RHI::RHIShaderParametersCollection ScratchShaderParametersCollection;
 
 private:
-	Array<CommandWrapper> RenderCommands;
-	bool IsExecuting = false;
+	std::vector<RenderCommandWrapper> ReadRenderCommands; // Those are executed on the render thread
+	std::vector<std::vector<RenderCommandWrapper>> WriteRenderCommands; // Those are where worker threads write
+
+	std::binary_semaphore RenderThreadFinished{0};
 };
 }

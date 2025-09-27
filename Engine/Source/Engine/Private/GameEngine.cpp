@@ -77,7 +77,6 @@ void GameEngine::Update(bool& IsDone)
 
 	gEventManager.DispatchEvents();
 
-	Renderer::RenderCommandList::StartFrameRenderCommandList();
 	Clock::StartFrame();
 
 	JobScheduler* scheduler = JobScheduler::Get();
@@ -93,6 +92,7 @@ void GameEngine::Update(bool& IsDone)
 	DrawViewport();
 	Delegate<void(const float)> renderDelegate;
 	renderDelegate.Attach<&GameEngine::DrawFrame>(this);
+	Renderer::RenderCommandList::Get().FinalizeFrame();
 	scheduler->StartFrameRender(renderDelegate);
 }
 
@@ -101,7 +101,7 @@ void GameEngine::DrawFrame(const float)
 	ZoneScopedN("Draw Frame");
 	JobScheduler* scheduler = JobScheduler::Get();
 	scheduler->IncrementRenderThreadCount();
-	Renderer::RenderCommandList::StartExecution();
+	Renderer::RenderCommandList::Get().Render_ExecuteFrame();
 	FrameMark;
 }
 
@@ -146,6 +146,13 @@ void GameEngine::InitMaterials()
 void GameEngine::InitJobScheduler()
 {
 	JobScheduler* scheduler = JobScheduler::Get();
-	scheduler->Init(static_cast<int>(std::thread::hardware_concurrency()) - 2);
+	const int availableThreadCount = std::thread::hardware_concurrency();
+	const int capCount = Min(availableThreadCount, static_cast<int>(Constants<int8>::CMax));
+	const int8 workerThreadCount = static_cast<int8>(capCount - 2);
+
+	scheduler->Init(workerThreadCount);
+
+	Renderer::RenderCommandList::Get().Initialize(workerThreadCount);
+	scheduler->StartRenderThread();
 }
 }

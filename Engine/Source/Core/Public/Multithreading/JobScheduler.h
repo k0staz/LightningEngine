@@ -21,7 +21,8 @@ class JobScheduler : public NonCopyable
 public:
 	static JobScheduler* Get();
 
-	void Init(int WorkerThreadsNum);
+	void Init(int8 WorkerThreadsNum);
+	void StartRenderThread();
 	void Shutdown();
 
 	void ConstructUpdateGraph();

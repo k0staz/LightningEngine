@@ -23,7 +23,12 @@ enum class ThreadType : uint8_t
 class Thread : public RefCountableBase
 {
 public:
-	Thread(uint8 InIndex, std::string InName, ThreadType InType, JobScheduler* InOwner)
+	static bool IsMainThread();
+	static bool IsRenderThread();
+	static int8 GetWorkerThreadIndex();
+
+
+	Thread(int8 InIndex, std::string InName, ThreadType InType, JobScheduler* InOwner)
 		: Index(InIndex)
 		  , Type(InType)
 		  , Owner(InOwner)
@@ -87,7 +92,7 @@ protected:
 	void SetThreadDescription();
 
 protected:
-	uint8 Index;
+	int8 Index;
 	ThreadType Type;
 	JobScheduler* Owner;
 	std::string Name;

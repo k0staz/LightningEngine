@@ -7,8 +7,30 @@
 #include <Windows.h>
 #endif
 
+namespace
+{
+	thread_local bool GIsRenderThread = false;
+	thread_local bool GIsMainThread = true;
+	thread_local LE::int8 GWorkerThreadIndex = -1;
+}
+
 namespace LE
 {
+bool Thread::IsMainThread()
+{
+	return GIsMainThread;
+}
+
+bool Thread::IsRenderThread()
+{
+	return GIsRenderThread;
+}
+
+int8 Thread::GetWorkerThreadIndex()
+{
+	return GWorkerThreadIndex;
+}
+
 void Thread::Start()
 {
 	IsRunning.store(true, std::memory_order_relaxed);
@@ -23,6 +45,10 @@ void Thread::Stop()
 
 void Thread::Main()
 {
+	GWorkerThreadIndex = Index;
+	GIsMainThread = false;
+	GIsRenderThread = Type == ThreadType::Render;
+
 	SetThreadDescription();
 
 	while (IsRunning.load(std::memory_order_relaxed))
@@ -93,7 +119,7 @@ bool Thread::NextJob(RefCountingPtr<JobNode>& JobOut)
 		if (lock && !LocalQueue.empty())
 		{
 			JobOut = LocalQueue.back();
-			LocalQueue.pop_front();
+			LocalQueue.pop_back();
 			return true;
 		}
 	}

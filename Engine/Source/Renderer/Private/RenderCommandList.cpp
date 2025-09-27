@@ -1,66 +1,78 @@
 #include "RenderCommandList.h"
 
-#include <deque>
-#include <mutex>
-
 #include "DynamicRHI.h"
+#include "Multithreading/Thread.h"
+
+namespace
+{
+LE::Renderer::RenderCommandList gRenderCommands;
+}
 
 namespace LE::Renderer
 {
-
-// TODO: This mess down here should be burned down, and its needs to be build anew
-static RenderCommandList gRenderCommands;
-static RenderCommandList gRunningRenderCommands;
-static std::mutex gRenderCommandsMutex;
-static std::atomic_bool IsRunning;
-static std::condition_variable IsRunningCV;
-
 RenderCommandList& RenderCommandList::Get()
 {
 	return gRenderCommands;
 }
 
-void RenderCommandList::StartFrameRenderCommandList()
+RenderCommandList::RenderCommandList()
 {
-	std::unique_lock lock(gRenderCommandsMutex);
-	IsRunningCV.wait(lock, [] {return IsRunning.load(std::memory_order_acquire) == false; });
-
-	gRunningRenderCommands = gRenderCommands;
-	gRenderCommands.Clear();
+	WriteRenderCommands.resize(1);
 }
 
-void RenderCommandList::StartExecution()
+void RenderCommandList::Initialize(int8 WorkerThreadNum)
 {
+	WriteRenderCommands.resize(WorkerThreadNum + 1);
+	RenderThreadFinished.release();
+}
+
+void RenderCommandList::EnqueueLambdaCommand(const RenderCommand& LambdaCommand)
+{
+	if (Thread::IsRenderThread())
 	{
-		std::unique_lock lock(gRenderCommandsMutex);
-		IsRunning.store(true, std::memory_order_relaxed);
-		IsRunningCV.notify_all();
+		LambdaCommand(*this);
 	}
-	gRunningRenderCommands.Execute();
+	else
 	{
-		std::unique_lock lock(gRenderCommandsMutex);
-		IsRunning.store(false, std::memory_order_relaxed);
-		IsRunningCV.notify_all();
+		const int8 workerThreadIdx = Thread::IsMainThread()? static_cast<int8>(0) : Thread::GetWorkerThreadIndex();
+		LE_ASSERT_DESC(workerThreadIdx >= 0, "Trying to enqueue render command from non-working thread")
+		WriteRenderCommands[workerThreadIdx].emplace_back(LambdaCommand);
 	}
 }
 
-void RenderCommandList::Execute()
+void RenderCommandList::FinalizeFrame()
 {
-	IsExecuting = true;
-	for (auto& renderCommand : RenderCommands)
+	std::vector<RenderCommandWrapper> finalRenderCommandList;
+
+	size_t finalSize = 0;
+	for (const std::vector<RenderCommandWrapper>& commandList : WriteRenderCommands)
 	{
-		renderCommand.Execute(*this);
+		finalSize += commandList.size();
 	}
 
-	RenderCommands.clear();
-	IsExecuting = false;
+	finalRenderCommandList.reserve(finalSize);
+	for (std::vector<RenderCommandWrapper>& commandList : WriteRenderCommands)
+	{
+		finalRenderCommandList.insert(finalRenderCommandList.end(), commandList.begin(), commandList.end());
+		commandList.clear();
+	}
+
+	// Wait for the render frame to finish
+	RenderThreadFinished.acquire();
+
+	ReadRenderCommands.reserve(finalSize);
+	ReadRenderCommands.insert(ReadRenderCommands.end(), finalRenderCommandList.begin(), finalRenderCommandList.end());
 }
 
-void RenderCommandList::Clear()
+void RenderCommandList::Render_ExecuteFrame()
 {
-	RenderCommands.clear();
-	IsExecuting = false;
-	ScratchShaderParametersCollection.Reset();
+	for (RenderCommandWrapper& command : ReadRenderCommands)
+	{
+		command.Execute(*this);
+	}
+
+	ReadRenderCommands.clear();
+	RenderThreadFinished.release();
 }
 
 RefCountingPtr<RHI::RHIBuffer> RenderCommandList::CreateBuffer(uint32 Size, RHI::BufferUsageFlags UsageFlags, uint32 Stride,
@@ -84,7 +96,7 @@ RefCountingPtr<RHI::RHIBuffer> RenderCommandList::CreateVertexBuffer(uint32 Size
 }
 
 RefCountingPtr<RHI::RHIBuffer> RenderCommandList::CreateIndexBuffer(uint32 Stride, uint32 Size, RHI::BufferUsageFlags UsageFlags,
-	RHI::RHIResourceCreateInfo& CreateInfo)
+                                                                    RHI::RHIResourceCreateInfo& CreateInfo)
 {
 	return CreateBuffer(Size, UsageFlags, Stride, CreateInfo);
 }
@@ -105,18 +117,6 @@ void RenderCommandList::EndDrawingViewport(RHI::RHIViewport* Viewport)
 	RHI::gDynamicRHI->RHIEndDrawingViewport(Viewport);
 }
 
-void RenderCommandList::EnqueueLambdaCommand(const RenderCommand& LambdaCommand)
-{
-	if (IsExecuting)
-	{
-		LambdaCommand(*this);
-	}
-	else
-	{
-		RenderCommands.emplace_back(LambdaCommand);
-	}
-}
-
 void RenderCommandList::SetGraphicsPSO(RHI::RHIPipelineStateObject* RHIPipelineStateObject, uint32 StencilRef)
 {
 	GetContext().RHISetPSO(RHIPipelineStateObject, StencilRef);
@@ -129,7 +129,8 @@ void RenderCommandList::DrawIndexedPrimitive(RHI::RHIBuffer* IndexBuffer, uint32
 
 void RenderCommandList::SetShaderParametersCollection(RHI::RHIShader* Shader, RHI::RHIShaderParametersCollection& ParametersCollection)
 {
-	GetContext().RHISetShaderParameters(Shader, ParametersCollection.ParametersData, ParametersCollection.Parameters, ParametersCollection.ResourceParameters);
+	GetContext().RHISetShaderParameters(Shader, ParametersCollection.ParametersData, ParametersCollection.Parameters,
+	                                    ParametersCollection.ResourceParameters);
 	ParametersCollection.Reset();
 }
 
