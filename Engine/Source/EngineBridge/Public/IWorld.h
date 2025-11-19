@@ -10,6 +10,10 @@ namespace Renderer
 class IWorld
 {
 public:
+	virtual ~IWorld()
+	{
+	}
+
 	virtual void SetPrimaryViewInfo(const Renderer::SceneViewInfo& ViewInfo) = 0;
 	virtual const Renderer::SceneViewInfo& GetPrimaryViewInfo() const = 0;
 };

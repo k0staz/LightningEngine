@@ -13,6 +13,8 @@ namespace LE
 
 #define ENTITY_SPARSE_PAGE 4096
 
+#define ASSET_SPARSE_PAGE 4096
+
 template <typename T>
 using UniquePtr = std::unique_ptr<T>;
 

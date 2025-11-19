@@ -2,6 +2,7 @@
 #include "CoreMinimum.h"
 #include "CoreConcepts.h"
 #include "Math/Math.h"
+#include "ECS/EcsEntity.h"
 
 
 namespace LE
@@ -123,7 +124,7 @@ constexpr std::ptrdiff_t operator-(const SparseSetIterator<PackedContainer>& Lhs
 	return Rhs.Index() - Lhs.Index();
 }
 
-template <EcsEntityIdentifier Type>
+template <Identifier Type>
 class SparseSet
 {
 	using Traits = EcsTraits<Type>;

@@ -3,6 +3,7 @@
 Binaries/
 Engine/**/Generated/*
 Debug
+.idea/
 
 # Files
 *.vcxproj

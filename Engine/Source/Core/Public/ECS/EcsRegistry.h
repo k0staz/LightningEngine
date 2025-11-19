@@ -12,7 +12,7 @@ namespace LE
 template <typename Entity>
 class EcsRegistry
 {
-	using Traits = EcsEntityTraits<Entity>;
+	using Traits = IdTraits<Entity>;
 
 public:
 	using size_type = std::size_t;

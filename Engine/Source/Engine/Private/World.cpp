@@ -1,6 +1,7 @@
 #include "World.h"
 
 #include "../../CoreECS/Generated/Public/ECSSystemAutoRegistration.h"
+#include "Assets/StaticMeshAsset.h"
 #include "Components/CameraComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Components/TransformComponent.h"
@@ -8,11 +9,64 @@
 #include "ECS/Ecs.h"
 #include "ECS/EcsModule.h"
 #include "EventCore/EventManager.h"
-#include "StaticMesh/StaticMeshRendering.h"
+#include "FileManager/FileManager.h"
+#include "Misc/Paths.h"
+#include "Archive/Archive.h"
+#include "AssetManager/AssetManager.h"
+#include "AssetManager/AssetRegistry.h"
 #include "Time/Clock.h"
 
 namespace LE
 {
+void SaveTestStaticMesh()
+{
+	//StaticMeshAsset newStaticMesh(0, Uid::GenerateUid(), AssetTypeIdGetter<StaticMeshAsset>::Value);
+	//newStaticMesh.Indices = {
+	//	0, 1, 2, 2, 3, 0, // Front
+	//	1, 4, 5, 5, 2, 1, // Top
+	//	3, 2, 5, 5, 6, 3, // Right
+	//	7, 4, 1, 1, 0, 7, // Left
+	//	5, 4, 7, 7, 6, 5, // back
+	//	7, 0, 3, 3, 6, 7, // bottom
+	//};
+	//newStaticMesh.Vertices = {
+	//	// Front (+Z)
+	//	{{-1, -1, 1, 1}, {0, 0, 1}, {0, 1}}, // 0
+	//	{{-1, 1, 1, 1}, {0, 0, 1}, {1, 1}}, // 1
+	//	{{1, 1, 1, 1}, {0, 0, 1}, {1, 0}}, // 2
+	//	{{1, -1, 1, 1}, {0, 0, 1}, {0, 0}}, // 3
+	//	{{-1, 1, -1, 1}, {0, 0, 1}, {0, 0}}, // 4
+	//	{{1, 1, -1, 1}, {0, 0, 1}, {0, 0}}, // 5
+	//	{{1, -1, -1, 1}, {0, 0, 1}, {0, 0}}, // 6
+	//	{{-1, -1, -1, 1}, {0, 0, 1}, {0, 0}}, // 7
+	//};
+
+	//std::vector<std::byte> writeBuffer;
+	//Archive::ArchiveWriter archiveWriter(writeBuffer);
+
+	/*AssetRegistry& reg = GetServiceRegistry().GetService<AssetRegistry>();
+
+	AssetInfo& newInfo = reg.GetAssetInfo(newStaticMesh.GetStableId());
+	newInfo.PathToAsset = savePath;
+	Archive::Context context(&newInfo);
+
+	Serialize(context, archiveWriter, newStaticMesh);
+	SaveFile(savePath, writeBuffer);
+
+	reg.SaveManifest();*/
+
+	Path savePath = GetContentRoot() / "StaticMesh" / "NewStaticMesh.leasset";
+
+	AssetManager& manager = GetServiceRegistry().GetService<AssetManager>();
+	{
+		AssetHandle<StaticMeshAsset> assetHandle = manager.GetAssetUsingPath<StaticMeshAsset>(savePath);
+	}
+	
+	{
+		AssetHandle<StaticMeshAsset> assetHandle = manager.GetAssetUsingPath<StaticMeshAsset>(savePath);
+	}
+}
+
 void World::Init()
 {
 	{
@@ -23,35 +77,40 @@ void World::Init()
 		LE::ECSSystemRegistration::RegisterAllSystems(SystemManager); // TODO: Temp decision until I came up with something better
 	}
 
+	InitServices();
+
 	InitTestData();
 }
 
 void World::Shutdown()
 {
 	SystemManager.Shutdown();
+	ServiceReg.ShutDown();
 }
 
 void World::InitTestData()
 {
+	SaveTestStaticMesh();
+
 	Array<Renderer::StaticMeshVertex> vertices = {
 		// Front (+Z)
 		{{-1, -1, 1, 1}, {0, 0, 1}, {0, 1}}, // 0
 		{{-1, 1, 1, 1}, {0, 0, 1}, {1, 1}}, // 1
 		{{1, 1, 1, 1}, {0, 0, 1}, {1, 0}}, // 2
-		{{1,-1, 1, 1}, {0, 0, 1}, {0, 0}}, // 3
-		{{-1,1, -1, 1}, {0, 0, 1}, {0, 0}}, // 4
-		{{1,1, -1, 1}, {0, 0, 1}, {0, 0}}, // 5
-		{{1,-1, -1, 1}, {0, 0, 1}, {0, 0}}, // 6
-		{{-1,-1, -1, 1}, {0, 0, 1}, {0, 0}}, // 7
+		{{1, -1, 1, 1}, {0, 0, 1}, {0, 0}}, // 3
+		{{-1, 1, -1, 1}, {0, 0, 1}, {0, 0}}, // 4
+		{{1, 1, -1, 1}, {0, 0, 1}, {0, 0}}, // 5
+		{{1, -1, -1, 1}, {0, 0, 1}, {0, 0}}, // 6
+		{{-1, -1, -1, 1}, {0, 0, 1}, {0, 0}}, // 7
 	};
 
 	Array<uint16> indices = {
-			0, 1 ,2, 2, 3, 0, // Front
-			1, 4 ,5, 5, 2, 1, // Top
-			3, 2 ,5, 5, 6, 3, // Right
-			7, 4,1, 1, 0, 7, // Left
-			5, 4,7, 7, 6, 5, // back
-			7, 0,3, 3, 6, 7, // bottom
+		0, 1, 2, 2, 3, 0, // Front
+		1, 4, 5, 5, 2, 1, // Top
+		3, 2, 5, 5, 6, 3, // Right
+		7, 4, 1, 1, 0, 7, // Left
+		5, 4, 7, 7, 6, 5, // back
+		7, 0, 3, 3, 6, 7, // bottom
 	};
 
 	{
@@ -121,5 +180,12 @@ void World::InitTestData()
 
 		Registry.AddComponentToEntity<LE::CameraComponent>(entity);
 	}
+}
+
+void World::InitServices()
+{
+	ServiceReg.RegisterService<AssetManager>(std::make_unique<AssetManager>());
+	ServiceReg.RegisterService<AssetRegistry>(std::make_unique<AssetRegistry>());
+	RegisterServiceRegistry(&ServiceReg);
 }
 }

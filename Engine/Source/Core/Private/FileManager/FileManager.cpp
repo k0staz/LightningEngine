@@ -1,7 +1,5 @@
 #include "FileManager/FileManager.h"
 
-#include <fstream>
-
 namespace LE
 {
 String LoadShaderFile(const Path& filePath)

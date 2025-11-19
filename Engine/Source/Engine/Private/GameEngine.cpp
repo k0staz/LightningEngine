@@ -7,6 +7,7 @@
 #include "GameViewport.h"
 #include "WindowsWindow.h"
 #include "Application/SystemWindow.h"
+#include "AssetManager/AssetManager.h"
 #include "common/TracySystem.hpp"
 #include "EventCore/EventManager.h"
 #include "Multithreading/JobScheduler.h"
@@ -87,6 +88,8 @@ void GameEngine::Update(bool& IsDone)
 
 	const Clock::TimePoint frameEnd = Clock::Now();
 	LE_INFO("Frame Finished, took {}ms", Clock::GetMsBetween(frameBeginning, frameEnd));
+
+	GetServiceRegistry().GetService<AssetManager>().OnFrameEnd();
 	FrameMarkNamed("Game Frame");
 
 	DrawViewport();

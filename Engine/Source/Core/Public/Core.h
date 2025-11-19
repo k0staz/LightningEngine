@@ -10,7 +10,7 @@
 #define LE_ASSERT_DESC(expr, ...)                       \
 	if(!(expr))											\
 	{													\
-		LE_ERROR("Assertion failed: {}", __VA_ARGS__);	\
+		LE_ERROR(__VA_ARGS__);							\
 		LE_DEBUG_BREAK();								\
 	}
 

@@ -4,6 +4,7 @@
 #include "ECS/EcsRegistry.h"
 #include "ECS/EcsSystem.h"
 #include "SceneRendering/SceneView.h"
+#include "Service/ServiceRegistry.h"
 
 namespace LE
 {
@@ -18,10 +19,12 @@ public:
 
 private:
 	void InitTestData();
+	void InitServices();
 
 public:
 	EcsRegistry<EcsEntity> Registry;
 	EcsSystemManager SystemManager;
+	ServiceRegistry ServiceReg;
 
 private:
 	Renderer::SceneViewInfo PrimaryViewInfo;
