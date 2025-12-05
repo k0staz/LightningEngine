@@ -15,6 +15,7 @@ struct AssetTraits : IdTraitsInterpreter<IdTraits<Type>>
 };
 
 inline constexpr NullId AssetIdNull{};
+inline constexpr NullId AssetTypeIdNull{};
 
 template <class AssetType>
 struct AssetTypeRegistration;
@@ -30,18 +31,10 @@ enum class AssetState : uint8
 {
 	Uninitialized,
 	FailedLoad,
-	PendingLoad,
 	Loading,
 	Loaded
 };
 
 template <typename Type>
 concept DerivedFromAsset = std::is_base_of_v<class Asset, Type>;
-
-#define REGISTER_ASSET_TYPE(Type, TypeName) \
-	template<> \
-	struct AssetTypeRegistration<Type> \
-	{\
-		static constexpr std::string_view Value = TypeName; \
-	};
 }

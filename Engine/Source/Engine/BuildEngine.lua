@@ -15,7 +15,18 @@ project "Engine"
         "Private/**.cpp",
     }
 
-    use_modules({"EngineBridge", "Log", "Core", "CoreECS", "System", "RHI", "D3D11RHI", "Renderer", "Client", "WindowsApplication"})
+    use_modules({
+        "EngineBridge", 
+        "Log", 
+        "Core", 
+        "CoreECS", 
+        "System", 
+        "RHI", 
+        "D3D11RHI", 
+        "Renderer", 
+        "Client", 
+        "WindowsApplication",
+        "AutoRegistration"})
 
     targetdir ("../Binaries/" .. OutputDir .. "/%{prj.name}")
     objdir ("../Binaries/Intermediates/" .. OutputDir .. "/%{prj.name}")

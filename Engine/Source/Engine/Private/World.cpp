@@ -1,6 +1,6 @@
 #include "World.h"
 
-#include "../../CoreECS/Generated/Public/ECSSystemAutoRegistration.h"
+#include "../../AutoRegistration/Generated/Public/ECSSystemAutoRegistration.h"
 #include "Assets/StaticMeshAsset.h"
 #include "Components/CameraComponent.h"
 #include "Components/StaticMeshComponent.h"
@@ -13,58 +13,19 @@
 #include "Misc/Paths.h"
 #include "Archive/Archive.h"
 #include "AssetManager/AssetManager.h"
-#include "AssetManager/AssetRegistry.h"
 #include "Time/Clock.h"
 
 namespace LE
 {
 void SaveTestStaticMesh()
 {
-	//StaticMeshAsset newStaticMesh(0, Uid::GenerateUid(), AssetTypeIdGetter<StaticMeshAsset>::Value);
-	//newStaticMesh.Indices = {
-	//	0, 1, 2, 2, 3, 0, // Front
-	//	1, 4, 5, 5, 2, 1, // Top
-	//	3, 2, 5, 5, 6, 3, // Right
-	//	7, 4, 1, 1, 0, 7, // Left
-	//	5, 4, 7, 7, 6, 5, // back
-	//	7, 0, 3, 3, 6, 7, // bottom
-	//};
-	//newStaticMesh.Vertices = {
-	//	// Front (+Z)
-	//	{{-1, -1, 1, 1}, {0, 0, 1}, {0, 1}}, // 0
-	//	{{-1, 1, 1, 1}, {0, 0, 1}, {1, 1}}, // 1
-	//	{{1, 1, 1, 1}, {0, 0, 1}, {1, 0}}, // 2
-	//	{{1, -1, 1, 1}, {0, 0, 1}, {0, 0}}, // 3
-	//	{{-1, 1, -1, 1}, {0, 0, 1}, {0, 0}}, // 4
-	//	{{1, 1, -1, 1}, {0, 0, 1}, {0, 0}}, // 5
-	//	{{1, -1, -1, 1}, {0, 0, 1}, {0, 0}}, // 6
-	//	{{-1, -1, -1, 1}, {0, 0, 1}, {0, 0}}, // 7
-	//};
-
-	//std::vector<std::byte> writeBuffer;
-	//Archive::ArchiveWriter archiveWriter(writeBuffer);
-
-	/*AssetRegistry& reg = GetServiceRegistry().GetService<AssetRegistry>();
-
-	AssetInfo& newInfo = reg.GetAssetInfo(newStaticMesh.GetStableId());
-	newInfo.PathToAsset = savePath;
-	Archive::Context context(&newInfo);
-
-	Serialize(context, archiveWriter, newStaticMesh);
-	SaveFile(savePath, writeBuffer);
-
-	reg.SaveManifest();*/
-
-	Path savePath = GetContentRoot() / "StaticMesh" / "NewStaticMesh.leasset";
+	AssetRegistry& reg = GetServiceRegistry().GetService<AssetRegistry>();
+	
+	Path savePathTest = GetContentRoot() / "StaticMesh" / "TestAsset.leasset";
 
 	AssetManager& manager = GetServiceRegistry().GetService<AssetManager>();
-	{
-		AssetHandle<StaticMeshAsset> assetHandle = manager.GetAssetUsingPath<StaticMeshAsset>(savePath);
-	}
-	
-	{
-		AssetHandle<StaticMeshAsset> assetHandle = manager.GetAssetUsingPath<StaticMeshAsset>(savePath);
-	}
+	AssetHandle<TestAsset> assetHandle = manager.GetAssetUsingPath<TestAsset>(savePathTest);
+	manager.LoadAssetAsync(assetHandle);
 }
 
 void World::Init()
@@ -73,11 +34,8 @@ void World::Init()
 		UniquePtr<ECSModule> module = std::make_unique<ECSModule>();
 		module->Initialize(&Registry, &SystemManager);
 		RegisterECSModule(std::move(module));
-
-		LE::ECSSystemRegistration::RegisterAllSystems(SystemManager); // TODO: Temp decision until I came up with something better
+		AutoRegistration::RegisterAllSystems(SystemManager); // TODO: These needs to be moved out of there, and we need to create an registry for systems
 	}
-
-	InitServices();
 
 	InitTestData();
 }
@@ -85,54 +43,24 @@ void World::Init()
 void World::Shutdown()
 {
 	SystemManager.Shutdown();
-	ServiceReg.ShutDown();
 }
 
 void World::InitTestData()
 {
-	SaveTestStaticMesh();
+	Path testAsset = GetContentRoot() / "StaticMesh" / "NewStaticMesh.leasset";
 
-	Array<Renderer::StaticMeshVertex> vertices = {
-		// Front (+Z)
-		{{-1, -1, 1, 1}, {0, 0, 1}, {0, 1}}, // 0
-		{{-1, 1, 1, 1}, {0, 0, 1}, {1, 1}}, // 1
-		{{1, 1, 1, 1}, {0, 0, 1}, {1, 0}}, // 2
-		{{1, -1, 1, 1}, {0, 0, 1}, {0, 0}}, // 3
-		{{-1, 1, -1, 1}, {0, 0, 1}, {0, 0}}, // 4
-		{{1, 1, -1, 1}, {0, 0, 1}, {0, 0}}, // 5
-		{{1, -1, -1, 1}, {0, 0, 1}, {0, 0}}, // 6
-		{{-1, -1, -1, 1}, {0, 0, 1}, {0, 0}}, // 7
-	};
-
-	Array<uint16> indices = {
-		0, 1, 2, 2, 3, 0, // Front
-		1, 4, 5, 5, 2, 1, // Top
-		3, 2, 5, 5, 6, 3, // Right
-		7, 4, 1, 1, 0, 7, // Left
-		5, 4, 7, 7, 6, 5, // back
-		7, 0, 3, 3, 6, 7, // bottom
-	};
-
+	AssetManager& manager = GetServiceRegistry().GetService<AssetManager>();
+	AssetHandle<StaticMeshAsset> assetHandle = manager.GetAssetUsingPath<StaticMeshAsset>(testAsset);
+	
 	{
 		LE::EcsEntity entity = Registry.CreateEntity();
-		LE::TransformComponent transformComponent;
+		LE::TransformComponent& transformComponent = Registry.AddComponentToEntity<LE::TransformComponent>(entity);
 		transformComponent.Transform.SetPosition(0.0f, 2.0f, 5.0f);
 		transformComponent.Transform.RotateSelfZ(1.2f);
 		transformComponent.Transform.RotateSelfX(1.2f);
-		Registry.AddComponentToEntity<TransformComponent>(entity, transformComponent);
 
-		LE::StaticMeshComponent staticMeshComponent;
-		staticMeshComponent.RenderData = new Renderer::StaticMeshRenderData();
-
-		staticMeshComponent.RenderData->PrimitiveType = RHI::PrimitiveType::TriangleList;
-
-		staticMeshComponent.RenderData->VertexBuffers.Init(vertices);
-		staticMeshComponent.RenderData->IndexBuffer.Init(indices);
-
-		staticMeshComponent.RenderData->InitResources();
-
-		staticMeshComponent.MeshMaterial = Renderer::Material::GetMaterialByName("BaseMaterial");
-		Registry.AddComponentToEntity<StaticMeshComponent>(entity, staticMeshComponent);
+		LE::StaticMeshComponent& staticMeshComponent = Registry.AddComponentToEntity<LE::StaticMeshComponent>(entity);
+		staticMeshComponent.AssetHandle = assetHandle;
 	}
 
 	{
@@ -142,16 +70,7 @@ void World::InitTestData()
 		transformComponent.Transform.RotateSelfX(1.2f);
 
 		LE::StaticMeshComponent& staticMeshComponent = Registry.AddComponentToEntity<LE::StaticMeshComponent>(entity);
-		staticMeshComponent.RenderData = new Renderer::StaticMeshRenderData();
-
-		staticMeshComponent.RenderData->PrimitiveType = RHI::PrimitiveType::TriangleList;
-
-		staticMeshComponent.RenderData->VertexBuffers.Init(vertices);
-		staticMeshComponent.RenderData->IndexBuffer.Init(indices);
-
-		staticMeshComponent.RenderData->InitResources();
-
-		staticMeshComponent.MeshMaterial = Renderer::Material::GetMaterialByName("BaseMaterial");
+		staticMeshComponent.AssetHandle = assetHandle;
 	}
 
 	{
@@ -161,16 +80,7 @@ void World::InitTestData()
 		transformComponent.Transform.RotateSelfX(1.2f);
 
 		LE::StaticMeshComponent& staticMeshComponent = Registry.AddComponentToEntity<LE::StaticMeshComponent>(entity);
-		staticMeshComponent.RenderData = new Renderer::StaticMeshRenderData();
-
-		staticMeshComponent.RenderData->PrimitiveType = RHI::PrimitiveType::TriangleList;
-
-		staticMeshComponent.RenderData->VertexBuffers.Init(vertices);
-		staticMeshComponent.RenderData->IndexBuffer.Init(indices);
-
-		staticMeshComponent.RenderData->InitResources();
-
-		staticMeshComponent.MeshMaterial = Renderer::Material::GetMaterialByName("BaseMaterial");
+		staticMeshComponent.AssetHandle = assetHandle;
 	}
 
 	{
@@ -180,12 +90,5 @@ void World::InitTestData()
 
 		Registry.AddComponentToEntity<LE::CameraComponent>(entity);
 	}
-}
-
-void World::InitServices()
-{
-	ServiceReg.RegisterService<AssetManager>(std::make_unique<AssetManager>());
-	ServiceReg.RegisterService<AssetRegistry>(std::make_unique<AssetRegistry>());
-	RegisterServiceRegistry(&ServiceReg);
 }
 }

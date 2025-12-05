@@ -77,6 +77,19 @@ public:
 		return State.load(std::memory_order_acquire);
 	}
 
+	bool IsLoaded() const
+	{
+		return GetAssetState() == AssetState::Loaded;
+	}
+
+	bool IsLoading() const
+	{
+		const AssetState currentState = GetAssetState();
+		return  currentState == AssetState::Loading;
+	}
+
+	void WaitUntilLoaded() const;
+
 	template <class AssetType>
 	bool IsOfType() const
 	{
@@ -84,12 +97,24 @@ public:
 	}
 
 protected:
+	void SetState(AssetState NewState) const;
+	bool TrySetLoadingState() const;
+	
+protected:
 	uint32 AddRef() const;
 	uint32 Release() const;
+
+	uint32 AddLoadingRef() const;
+	uint32 ReleaseLoading() const;
 
 	uint32 GetRefCount() const
 	{
 		return RefsNum.load(std::memory_order_acquire);
+	}
+
+	bool HasLoadingRefs() const
+	{
+		return LoadingRefsNum.load(std::memory_order_acquire) != 0;
 	}
 
 private:
@@ -98,14 +123,30 @@ private:
 	AssetTypeId TypeId = 0;
 	mutable std::atomic<AssetState> State = AssetState::Uninitialized;
 	mutable std::atomic_uint RefsNum = 0;
+	mutable std::atomic_uint LoadingRefsNum = 0; // Number of assets which will reference this one, once they are loaded
 
 	template <DerivedFromAsset AssetType>
 	friend class AssetHandle;
 
+	template <Identifier IdType, DerivedFromAsset AssetType>
+	friend class AssetStorage;
+	
 	friend class AssetManager;
 
-	friend bool InvokeArchive(Archive::Context& Ctx, Archive::ArchiveReader& Archive, Asset& Value);
-	friend bool InvokeArchive(Archive::Context& Ctx, Archive::ArchiveWriter& Archive, const Asset& Value);
+	friend class AssetDependencyLoaderResolver;
+
+	friend bool InvokeArchive(Archive::Context& Ctx, Archive::ArchiveReader& Reader, Asset& Value);
+	friend bool InvokeArchive(Archive::Context& Ctx, Archive::ArchiveWriter& Writer, const Asset& Value);
+
+	template <DerivedFromAsset AssetType>
+	friend bool InvokeArchive(Archive::Context& Ctx, Archive::ArchiveReader& Reader, AssetHandle<AssetType>& Value);
+};
+
+template<>
+struct AssetTypeIdGetter<Asset>
+{
+	static constexpr std::string_view TypeName = "BaseAssetType";
+	static constexpr AssetTypeId Value = AssetTypeIdNull;
 };
 
 inline bool InvokeArchive(Archive::Context& Ctx, Archive::ArchiveWriter& Writer, const Asset& Value)
@@ -151,6 +192,4 @@ inline bool InvokeArchive(Archive::Context& Ctx, Archive::ArchiveReader& Reader,
 
 	return true;
 }
-
-
 }

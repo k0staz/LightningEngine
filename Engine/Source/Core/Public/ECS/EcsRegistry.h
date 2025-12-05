@@ -151,15 +151,17 @@ public:
 		return (HasAllComponents<ComponentType>() || ...);
 	}
 
-	template <typename... ComponentType>
+	template<typename... ComponentType>
 	decltype(auto) GetComponent(const Entity EcsEntity) const
 	{
-		if constexpr (sizeof...(ComponentType) == 1u)
+		if constexpr (sizeof...(ComponentType) == 1)
 		{
 			return (GetComponentStorage<ComponentType>()->GetComponent(EcsEntity), ...);
 		}
-
-		return std::forward_as_tuple(GetComponent<ComponentType>(EcsEntity)...);
+		else
+		{
+			return std::tuple_cat(GetComponentStorage<ComponentType>()->GetComponentAsTuple(EcsEntity)...);
+		}
 	}
 
 	template <typename... ComponentType, typename... ExcludedComponents>
@@ -217,7 +219,7 @@ private:
 	}
 
 	template <typename ComponentType>
-	const EcsComponentStorage<ComponentType, Entity>& GetComponentStorage(
+	EcsComponentStorage<ComponentType, Entity>* GetComponentStorage(
 		EcsComponentType ComponentTypeId = ComponentTypeIdGetter<ComponentType>::Value) const
 	{
 		static_assert(!std::is_same_v<ComponentType, Entity>, "Attempting to pass Entity as Component");
@@ -226,7 +228,7 @@ private:
 		auto it = ComponentStorages.find(ComponentTypeId);
 		if (it != ComponentStorages.cend())
 		{
-			return static_cast<ComponentStorageType&>(*it->second);
+			return static_cast<ComponentStorageType*>(it->second.get());
 		}
 
 		return nullptr;

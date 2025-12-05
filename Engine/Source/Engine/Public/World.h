@@ -19,12 +19,10 @@ public:
 
 private:
 	void InitTestData();
-	void InitServices();
 
 public:
 	EcsRegistry<EcsEntity> Registry;
 	EcsSystemManager SystemManager;
-	ServiceRegistry ServiceReg;
 
 private:
 	Renderer::SceneViewInfo PrimaryViewInfo;

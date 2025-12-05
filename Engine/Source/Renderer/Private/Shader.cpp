@@ -5,7 +5,6 @@
 #include "ShaderParameterMetadata.h"
 #include "ShaderParameters.h"
 #include "MeshConverters/MeshConverter.h"
-#include "MaterialShaderAutoRegistration.h"
 #include "ShaderParameterMetadata.h"
 
 namespace LE::Renderer
@@ -303,8 +302,6 @@ CompiledShaderInitializer::CompiledShaderInitializer(const ShaderMetaType* InSha
 
 void ShaderMetaTypeRegistration::RegisterAll()
 {
-	RegisterAllMaterialShader();
-
 	for (auto& instance : GetInstances())
 	{
 		ShaderMetaType& shaderMetaType = instance->ShaderAccessor();

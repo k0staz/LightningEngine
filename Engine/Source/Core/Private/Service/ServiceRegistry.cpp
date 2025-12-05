@@ -8,7 +8,7 @@ void ServiceRegistry::ShutDown()
 {
 	for (auto& it : RegisteredServices)
 	{
-		it.second->ShutDown();
+		it.second->Shutdown();
 	}
 
 	RegisteredServices.clear();
@@ -18,7 +18,7 @@ ServiceRegistry& GetServiceRegistry()
 {
 	if (!gServiceRegistry)
 	{
-		LE_ERROR("Service Registry is not initialized");
+		LE_ASSERT_DESC(false, "Service Registry is not initialized")
 	}
 
 	return *gServiceRegistry;

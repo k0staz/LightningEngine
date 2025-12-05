@@ -12,12 +12,13 @@ void AssetRegistry::Initialize()
 	LoadManifest();
 }
 
-void AssetRegistry::ShutDown()
+void AssetRegistry::Shutdown()
 {
 }
 
 Uid AssetRegistry::GetUidFromPath(const Path& AssetPath) const
 {
+	std::shared_lock lock(assetInfoMutex);
 	if (PathToUid.contains(AssetPath))
 	{
 		return PathToUid.at(AssetPath);
@@ -28,11 +29,13 @@ Uid AssetRegistry::GetUidFromPath(const Path& AssetPath) const
 
 bool AssetRegistry::IsValidAsset(const Uid& AssetUid) const
 {
+	std::shared_lock lock(assetInfoMutex);
 	return AssetUid.IsValid() && UidToAssetInfo.contains(AssetUid);
 }
 
 AssetInfo AssetRegistry::GetAssetInfo(const Uid& AssetUid) const
 {
+	std::shared_lock lock(assetInfoMutex);
 	if (IsValidAsset(AssetUid))
 	{
 		return UidToAssetInfo.at(AssetUid);
@@ -43,11 +46,13 @@ AssetInfo AssetRegistry::GetAssetInfo(const Uid& AssetUid) const
 
 AssetInfo& AssetRegistry::GetAssetInfo(const Uid& AssetUid)
 {
+	std::unique_lock lock(assetInfoMutex);
 	return UidToAssetInfo[AssetUid];
 }
 
 void AssetRegistry::UpdateAssetRuntimeId(const Uid& AssetUid, AssetId RuntimeId)
 {
+	std::unique_lock lock(assetInfoMutex);
 	if (!UidToAssetInfo.contains(AssetUid))
 	{
 		LE_WARN("There is not asset info for the {} UID", Uid::ToString(AssetUid));
@@ -63,11 +68,40 @@ void AssetRegistry::UpdateAssetPath(const Uid& AssetUid, const Path& AssetPath)
 		return;
 	}
 
+	std::unique_lock lock(assetInfoMutex);
 	AssetInfo& info = GetAssetInfo(AssetUid);
 	PathToUid.erase(info.PathToAsset);
 
 	info.PathToAsset = AssetPath;
 	PathToUid[AssetPath] = AssetUid;
+}
+
+void AssetRegistry::AddLoadingTask(const Uid& AssetUid, RefCountingPtr<AsyncTaskNodeBase> LoadingTask)
+{
+	if (!IsValidAsset(AssetUid))
+	{
+		LE_ASSERT_DESC(false, "Trying to add a loading task to an invalid asset with UID {}", Uid::ToString(AssetUid).c_str())
+		return;
+	}
+
+	AssetInfo& info = GetAssetInfo(AssetUid);
+	std::unique_lock lock(assetInfoMutex);
+
+	info.LoadingTask = LoadingTask;
+}
+
+void AssetRegistry::RemoveLoadingTask(const Uid& AssetUid)
+{
+	if (!IsValidAsset(AssetUid))
+	{
+		LE_ASSERT_DESC(false, "Trying to remove a loading task from an invalid asset with UID {}", Uid::ToString(AssetUid).c_str())
+			return;
+	}
+
+	AssetInfo& info = GetAssetInfo(AssetUid);
+	std::unique_lock lock(assetInfoMutex);
+
+	info.LoadingTask = nullptr;
 }
 
 void AssetRegistry::SaveManifest() const

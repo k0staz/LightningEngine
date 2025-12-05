@@ -39,12 +39,15 @@ private:
 
 	void InitJobScheduler();
 
+	void InitServices();
+
 public:
 	RefCountingPtr<SystemWindow> Window;
 
 	World* GameWorld;
 	GameViewport* Viewport;
 	Renderer::RendererModule RendererModule;
+	ServiceRegistry ServiceReg;
 };
 
 extern GameEngine gGameEngine;

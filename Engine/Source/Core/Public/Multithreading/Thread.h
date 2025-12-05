@@ -4,6 +4,7 @@
 #include <mutex>
 #include <semaphore>
 
+#include "AsyncTaskNode.h"
 #include "JobNode.h"
 #include "Templates/RefCounters.h"
 
@@ -17,7 +18,8 @@ namespace LE
 enum class ThreadType : uint8_t
 {
 	Worker = 1,
-	Render
+	Render,
+	Task
 };
 
 class Thread : public RefCountableBase
@@ -25,6 +27,7 @@ class Thread : public RefCountableBase
 public:
 	static bool IsMainThread();
 	static bool IsRenderThread();
+	static bool IsTaskThread();
 	static int8 GetWorkerThreadIndex();
 
 
@@ -81,13 +84,16 @@ public:
 
 	bool TryPushJob(RefCountingPtr<JobNode> JobToAdd);
 	void PushJob(RefCountingPtr<JobNode> JobToAdd);
-	bool TryStealJob(RefCountingPtr<JobNode>& JobOut);
+	bool TryStealJob(RefCountingPtr<AsyncNode>& JobOut);
+
+	bool TryPushTask(RefCountingPtr<AsyncTaskNodeBase> TaskToAdd);
+	void PushTask(RefCountingPtr<AsyncTaskNodeBase> TaskToAdd);
 
 	void IncrementFrameCounter();
 	uint64 GetCurrentFrame() const;
 
 protected:
-	bool NextJob(RefCountingPtr<JobNode>& JobOut);
+	bool NextJob(RefCountingPtr<AsyncNode>& JobOut);
 
 	void SetThreadDescription();
 
@@ -101,6 +107,7 @@ protected:
 	std::binary_semaphore IsReady{0};
 	std::atomic<uint64> CurrentFrame;
 	std::deque<RefCountingPtr<JobNode>> LocalQueue;
+	std::deque<RefCountingPtr<AsyncTaskNodeBase>> LocalTaskQueue;
 	std::mutex LocalQueueMutex;
 };
 }

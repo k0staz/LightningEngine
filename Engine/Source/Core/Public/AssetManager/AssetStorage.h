@@ -3,6 +3,7 @@
 #include <vector>
 
 #include "Asset.h"
+#include "FileManager/FileManager.h"
 
 namespace LE
 {
@@ -176,6 +177,14 @@ public:
 		SwapPop(OuterId);
 	}
 
+	virtual bool Has(IdType) const = 0;
+
+	virtual Asset& GetAsset(const IdType Id) const noexcept = 0;
+
+	virtual Asset& CreateNewAsset(Uid StableAssetId) = 0;
+
+	virtual void LoadAsset(AssetInfo& Info) const = 0;
+
 protected:
 	void ReleaseSparsePages()
 	{
@@ -324,7 +333,7 @@ protected:
 			return newId;
 		}
 
-		const IdType newId = Traits::CreateCombined(static_cast<typename Traits::ValueType>(IdCounter), {});
+		const IdType newId = Traits::CreateCombined(static_cast<typename Traits::ValueType>(IdCounter++), {});
 		LE_ASSERT_DESC(newId != AssetIdNull, "Hit the active asset limit of type")
 		return newId;
 	}
@@ -424,12 +433,12 @@ public:
 		return rend();
 	}
 
-	AssetType& GetAsset(const IdType Id) const noexcept
+	Asset& GetAsset(const IdType Id) const noexcept override
 	{
-		return GetAssetRef(base_type::GetIndex(base_type::GetSparseRef(Id)));
+		return static_cast<Asset&>(GetAssetRef(base_type::GetIndex(base_type::GetSparseRef(Id))));
 	}
 
-	bool Has(const IdType OuterId) const noexcept
+	bool Has(const IdType OuterId) const noexcept override
 	{
 		const IdType* sparsePtr = base_type::GetSparsePointer(OuterId);
 		if (!sparsePtr)
@@ -451,13 +460,31 @@ public:
 		return Has(OuterId) ? GetIterator(OuterId) : end();
 	}
 
-	AssetType& CreateNewAsset(Uid StableAssetId)
+	Asset& CreateNewAsset(Uid StableAssetId) override
 	{
 		IdType newAssetId = base_type::GetAvailableId();
 		IdType& sparse = base_type::TryAdd(newAssetId);
 		AssetType* asset = std::to_address(GetCreateAsset(base_type::GetIndex(sparse)));
 		std::construct_at(asset, newAssetId, StableAssetId, AssetTypeIdGetter<AssetType>::Value);
-		return *asset;
+		return static_cast<Asset&>(*asset);
+	}
+
+	void LoadAsset(AssetInfo& Info) const override
+	{
+		AssetType& asset = static_cast<AssetType&>(GetAsset(Info.RuntimeId));
+
+		std::vector<std::byte> assetData;
+		bool success = LoadFile(Info.PathToAsset, assetData);
+
+		if(success)
+		{
+			Archive::Context context(&Info);
+			Archive::ArchiveReader reader(assetData);
+
+			success = Archive::Deserialize(context, reader, asset);
+		}
+		
+		asset.SetState(success ? AssetState::Loaded : AssetState::FailedLoad);
 	}
 
 protected:

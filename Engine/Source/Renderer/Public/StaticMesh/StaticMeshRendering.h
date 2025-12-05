@@ -64,9 +64,9 @@ class StaticMeshVertexBuffers : public RenderResource
 public:
 	StaticMeshVertexBuffers();
 
-	void Init(uint32 InNumVertices);
+	void Init(size_t InNumVertices);
 
-	void Init(const Array<StaticMeshVertex>& InVertices);
+	void Init(const std::vector<StaticMeshVertex>& InVertices);
 
 	void InitRHI(RenderCommandList& CommandList) override;
 
@@ -113,7 +113,7 @@ class StaticMeshIndexBuffer : public IndexBuffer
 public:
 	StaticMeshIndexBuffer() = default;
 
-	void Init(const Array<uint16>& Indices);
+	void Init(const std::vector<uint16>& Indices);
 	void InitRHI(RenderCommandList& CommandList) override;
 	uint32 GetIndicesCount() const { return IndexCount; }
 

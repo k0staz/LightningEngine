@@ -26,6 +26,9 @@ public:
 	REGISTER_OBSERVER_JOB(OnRemoveObserver, ComponentChangeType::ComponentAdded, (StaticMeshComponent, TransformComponent), ())
 	void OnRemove(const OnRemoveObserverType::ObserverType& Observer);
 
+private:
+	void CreateRenderProxy(EcsEntity Entity);
+
 };
 
 REGISTER_ECS_SYSTEM(RenderSystem)

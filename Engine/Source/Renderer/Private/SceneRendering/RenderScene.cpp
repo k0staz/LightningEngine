@@ -78,4 +78,9 @@ void RenderScene::UpdateStaticMeshProxyTransform(EcsEntity Entity, const Matrix4
 		proxy->UpdateConstantBuffer(CmdList);
 	});
 }
+
+bool RenderScene::HasStaticMeshRenderProxy(EcsEntity Entity) const
+{
+	return RenderObjectProxies.contains(Entity);
+}
 }

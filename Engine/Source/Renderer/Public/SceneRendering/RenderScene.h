@@ -24,6 +24,8 @@ public:
 	void DeleteRenderObjectProxy(EcsEntity Entity);
 	void UpdateStaticMeshProxyTransform(EcsEntity Entity, const Matrix4x4F& Transform);
 
+	bool HasStaticMeshRenderProxy(EcsEntity Entity) const;
+
 private:
 	Map<EcsEntity, RenderObjectProxy*> RenderObjectProxies;
 };

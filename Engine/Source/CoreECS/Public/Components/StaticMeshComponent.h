@@ -1,4 +1,6 @@
 #pragma once
+#include "AssetManager/AssetManager.h"
+#include "Assets/StaticMeshAsset.h"
 #include "ECS/EcsComponent.h"
 #include "StaticMesh/StaticMeshRendering.h"
 
@@ -8,6 +10,7 @@ struct StaticMeshComponent
 {
 	StaticMeshComponent() = default;
 
+	AssetHandle<StaticMeshAsset> AssetHandle;
 	Renderer::StaticMeshRenderData* RenderData = nullptr;
 	Renderer::Material* MeshMaterial = nullptr;
 };

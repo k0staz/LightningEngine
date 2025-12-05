@@ -2,12 +2,14 @@
 
 #include <thread>
 
+#include "AutoRegistration.h"
 #include "D3D11DynamicRHI.h"
 #include "EngineGlobals.h"
 #include "GameViewport.h"
 #include "WindowsWindow.h"
 #include "Application/SystemWindow.h"
 #include "AssetManager/AssetManager.h"
+#include "AssetManager/AssetStorageFactory.h"
 #include "common/TracySystem.hpp"
 #include "EventCore/EventManager.h"
 #include "Multithreading/JobScheduler.h"
@@ -18,17 +20,24 @@ namespace LE
 {
 GameEngine gGameEngine;
 
+#define NUM_TASK_THREADS 1
+#define NUM_WORKER_THREADS 4
+#define NUM_RENDER_THREADS 1
+
 void GameEngine::Init()
 {
 	tracy::SetThreadName("Main thread");
 	RegisterEngine(this);
+
+	InitServices();
+	
+	RegisterAutoTypes();
+	
 	D3D11::UseD3D11RHIModule();
 	InitMaterials();
-
+	
 	GameWorld = new World;
 	GameWorld->Init();
-
-	InitJobScheduler();
 
 	RHI::InitRHI();
 
@@ -38,12 +47,14 @@ void GameEngine::Init()
 	Viewport->Viewport = new Renderer::Viewport(Viewport, GetRendererModule()->GetViewport(Window));
 	const WindowDescription& description = Window->GetDescription();
 	Viewport->Viewport->SetSizeXY(description.DesiredWidth, description.DesiredHeight);
+
+	JobScheduler& scheduler = ServiceReg.GetService<JobScheduler>();
+	scheduler.ConstructUpdateGraph();
 }
 
 void GameEngine::Shutdown()
 {
-	JobScheduler* scheduler = JobScheduler::Get();
-	scheduler->Shutdown();
+	ServiceReg.ShutDown();
 
 	GameWorld->Shutdown();
 	delete GameWorld;
@@ -80,11 +91,11 @@ void GameEngine::Update(bool& IsDone)
 
 	Clock::StartFrame();
 
-	JobScheduler* scheduler = JobScheduler::Get();
-	scheduler->StartFrame();
-	scheduler->HelpWorkerThreads();
+	JobScheduler& scheduler = ServiceReg.GetService<JobScheduler>();
+	scheduler.StartFrame();
+	scheduler.HelpWorkerThreads();
 
-	scheduler->WaitForAll();
+	scheduler.WaitForAll();
 
 	const Clock::TimePoint frameEnd = Clock::Now();
 	LE_INFO("Frame Finished, took {}ms", Clock::GetMsBetween(frameBeginning, frameEnd));
@@ -96,14 +107,14 @@ void GameEngine::Update(bool& IsDone)
 	Delegate<void(const float)> renderDelegate;
 	renderDelegate.Attach<&GameEngine::DrawFrame>(this);
 	Renderer::RenderCommandList::Get().FinalizeFrame();
-	scheduler->StartFrameRender(renderDelegate);
+	scheduler.StartFrameRender(renderDelegate);
 }
 
 void GameEngine::DrawFrame(const float)
 {
 	ZoneScopedN("Draw Frame");
-	JobScheduler* scheduler = JobScheduler::Get();
-	scheduler->IncrementRenderThreadCount();
+	JobScheduler& scheduler = ServiceReg.GetService<JobScheduler>();
+	scheduler.IncrementRenderThreadCount();
 	Renderer::RenderCommandList::Get().Render_ExecuteFrame();
 	FrameMark;
 }
@@ -148,14 +159,27 @@ void GameEngine::InitMaterials()
 
 void GameEngine::InitJobScheduler()
 {
-	JobScheduler* scheduler = JobScheduler::Get();
+	ServiceReg.RegisterService<JobScheduler>(std::make_unique<JobScheduler>());
 	const int availableThreadCount = std::thread::hardware_concurrency();
 	const int capCount = Min(availableThreadCount, static_cast<int>(Constants<int8>::CMax));
-	const int8 workerThreadCount = static_cast<int8>(capCount - 2);
+	static constexpr int reservedThreads = NUM_TASK_THREADS + NUM_RENDER_THREADS + 1;
+	LE_ASSERT_DESC(capCount > reservedThreads, "Should be at least {} threads", reservedThreads)
 
-	scheduler->Init(workerThreadCount);
+	const int8 workerThreadCount = static_cast<int8>(Min(NUM_WORKER_THREADS, (capCount - reservedThreads)));
 
-	Renderer::RenderCommandList::Get().Initialize(workerThreadCount);
-	scheduler->StartRenderThread();
+	JobScheduler& scheduler = ServiceReg.GetService<JobScheduler>();
+	scheduler.StartThreads(workerThreadCount, NUM_TASK_THREADS);
+
+	Renderer::RenderCommandList::Get().Initialize(workerThreadCount + NUM_TASK_THREADS);
+	scheduler.StartRenderThread();
+}
+
+void GameEngine::InitServices()
+{
+	RegisterServiceRegistry(&ServiceReg);
+	ServiceReg.RegisterService<AssetManager>(std::make_unique<AssetManager>());
+	ServiceReg.RegisterService<AssetRegistry>(std::make_unique<AssetRegistry>());
+	ServiceReg.RegisterService<AssetStorageFactory>(std::make_unique<AssetStorageFactory>());
+	InitJobScheduler();
 }
 }

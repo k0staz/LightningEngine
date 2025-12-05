@@ -34,6 +34,12 @@ namespace DelegateInternal
 }
 
 
+template<auto>
+struct ConnectArgType
+{
+	explicit ConnectArgType() = default;
+};
+
 template <typename>
 class Delegate;
 
@@ -49,6 +55,17 @@ public:
 	using result_type = ReturnType;
 
 	Delegate() noexcept = default;
+
+	template<auto FunctionType, typename ...Type>
+	Delegate(ConnectArgType<FunctionType>, Type&&... Value) noexcept
+	{
+		Attach<FunctionType>(std::forward<Type>(Value)...);
+	}
+
+	Delegate(function_type* Function, const void* PayloadIn) noexcept
+	{
+		Attach(Function, PayloadIn);
+	}
 
 	bool operator==(const Delegate& OtherDelegate) const noexcept
 	{
@@ -213,12 +230,6 @@ bool operator!=(const Delegate<ReturnType(Args...)>& Lhs, const Delegate<ReturnT
 {
 	return !(Lhs == Rhs);
 }
-
-template<auto>
-struct ConnectArgType
-{
-	explicit ConnectArgType() = default;
-};
 
 template<auto Function>
 Delegate(ConnectArgType<Function>) -> Delegate<std::remove_pointer_t<DelegateInternal::FunctionPointerType<decltype(Function)>>>;

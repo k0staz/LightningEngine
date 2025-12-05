@@ -8,13 +8,13 @@ output_dir_h = Path("Generated/Public")
 output_dir_cpp = Path("Generated/Private")
 
 variant_pattern = re.compile(
-    r"DECLARE_MATERIAL_PASS_VARIANT\s*\(\s*([A-Za-z_][A-Za-z0-9_]*)\s*\)"
+    r"REGISTER_ASSET_TYPE\s*\(\s*([A-Za-z_][A-Za-z0-9_]*)\s*\,\s*\"[A-Za-z_][A-Za-z0-9_]*\"\s*\)"
 )
 
-shader_classes = []
+asset_types = []
 header_files = []
 
-# Find all shaders
+# Find all Asset Types
 
 def get_relative_to_public(path: Path) -> Path:
     for parent in path.parents:
@@ -28,18 +28,18 @@ if len(sys.argv) > 1:
 
 for module in modules_list:
     full_path = source_dir / module
-    for header_file in full_path.rglob("*.h"):
+    for header_file in source_dir.rglob("*.h"):
         try:
             with open(header_file, "r", encoding="utf-8") as f:
                 contents = f.read()
                 matches = variant_pattern.findall(contents)
-                for class_name in matches:
-                    if(class_name == "ShaderName"):
+                for asset_type in matches:
+                    if(asset_type == "Type"):
                         continue
 
                     relative_header = get_relative_to_public(header_file)
-                    if class_name not in shader_classes:
-                        shader_classes.append(class_name)
+                    if asset_type not in asset_types:
+                        asset_types.append(asset_type)
                     
                     formatted_header = relative_header.as_posix()
                     if formatted_header not in header_files:
@@ -50,28 +50,31 @@ for module in modules_list:
 
 # Generate files
 # Header file
-header_file_name = output_dir_h /"MaterialShaderAutoRegistration.h"
-header_content = """ #pragma once
+header_file_name = output_dir_h /"AssetTypesAutoRegistration.h"
+header_content = """#pragma once
 //==========================================================
 //This file is auto generated do not change the content
 //==========================================================
 
-namespace LE::Renderer::AutoRegistration
+#include "AssetManager/AssetStorageFactory.h"
+
+namespace LE::AutoRegistration
 {
-void RegisterAllMaterialShader();
+void RegisterAllAssetTypes(AssetStorageFactory& Factory);
 }
 """
 # CPP file
-cpp_file_name = output_dir_cpp /"MaterialShaderAutoRegistration.cpp"
+cpp_file_name = output_dir_cpp /"AssetTypesAutoRegistration.cpp"
 includes = "\n".join(f'#include "{header}"' for header in header_files)
-register_calls = "\n    ".join(f"{cls}::RegisterMetaType();" for cls in shader_classes)
+construction_function = "ASSET_STORAGE_CONSTRUCTION_FUNC()"
+register_calls = "\n    ".join(f"Factory.Register(AssetTypeIdGetter<{cls}>::Value, ASSET_STORAGE_CONSTRUCTION_FUNC({cls}));" for cls in asset_types)
 
-cpp_content = f"""#include "MaterialShaderAutoRegistration.h"
+cpp_content = f"""#include "AssetTypesAutoRegistration.h"
 {includes}
 
-namespace LE::Renderer::AutoRegistration
+namespace LE::AutoRegistration
 {{
-void RegisterAllMaterialShader()
+void RegisterAllAssetTypes(AssetStorageFactory& Factory)
 {{
     {register_calls}
 }}
@@ -88,6 +91,6 @@ with open(cpp_file_name, "w", encoding="utf-8") as f:
 
 print(f"Generated {header_file_name.absolute()}")
 print(f"Generated {cpp_file_name.absolute()}")
-print(f"Found {len(shader_classes)} shader classes")
+print(f"Found {len(asset_types)} Asset Types")
 
 sys.exit(0)
