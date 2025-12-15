@@ -20,6 +20,7 @@ public:
 	EcsRegistry()
 		: EcsRegistry(0)
 	{
+		EntityStorage.CreateRootEntity();
 	}
 
 	EcsRegistry(const size_type ComponentTypeCount)
@@ -56,14 +57,29 @@ public:
 		return EntityStorage.Has(EcsEntity);
 	}
 
-	Entity CreateEntity()
+	EcsEntityState<Entity> GetEntityState(const Entity EcsEntity)
 	{
-		return EntityStorage.CreateEntity();
+		return EntityStorage.GetEntityState(EcsEntity);
+	}
+	
+	Entity CreateEntity(Entity Parent = EcsEntityNull)
+	{
+		return EntityStorage.CreateEntity(Parent);
 	}
 
 	void DeleteEntity(const Entity EcsEntity)
 	{
 		LE_ASSERT_DESC(IsEntityValid(EcsEntity), "Attempting to delete an invalid Entity")
+
+		EcsEntityState<Entity> entityState = GetEntityState(EcsEntity);
+		Entity nextChild = entityState.FirstChild;
+		while(nextChild != EcsEntityNull)
+		{
+			EcsEntityState<Entity> nextState = GetEntityState(nextChild);
+			DeleteEntity(nextChild);
+			nextChild = nextState.Next;
+		}
+		
 		for (auto& storage : ComponentStorages)
 		{
 			if (storage.second->Has(EcsEntity))

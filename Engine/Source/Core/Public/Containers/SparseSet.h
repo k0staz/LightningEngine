@@ -365,7 +365,7 @@ protected:
 		}
 		else
 		{
-			LE_ASSERT_DESC(Traits::GetId(sparseElement) < Head, "Slot is occupied")
+			LE_ASSERT_DESC(Traits::GetId(sparseElement) <= Head, "Slot is occupied")
 			UpdateGeneration(Entity);
 		}
 

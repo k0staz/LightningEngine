@@ -302,17 +302,17 @@ public:
 
 	auto GetOnAddedSink() noexcept
 	{
-		return Sink{ AddedSignal };
+		return Sink{AddedSignal};
 	}
 
 	auto GetOnRemovedSink() noexcept
 	{
-		return Sink{ RemovedSignal };
+		return Sink{RemovedSignal};
 	}
 
 	auto GetOnUpdatedSink() noexcept
 	{
-		return Sink{ UpdatedSignal };
+		return Sink{UpdatedSignal};
 	}
 
 protected:
@@ -389,6 +389,22 @@ private:
 };
 
 template <typename Entity>
+struct EcsEntityState
+{
+	bool IsValid() const
+	{
+		return Parent != EcsEntityNull;
+	}
+
+	size_t ChildCount = 0;
+	Entity FirstChild = EcsEntityNull;
+
+	Entity Parent = EcsEntityNull;
+	Entity Prev = EcsEntityNull;
+	Entity Next = EcsEntityNull;
+};
+
+template <typename Entity>
 class EcsEntityStorage : public SparseSet<Entity>
 {
 	using Traits = EcsTraits<Entity>;
@@ -402,18 +418,126 @@ public:
 
 	EcsEntityStorage()
 		: base_type(base_type::Usage::Entity)
+		  , RootEntity(EcsEntityNull)
 		  , EntityCounter{}
 	{
 	}
 
-	Entity CreateEntity()
+	void CreateRootEntity()
+	{
+		LE_ASSERT_DESC(RootEntity == EcsEntityNull, "Root Entity alread exists")
+		RootEntity = CreateEntity();
+	}
+
+	Entity CreateEntity(Entity Parent = EcsEntityNull)
 	{
 		const size_t head = base_type::GetFreeListHead();
 		const Entity entity = head == base_type::Count() ? GetAvailableEntity() : base_type::Data()[head];
-		return *base_type::TryAdd(entity);
+		const Entity newEntity = *(base_type::TryAdd(entity));
+		SetUpHierarchy(newEntity, Parent);
+		return newEntity;
+	}
+
+	EcsEntityState<Entity> GetEntityState(Entity Item)
+	{
+		if (base_type::Has(Item))
+		{
+			return GetEntityStateRef(Item);
+		}
+
+		return {};
+	}
+
+protected:
+	void Pop(const typename base_type::iterator Begin, const typename base_type::iterator End) override
+	{
+		for (typename base_type::iterator current = Begin; current != End; ++current)
+		{
+			OnPop(*current);
+			base_type::Pop(current, current + 1);
+		}
+	}
+
+	void PopAll() override
+	{
+		for (EcsEntityState<Entity>* statePage : StateContainer)
+		{
+			delete[] statePage;
+		}
+
+		RootEntity = EcsEntityNull;
+		base_type::PopAll();
 	}
 
 private:
+	void SetUpHierarchy(Entity Child, Entity Parent)
+	{
+		Entity firstChild = EcsEntityNull;
+		if (Parent == EcsEntityNull)
+		{
+			Parent = RootEntity;
+		}
+
+		if (Parent != EcsEntityNull)
+		{
+			EcsEntityState<Entity>& parentState = GetEntityStateRef(base_type::GetSparseIndex(Parent));
+			++parentState.ChildCount;
+
+			// All new entities are added to the front of the list
+			firstChild = parentState.FirstChild;
+			parentState.FirstChild = Child;
+		}
+
+		EcsEntityState<Entity>& childState = *GetCreateEcsEntityState(Child);
+		childState.Parent = Parent;
+
+		// All new entities are added to the front of the list
+		if (firstChild == EcsEntityNull)
+		{
+			return;
+		}
+
+		AddBefore(Child, firstChild);
+	}
+
+	void OnPop(Entity Child)
+	{
+		EcsEntityState<Entity>& childState = GetEntityStateRef(base_type::GetSparseIndex(Child));
+		EcsEntityState<Entity>& parentState = GetEntityStateRef(base_type::GetSparseIndex(childState.Parent));
+		--parentState.ChildCount;
+
+		if (parentState.FirstChild == Child)
+		{
+			parentState.FirstChild = childState.Next;
+		}
+
+		if (childState.Next != EcsEntityNull)
+		{
+			EcsEntityState<Entity>& nextState = GetEntityStateRef(base_type::GetSparseIndex(childState.Next));
+			nextState.Prev = childState.Prev;
+		}
+
+		if (childState.Prev != EcsEntityNull)
+		{
+			EcsEntityState<Entity>& prevState = GetEntityStateRef(base_type::GetSparseIndex(childState.Prev));
+			prevState.Next = childState.Next;
+		}
+
+		childState = {};
+		std::swap(childState, GetEntityStateRef(base_type::GetFreeListHead()));
+	}
+
+	void AddBefore(Entity Child, Entity NextChild)
+	{
+		EcsEntityState<Entity>& childState = GetEntityStateRef(base_type::GetSparseIndex(Child));
+		EcsEntityState<Entity>& nextState = GetEntityStateRef(base_type::GetSparseIndex(NextChild));
+
+		LE_ASSERT_DESC(childState.Next == EcsEntityNull, "Overriding Existing Link")
+		childState.Next = NextChild;
+		LE_ASSERT_DESC(nextState.Prev == EcsEntityNull, "Overriding Existing Link")
+		nextState.Prev = Child;
+	}
+
 	Entity GetAvailableEntity()
 	{
 		Entity availableEntity = GetNextEntity();
@@ -439,7 +563,30 @@ private:
 		return nextEntity;
 	}
 
+	EcsEntityState<Entity>& GetEntityStateRef(const size_type Position)
+	{
+		return StateContainer[Position / Traits::PageSize][FastMod(Position, Traits::PageSize)];
+	}
+
+	EcsEntityState<Entity>* GetCreateEcsEntityState(const size_type Position)
+	{
+		const size_type pageIdx = Position / Traits::PageSize;
+		if (pageIdx >= StateContainer.size())
+		{
+			size_type current = StateContainer.size();
+			StateContainer.resize(pageIdx + 1, nullptr);
+			for (; current < StateContainer.size(); ++current)
+			{
+				StateContainer[current] = new EcsEntityState<Entity>[Traits::PageSize];
+			}
+		}
+
+		return StateContainer[pageIdx] + FastMod(Position, Traits::PageSize);
+	}
+
 private:
+	std::vector<EcsEntityState<Entity>*> StateContainer;
+	Entity RootEntity;
 	typename Traits::IdType EntityCounter;
 };
 }

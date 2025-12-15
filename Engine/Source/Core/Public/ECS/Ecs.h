@@ -20,9 +20,14 @@ using ObservedComponentTypes = IncludedComponentTypes<EcsComponentStorage<Compon
 template<typename ...ComponentType>
 using FilteredComponentTypes = ExcludedComponentTypes<EcsComponentStorage<ComponentType, EcsEntity>...>;
 
-static EcsEntity CreateEntity()
+static EcsEntity CreateEntity(EcsEntity Parent = EcsEntityNull)
 {
-	return GetECSModule().GetRegistry()->CreateEntity();
+	return GetECSModule().GetRegistry()->CreateEntity(Parent);
+}
+
+static EcsEntityState<EcsEntity> GetEntityState(EcsEntity Entity)
+{
+	return GetECSModule().GetRegistry()->GetEntityState(Entity);
 }
 
 static bool IsEntityValid(const EcsEntity Entity)

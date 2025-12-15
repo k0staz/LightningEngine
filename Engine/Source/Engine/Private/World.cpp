@@ -51,9 +51,12 @@ void World::InitTestData()
 
 	AssetManager& manager = GetServiceRegistry().GetService<AssetManager>();
 	AssetHandle<StaticMeshAsset> assetHandle = manager.GetAssetUsingPath<StaticMeshAsset>(testAsset);
+
+	LE::EcsEntity rootEntity = Registry.CreateEntity();
+	LE::EcsEntity meshRootEntity = Registry.CreateEntity(rootEntity);
 	
 	{
-		LE::EcsEntity entity = Registry.CreateEntity();
+		LE::EcsEntity entity = Registry.CreateEntity(meshRootEntity);
 		LE::TransformComponent& transformComponent = Registry.AddComponentToEntity<LE::TransformComponent>(entity);
 		transformComponent.Transform.SetPosition(0.0f, 2.0f, 5.0f);
 		transformComponent.Transform.RotateSelfZ(1.2f);
@@ -64,7 +67,7 @@ void World::InitTestData()
 	}
 
 	{
-		LE::EcsEntity entity = Registry.CreateEntity();
+		LE::EcsEntity entity = Registry.CreateEntity(meshRootEntity);
 		LE::TransformComponent& transformComponent = Registry.AddComponentToEntity<LE::TransformComponent>(entity);
 		transformComponent.Transform.SetPosition(-5.0f, -2.0f, 5.0f);
 		transformComponent.Transform.RotateSelfX(1.2f);
@@ -74,7 +77,7 @@ void World::InitTestData()
 	}
 
 	{
-		LE::EcsEntity entity = Registry.CreateEntity();
+		LE::EcsEntity entity = Registry.CreateEntity(meshRootEntity);
 		LE::TransformComponent& transformComponent = Registry.AddComponentToEntity<LE::TransformComponent>(entity);
 		transformComponent.Transform.SetPosition(5.0f, -2.0f, 5.0f);
 		transformComponent.Transform.RotateSelfX(1.2f);
@@ -82,9 +85,9 @@ void World::InitTestData()
 		LE::StaticMeshComponent& staticMeshComponent = Registry.AddComponentToEntity<LE::StaticMeshComponent>(entity);
 		staticMeshComponent.AssetHandle = assetHandle;
 	}
-
+	
 	{
-		LE::EcsEntity entity = Registry.CreateEntity();
+		LE::EcsEntity entity = Registry.CreateEntity(rootEntity);
 		LE::TransformComponent& transformComponent = Registry.AddComponentToEntity<LE::TransformComponent>(entity);
 		transformComponent.Transform.SetPosition(0.0f, 0.0f, 0.0f);
 
