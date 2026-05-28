@@ -55,7 +55,7 @@ void AssetDependencyLoaderResolver::LoadAssetAsync(const Uid& AssetUid)
 		return;
 	}
 
-	AssetInfo& assetInfo = registry.GetAssetInfo(AssetUid);
+	AssetInfo assetInfo = registry.GetAssetInfo(AssetUid);
 	auto loadingFunction = [assetInfo]() mutable 
 	{
 		ZoneScopedNC("LoadingTask::Asset", tracy::Color::Purple);
@@ -85,6 +85,7 @@ void AssetDependencyLoaderResolver::LoadAssetAsync(const Uid& AssetUid)
 		dependencyInfo.LoadingTask->AddDependentTask(loadingTaskNode);
 	}
 
+	registry.SetAssetInfo(assetInfo);
 	loadingTaskNode->Finalize();
 }
 

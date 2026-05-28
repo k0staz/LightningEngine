@@ -4,3 +4,6 @@
 [submodule "Engine/3rdParty/tracy"]
 	path = Engine/3rdParty/tracy
 	url = https://github.com/wolfpld/tracy.git
+[submodule "Engine/3rdParty/OpenFBX"]
+	path = Engine/3rdParty/OpenFBX
+	url = https://github.com/nem0/OpenFBX.git

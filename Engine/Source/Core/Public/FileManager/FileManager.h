@@ -12,6 +12,8 @@ String LoadShaderFile(const Path& filePath);
 // TODO: Replace with interface
 inline bool LoadFile(const Path& FilePath, std::vector<std::byte>& OutData)
 {
+	OutData.clear();
+	
 	std::ifstream stream(FilePath, std::ios::binary | std::ios::ate);
 	if (!stream.is_open())
 	{

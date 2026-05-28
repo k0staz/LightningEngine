@@ -94,9 +94,9 @@ public:
 	bool IsValidAsset(const Uid& AssetUid) const;
 
 	AssetInfo GetAssetInfo(const Uid& AssetUid) const;
-	// Potentially could be a problem since multiple could be reading that asset info
-	// If such case arises the responsible job should provide that it uses this resource
-	AssetInfo& GetAssetInfo(const Uid& AssetUid);
+	void SetAssetInfo(const AssetInfo& Info);
+	void RemoveAssetFromRegistry(const Uid& AssetUid);
+	void RemoveAssetFromRegistry(const Path& AssetPath);
 
 	void UpdateAssetRuntimeId(const Uid& AssetUid, AssetId RuntimeId);
 	void UpdateAssetPath(const Uid& AssetUid, const Path& AssetPath);

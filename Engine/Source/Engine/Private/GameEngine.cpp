@@ -5,6 +5,7 @@
 #include "AutoRegistration.h"
 #include "D3D11DynamicRHI.h"
 #include "EngineGlobals.h"
+#include "FBXImporter.h"
 #include "GameViewport.h"
 #include "WindowsWindow.h"
 #include "Application/SystemWindow.h"
@@ -180,6 +181,7 @@ void GameEngine::InitServices()
 	ServiceReg.RegisterService<AssetManager>(std::make_unique<AssetManager>());
 	ServiceReg.RegisterService<AssetRegistry>(std::make_unique<AssetRegistry>());
 	ServiceReg.RegisterService<AssetStorageFactory>(std::make_unique<AssetStorageFactory>());
+	ServiceReg.RegisterService<FBXImporter>(std::make_unique<FBXImporter>());
 	InitJobScheduler();
 }
 }

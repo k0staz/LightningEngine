@@ -44,10 +44,26 @@ AssetInfo AssetRegistry::GetAssetInfo(const Uid& AssetUid) const
 	return {};
 }
 
-AssetInfo& AssetRegistry::GetAssetInfo(const Uid& AssetUid)
+void AssetRegistry::SetAssetInfo(const AssetInfo& Info)
 {
 	std::unique_lock lock(assetInfoMutex);
-	return UidToAssetInfo[AssetUid];
+	UidToAssetInfo[Info.AssetUid] = Info;
+}
+
+void AssetRegistry::RemoveAssetFromRegistry(const Uid& AssetUid)
+{
+	if(!IsValidAsset(AssetUid))
+	{
+		return;
+	}
+	std::unique_lock lock(assetInfoMutex);
+	PathToUid.erase(UidToAssetInfo[AssetUid].PathToAsset);
+	UidToAssetInfo.erase(AssetUid);
+}
+
+void AssetRegistry::RemoveAssetFromRegistry(const Path& AssetPath)
+{
+	RemoveAssetFromRegistry(GetUidFromPath(AssetPath));
 }
 
 void AssetRegistry::UpdateAssetRuntimeId(const Uid& AssetUid, AssetId RuntimeId)
@@ -69,7 +85,7 @@ void AssetRegistry::UpdateAssetPath(const Uid& AssetUid, const Path& AssetPath)
 	}
 
 	std::unique_lock lock(assetInfoMutex);
-	AssetInfo& info = GetAssetInfo(AssetUid);
+	AssetInfo& info = UidToAssetInfo[AssetUid];
 	PathToUid.erase(info.PathToAsset);
 
 	info.PathToAsset = AssetPath;
@@ -84,8 +100,8 @@ void AssetRegistry::AddLoadingTask(const Uid& AssetUid, RefCountingPtr<AsyncTask
 		return;
 	}
 
-	AssetInfo& info = GetAssetInfo(AssetUid);
 	std::unique_lock lock(assetInfoMutex);
+	AssetInfo& info = UidToAssetInfo[AssetUid];
 
 	info.LoadingTask = LoadingTask;
 }
@@ -97,15 +113,17 @@ void AssetRegistry::RemoveLoadingTask(const Uid& AssetUid)
 		LE_ASSERT_DESC(false, "Trying to remove a loading task from an invalid asset with UID {}", Uid::ToString(AssetUid).c_str())
 			return;
 	}
-
-	AssetInfo& info = GetAssetInfo(AssetUid);
+	
 	std::unique_lock lock(assetInfoMutex);
+	AssetInfo& info = UidToAssetInfo[AssetUid];
 
 	info.LoadingTask = nullptr;
 }
 
 void AssetRegistry::SaveManifest() const
 {
+	std::unique_lock lock(assetInfoMutex);
+	
 	std::vector<std::byte> writeBuffer;
 	Archive::ArchiveWriter archiveWriter(writeBuffer);
 	Archive::Context ctx(nullptr);

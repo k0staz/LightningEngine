@@ -1,4 +1,4 @@
-project "Engine"
+project "Tools"
     kind "StaticLib"
     language "C++"
     cppdialect "C++20"
@@ -10,24 +10,19 @@ project "Engine"
         "Public"
     }
 
+    privateIncludeDirs
+    {
+        "../../3rdParty/OpenFBX/src",
+    }
+
     files { 
         "Public/**.h",
         "Private/**.cpp",
+        "../../3rdParty/OpenFBX/src/**.cpp",
+        "../../3rdParty/OpenFBX/src/**.c"
     }
 
-    use_modules({
-        "EngineBridge", 
-        "Log", 
-        "Core", 
-        "CoreECS", 
-        "System", 
-        "RHI", 
-        "D3D11RHI", 
-        "Renderer", 
-        "Client", 
-        "WindowsApplication",
-        "AutoRegistration",
-        "Tools"})
+    use_modules({"Core", "CoreECS"})
 
     targetdir ("../Binaries/" .. OutputDir .. "/%{prj.name}")
     objdir ("../Binaries/Intermediates/" .. OutputDir .. "/%{prj.name}")

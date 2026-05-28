@@ -48,3 +48,4 @@ Makefile
 #Exclude
 !3rdParty/
 vs-chromium-project.txt
+FBX/

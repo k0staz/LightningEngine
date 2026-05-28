@@ -64,4 +64,35 @@ public:
 private:
 	std::function<TaskBody> TaskFunction;
 };
+
+template <typename TaskBody, typename... Args>
+class AsyncTaskDelegateNode : public AsyncTaskNodeBase
+{
+public:
+	AsyncTaskDelegateNode(std::string_view Name, JobScheduler* Owner, TaskBody Function, Args&&... FunctionArgs)
+		: AsyncTaskNodeBase(Name, Owner),
+		  TaskFunction(std::forward<TaskBody>(Function)),
+		  Parameters(std::forward<Args>(FunctionArgs)...)
+	{
+	}
+
+	void Execute() override
+	{
+		std::apply(std::move(TaskFunction), std::move(Parameters));
+		OnCompleted();
+	}
+
+private:
+	TaskBody TaskFunction;
+	std::tuple<Args...> Parameters;
+};
+
+namespace MultithreadingUtils
+{
+template <typename TaskBody, typename... Args>
+RefCountingPtr<AsyncTaskNodeBase> MakeTask(std::string_view Name, JobScheduler* Owner, TaskBody Function, Args&&... FunctionArgs)
+{
+	return new AsyncTaskDelegateNode<std::decay_t<TaskBody>, std::decay_t<Args>...>(Name, Owner, std::forward<TaskBody>(Function), std::forward<Args>(FunctionArgs)...);
+}
+}
 }

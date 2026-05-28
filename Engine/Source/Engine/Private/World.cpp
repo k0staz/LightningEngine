@@ -1,5 +1,6 @@
 #include "World.h"
 
+#include "FBXImporter.h"
 #include "../../AutoRegistration/Generated/Public/ECSSystemAutoRegistration.h"
 #include "Assets/StaticMeshAsset.h"
 #include "Components/CameraComponent.h"
@@ -47,8 +48,13 @@ void World::Shutdown()
 
 void World::InitTestData()
 {
-	Path testAsset = GetContentRoot() / "StaticMesh" / "NewStaticMesh.leasset";
+	/*Path testModel = GetContentRoot() / "StaticMesh" / "FBX" /"Sphere.fbx";
 
+	FBXImporter& fbxImporter = GetServiceRegistry().GetService<FBXImporter>();
+	fbxImporter.LoadAndConvertFbxModelAsync(testModel);*/
+	
+	Path testAsset = GetContentRoot() / "StaticMesh" / "Sphere.leasset";
+	
 	AssetManager& manager = GetServiceRegistry().GetService<AssetManager>();
 	AssetHandle<StaticMeshAsset> assetHandle = manager.GetAssetUsingPath<StaticMeshAsset>(testAsset);
 
