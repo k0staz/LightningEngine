@@ -4,7 +4,7 @@
 #include "Assets/StaticMeshAsset.h"
 #include "FileManager/FileManager.h"
 #include "Multithreading/JobScheduler.h"
-#include "Misc/Delegate.h"
+#include "tracy/Tracy.hpp"
 
 namespace LE
 {
@@ -194,6 +194,7 @@ bool FBXImporter::SaveStaticMesh(ConvertRequest& Request)
 
 void FBXImporter::LoadBinaryTask(std::unique_ptr<ConvertRequest> Request)
 {
+	ZoneScopedNC("FBXImported::LoadBinary", tracy::Color::Purple);
 	if(!LoadBinary(*Request))
 	{
 		Request->Finish(false);
@@ -211,6 +212,7 @@ void FBXImporter::LoadBinaryTask(std::unique_ptr<ConvertRequest> Request)
 
 void FBXImporter::ConvertToEngineTypeTask(std::unique_ptr<ConvertRequest> Request)
 {
+	ZoneScopedNC("FBXImported::ConvertToEngineType", tracy::Color::Purple);
 	if(!ConvertToEngineType(*Request))
 	{
 		Request->Finish(false);
@@ -228,6 +230,7 @@ void FBXImporter::ConvertToEngineTypeTask(std::unique_ptr<ConvertRequest> Reques
 
 void FBXImporter::SaveStaticMeshTask(std::unique_ptr<ConvertRequest> Request)
 {
+	ZoneScopedNC("FBXImported::SaveStaticMesh", tracy::Color::Purple);
 	if(!SaveStaticMesh(*Request))
 	{
 		Request->Finish(false);

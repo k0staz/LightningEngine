@@ -45,31 +45,11 @@ private:
 	mutable std::mutex DependentTaskMutex;
 };
 
-template <typename TaskBody>
+template <typename TaskBody, typename... Args>
 class AsyncTaskNode : public AsyncTaskNodeBase
 {
 public:
-	AsyncTaskNode(std::string_view Name, JobScheduler* Owner, std::function<TaskBody> Function)
-		: AsyncTaskNodeBase(Name, Owner),
-		  TaskFunction(Function)
-	{
-	}
-
-	void Execute() override
-	{
-		TaskFunction();
-		OnCompleted();
-	}
-
-private:
-	std::function<TaskBody> TaskFunction;
-};
-
-template <typename TaskBody, typename... Args>
-class AsyncTaskDelegateNode : public AsyncTaskNodeBase
-{
-public:
-	AsyncTaskDelegateNode(std::string_view Name, JobScheduler* Owner, TaskBody Function, Args&&... FunctionArgs)
+	AsyncTaskNode(std::string_view Name, JobScheduler* Owner, TaskBody Function, Args&&... FunctionArgs)
 		: AsyncTaskNodeBase(Name, Owner),
 		  TaskFunction(std::forward<TaskBody>(Function)),
 		  Parameters(std::forward<Args>(FunctionArgs)...)
@@ -92,7 +72,7 @@ namespace MultithreadingUtils
 template <typename TaskBody, typename... Args>
 RefCountingPtr<AsyncTaskNodeBase> MakeTask(std::string_view Name, JobScheduler* Owner, TaskBody Function, Args&&... FunctionArgs)
 {
-	return new AsyncTaskDelegateNode<std::decay_t<TaskBody>, std::decay_t<Args>...>(Name, Owner, std::forward<TaskBody>(Function), std::forward<Args>(FunctionArgs)...);
+	return new AsyncTaskNode<std::decay_t<TaskBody>, std::decay_t<Args>...>(Name, Owner, std::forward<TaskBody>(Function), std::forward<Args>(FunctionArgs)...);
 }
 }
 }

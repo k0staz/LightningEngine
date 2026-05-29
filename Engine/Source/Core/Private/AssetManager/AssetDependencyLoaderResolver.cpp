@@ -65,7 +65,7 @@ void AssetDependencyLoaderResolver::LoadAssetAsync(const Uid& AssetUid)
 	};
 
 	JobScheduler& jobScheduler = GetServiceRegistry().GetService<JobScheduler>();
-	RefCountingPtr<AsyncTaskNodeBase> loadingTaskNode = new AsyncTaskNode<void()>{"LoadingTask", &jobScheduler, loadingFunction};
+	RefCountingPtr<AsyncTaskNodeBase> loadingTaskNode = MultithreadingUtils::MakeTask("LoadingTask", &jobScheduler, loadingFunction);
 
 	LE_ASSERT_DESC(!assetInfo.LoadingTask, "Overwriting existing Loading Task, something is wrong")
 	assetInfo.LoadingTask = loadingTaskNode;
