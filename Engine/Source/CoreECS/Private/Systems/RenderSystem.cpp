@@ -15,7 +15,8 @@ namespace LE
 {
 void RenderSystem::Initialize()
 {
-	OnAddObserver.ReadsComponents<StaticMeshComponent, TransformComponent>();
+	OnAddObserver.ReadsComponents<TransformComponent>();
+	OnAddObserver.WritesComponents<StaticMeshComponent>();
 	OnAddObserver.AddsResources<Renderer::StaticMeshRenderProxy>();
 	OnAddObserver.GetDelegate().Attach<&RenderSystem::OnAdd>(this);
 	UpdatePass::AddJob<RenderPass>(&OnAddObserver);
@@ -25,7 +26,8 @@ void RenderSystem::Initialize()
 	UpdatePass::AddJob<RenderPass>(&OnRemoveObserver);
 
 	RenderUpdateStaticMesh.GetDelegate().Attach<&RenderSystem::UpdateStaticMeshes>(this);
-	RenderUpdateStaticMesh.ReadsComponents<StaticMeshComponent, TransformComponent>();
+	RenderUpdateStaticMesh.ReadsComponents<TransformComponent>();
+	RenderUpdateStaticMesh.WritesComponents<StaticMeshComponent>();
 	RenderUpdateStaticMesh.ReadsResources<Renderer::StaticMeshRenderProxy>();
 	UpdatePass::AddJob<RenderPass>(&RenderUpdateStaticMesh);
 
@@ -45,6 +47,17 @@ void RenderSystem::UpdateStaticMeshes(const float DeltaSeconds)
 	auto view = ViewComponents<StaticMeshComponent, TransformComponent>();
 	for (const EcsEntity& entity : view)
 	{
+		const StaticMeshComponent& meshComponent = view.GetComponents<StaticMeshComponent>(entity);
+		if(!meshComponent.AssetHandle->IsLoaded())
+		{
+			continue;
+		}
+		else if(!renderScene.HasStaticMeshRenderProxy(entity))
+		{
+			CreateRenderProxy(entity);
+			continue;
+		}
+		
 		const TransformComponent& transformComponent = view.GetComponents<TransformComponent>(entity);
 		renderScene.UpdateStaticMeshProxyTransform(entity, transformComponent.Transform);
 	}
@@ -71,12 +84,18 @@ void RenderSystem::OnAdd(const OnAddObserverType::ObserverType& Observer)
 {
 	ZoneScopedN("RenderSystem::OnAdd");
 	Renderer::RenderScene& renderScene = GetRendererModule()->GetRenderScene();
+
+	AssetManager& manager = GetServiceRegistry().GetService<AssetManager>();
 	for (auto entity : Observer)
 	{
-		const StaticMeshComponent& staticMeshComponent = Observer.GetComponents<StaticMeshComponent>(entity);
-		const TransformComponent& transformComponent = Observer.GetComponents<TransformComponent>(entity);
-
-		renderScene.CreateStaticMeshRenderProxy(entity, transformComponent.Transform, staticMeshComponent.RenderData, staticMeshComponent.MeshMaterial);
+		StaticMeshComponent& staticMeshComponent = Observer.GetComponents<StaticMeshComponent>(entity);
+		if(!staticMeshComponent.AssetHandle->IsLoaded())
+		{
+			manager.LoadAssetAsync(staticMeshComponent.AssetHandle);
+			continue;
+		}
+		
+		CreateRenderProxy(entity);
 	}
 }
 
@@ -88,5 +107,24 @@ void RenderSystem::OnRemove(const OnRemoveObserverType::ObserverType& Observer)
 	{
 		renderScene.DeleteRenderObjectProxy(entity);
 	}
+}
+
+void RenderSystem::CreateRenderProxy(EcsEntity Entity)
+{
+	Renderer::RenderScene& renderScene = GetRendererModule()->GetRenderScene();
+	const TransformComponent& transformComponent = GetComponent<TransformComponent>(Entity);
+	StaticMeshComponent& meshComponent = GetComponent<StaticMeshComponent>(Entity);
+
+	// TODO: Do we really need to store Render Data and Mesh Material in the component? Perhaps it could be stored in proxy
+	meshComponent.RenderData = new Renderer::StaticMeshRenderData();
+	const StaticMeshAsset& asset = meshComponent.AssetHandle.GetAssetRef();
+	meshComponent.RenderData->PrimitiveType = asset.PrimitiveType;
+	meshComponent.RenderData->VertexBuffers.Init(asset.Vertices);
+	meshComponent.RenderData->IndexBuffer.Init(asset.Indices);
+	meshComponent.RenderData->InitResources();
+
+	meshComponent.MeshMaterial = Renderer::Material::GetMaterialByName("BaseMaterial");
+	
+	renderScene.CreateStaticMeshRenderProxy(Entity, transformComponent.Transform, meshComponent.RenderData, meshComponent.MeshMaterial);
 }
 }

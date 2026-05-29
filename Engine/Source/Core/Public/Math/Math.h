@@ -30,13 +30,13 @@ constexpr T Abs(T Value)
 	return (Value >= static_cast<T>(0) ? Value : -Value);
 }
 
-template<Numeric T>
+template <Numeric T>
 constexpr T Min(T ValueA, T ValueB)
 {
 	return std::min<T>(ValueA, ValueB);
 }
 
-template<Numeric T>
+template <Numeric T>
 constexpr T Max(T ValueA, T ValueB)
 {
 	return std::max<T>(ValueA, ValueB);
@@ -93,7 +93,7 @@ inline int32_t CountBits(uint64_t Bits)
 	return (Bits * 0x0101010101010101) >> 56;
 }
 
-template<Unsigned T>
+template <Unsigned T>
 T FastMod(const T Value, const T PowerOfTwoMod) noexcept
 {
 	LE_ASSERT_DESC(std::has_single_bit(PowerOfTwoMod), "Mod must be power of two, supplied mode: {}", PowerOfTwoMod)
@@ -110,5 +110,32 @@ constexpr uint32 FNV1AHash(std::string_view String)
 	}
 
 	return result;
+}
+
+constexpr bool IsHex(const char Char)
+{
+	return Char >= '0' && Char <= '9' ||
+		Char >= 'a' && Char <= 'f' ||
+		Char >= 'A' && Char <= 'F';
+}
+
+constexpr int8 HexToChar(const char Char)
+{
+	if (Char >= '0' && Char <= '9' )
+	{
+		return static_cast<int8>(Char - '0');
+	}
+
+	if (Char >= 'a' && Char <= 'f')
+	{
+		return static_cast<int8>(10 + Char - 'a');
+	}
+
+	if (Char >= 'A' && Char <= 'F')
+	{
+		return static_cast<int8>(10 + Char - 'A');
+	}
+
+	return 0;
 }
 }

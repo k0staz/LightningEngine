@@ -11,6 +11,7 @@ namespace
 {
 	thread_local bool GIsRenderThread = false;
 	thread_local bool GIsMainThread = true;
+	thread_local bool GIsTaskThread = false;
 	thread_local LE::int8 GWorkerThreadIndex = -1;
 }
 
@@ -24,6 +25,11 @@ bool Thread::IsMainThread()
 bool Thread::IsRenderThread()
 {
 	return GIsRenderThread;
+}
+
+bool Thread::IsTaskThread()
+{
+	return GIsTaskThread;
 }
 
 int8 Thread::GetWorkerThreadIndex()
@@ -48,6 +54,7 @@ void Thread::Main()
 	GWorkerThreadIndex = Index;
 	GIsMainThread = false;
 	GIsRenderThread = Type == ThreadType::Render;
+	GIsTaskThread = Type == ThreadType::Task;
 
 	SetThreadDescription();
 
@@ -55,7 +62,7 @@ void Thread::Main()
 	{
 		IsReady.acquire();
 
-		RefCountingPtr<JobNode> currentJob = nullptr;
+		RefCountingPtr<AsyncNode> currentJob = nullptr;
 		while (NextJob(currentJob))
 		{
 			currentJob->Execute();
@@ -83,7 +90,7 @@ void Thread::PushJob(RefCountingPtr<JobNode> JobToAdd)
 	IsReady.release();
 }
 
-bool Thread::TryStealJob(RefCountingPtr<JobNode>& JobOut)
+bool Thread::TryStealJob(RefCountingPtr<AsyncNode>& JobOut)
 {
 	std::unique_lock lock(LocalQueueMutex, std::try_to_lock);
 	if (!lock)
@@ -102,6 +109,29 @@ bool Thread::TryStealJob(RefCountingPtr<JobNode>& JobOut)
 	return true;
 }
 
+bool Thread::TryPushTask(RefCountingPtr<AsyncTaskNodeBase> TaskToAdd)
+{
+	LE_ASSERT(Type == ThreadType::Task)
+
+	std::unique_lock lock(LocalQueueMutex, std::try_to_lock);
+	if (!lock)
+	{
+		return false;
+	}
+
+	LocalTaskQueue.push_front(TaskToAdd);
+	IsReady.release();
+	return true;
+}
+
+void Thread::PushTask(RefCountingPtr<AsyncTaskNodeBase> TaskToAdd)
+{
+	LE_ASSERT(Type == ThreadType::Task)
+	std::unique_lock lock(LocalQueueMutex);
+	LocalTaskQueue.push_front(TaskToAdd);
+	IsReady.release();
+}
+
 void Thread::IncrementFrameCounter()
 {
 	CurrentFrame.fetch_add(1, std::memory_order_relaxed);
@@ -112,15 +142,25 @@ uint64 Thread::GetCurrentFrame() const
 	return CurrentFrame.load(std::memory_order_acquire);
 }
 
-bool Thread::NextJob(RefCountingPtr<JobNode>& JobOut)
+bool Thread::NextJob(RefCountingPtr<AsyncNode>& JobOut)
 {
 	{
 		std::unique_lock lock(LocalQueueMutex);
-		if (lock && !LocalQueue.empty())
+		if (lock)
 		{
-			JobOut = LocalQueue.back();
-			LocalQueue.pop_back();
-			return true;
+			if (Type == ThreadType::Task && !LocalTaskQueue.empty())
+			{
+				JobOut = LocalTaskQueue.back();
+				LocalTaskQueue.pop_back();
+				return true;
+			}
+
+			if (!LocalQueue.empty())
+			{
+				JobOut = LocalQueue.back();
+				LocalQueue.pop_back();
+				return true;
+			}
 		}
 	}
 

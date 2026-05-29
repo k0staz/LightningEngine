@@ -1,6 +1,8 @@
 #pragma once
 
 #include <unordered_set>
+
+#include "AsyncNode.h"
 #include "Templates/RefCounters.h"
 #include "UpdatePasses.h"
 
@@ -9,7 +11,7 @@ namespace LE
 class JobScheduler;
 
 // Will probably need to split into Gameplay Work and Render Work
-class JobNode : public RefCountableBase
+class JobNode : public AsyncNode
 {
 	friend JobScheduler;
 
@@ -45,6 +47,7 @@ public:
 		}
 
 		DependentJobs.erase(&Job);
+		Job.DecrementDependencyCounter();
 		--Job.DefaultDependencies;
 	}
 
@@ -53,7 +56,7 @@ public:
 		return GetCurrentRemainingJobCount() == 0;
 	}
 
-	void Execute();
+	void Execute() override;
 
 	uint32 GetCurrentRemainingJobCount() const
 	{

@@ -32,18 +32,18 @@ StaticMeshVertexBuffers::StaticMeshVertexBuffers(): PositionReadView(nullptr), T
 {
 }
 
-void StaticMeshVertexBuffers::Init(uint32 InNumVertices)
+void StaticMeshVertexBuffers::Init(size_t InNumVertices)
 {
-	NumVertices = InNumVertices;
+	NumVertices = static_cast<uint32>(InNumVertices);
 
 	PositionData.reserve(InNumVertices);
 	TangentData.reserve(InNumVertices);
 	TexCoordData.reserve(InNumVertices);
 }
 
-void StaticMeshVertexBuffers::Init(const Array<StaticMeshVertex>& InVertices)
+void StaticMeshVertexBuffers::Init(const std::vector<StaticMeshVertex>& InVertices)
 {
-	Init(InVertices.Count());
+	Init(InVertices.size());
 
 	for (const StaticMeshVertex& vertex : InVertices)
 	{
@@ -152,10 +152,10 @@ RefCountingPtr<RHI::RHIBuffer> StaticMeshVertexBuffers::CreateTexCoordRHIBuffer(
 	return CreateRHIBuffer(&TexCoordData, RHI::BUF_ShaderResource);
 }
 
-void StaticMeshIndexBuffer::Init(const Array<uint16>& Indices)
+void StaticMeshIndexBuffer::Init(const std::vector<uint16>& Indices)
 {
 	IndexData = Indices;
-	IndexCount = Indices.Count();
+	IndexCount = static_cast<uint32>(Indices.size());
 }
 
 void StaticMeshIndexBuffer::InitRHI(RenderCommandList& CommandList)

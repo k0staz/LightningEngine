@@ -1,6 +1,7 @@
 #pragma once
 
 #include "CoreDefinitions.h"
+#include "Archive/Archive.h"
 #include "Math/Vector3.h"
 #include "MeshConverters/StaticMeshConverter.h"
 #include "Multithreading/SharedResource.h"
@@ -18,14 +19,54 @@ struct StaticMeshVertex
 	Vector2F TextureCord;
 };
 
+inline bool InvokeArchive(Archive::Context& Ctx, Archive::ArchiveWriter& Writer, const StaticMeshVertex& Value)
+{
+	if (!Serialize(Ctx, Writer, Value.Position))
+	{
+		return false;
+	}
+
+	if (!Serialize(Ctx, Writer, Value.Tangent))
+	{
+		return false;
+	}
+
+	if (!Serialize(Ctx, Writer, Value.TextureCord))
+	{
+		return false;
+	}
+
+	return true;
+}
+
+inline bool InvokeArchive(Archive::Context& Ctx, Archive::ArchiveReader& Reader, StaticMeshVertex& Value)
+{
+	if (!Deserialize(Ctx, Reader, Value.Position))
+	{
+		return false;
+	}
+
+	if (!Deserialize(Ctx, Reader, Value.Tangent))
+	{
+		return false;
+	}
+
+	if (!Deserialize(Ctx, Reader, Value.TextureCord))
+	{
+		return false;
+	}
+
+	return true;
+}
+
 class StaticMeshVertexBuffers : public RenderResource
 {
 public:
 	StaticMeshVertexBuffers();
 
-	void Init(uint32 InNumVertices);
+	void Init(size_t InNumVertices);
 
-	void Init(const Array<StaticMeshVertex>& InVertices);
+	void Init(const std::vector<StaticMeshVertex>& InVertices);
 
 	void InitRHI(RenderCommandList& CommandList) override;
 
@@ -72,7 +113,7 @@ class StaticMeshIndexBuffer : public IndexBuffer
 public:
 	StaticMeshIndexBuffer() = default;
 
-	void Init(const Array<uint16>& Indices);
+	void Init(const std::vector<uint16>& Indices);
 	void InitRHI(RenderCommandList& CommandList) override;
 	uint32 GetIndicesCount() const { return IndexCount; }
 

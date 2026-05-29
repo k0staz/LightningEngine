@@ -12,7 +12,7 @@ namespace LE
 template <typename Entity>
 class EcsRegistry
 {
-	using Traits = EcsEntityTraits<Entity>;
+	using Traits = IdTraits<Entity>;
 
 public:
 	using size_type = std::size_t;
@@ -20,6 +20,7 @@ public:
 	EcsRegistry()
 		: EcsRegistry(0)
 	{
+		EntityStorage.CreateRootEntity();
 	}
 
 	EcsRegistry(const size_type ComponentTypeCount)
@@ -56,14 +57,29 @@ public:
 		return EntityStorage.Has(EcsEntity);
 	}
 
-	Entity CreateEntity()
+	EcsEntityState<Entity> GetEntityState(const Entity EcsEntity)
 	{
-		return EntityStorage.CreateEntity();
+		return EntityStorage.GetEntityState(EcsEntity);
+	}
+	
+	Entity CreateEntity(Entity Parent = EcsEntityNull)
+	{
+		return EntityStorage.CreateEntity(Parent);
 	}
 
 	void DeleteEntity(const Entity EcsEntity)
 	{
 		LE_ASSERT_DESC(IsEntityValid(EcsEntity), "Attempting to delete an invalid Entity")
+
+		EcsEntityState<Entity> entityState = GetEntityState(EcsEntity);
+		Entity nextChild = entityState.FirstChild;
+		while(nextChild != EcsEntityNull)
+		{
+			EcsEntityState<Entity> nextState = GetEntityState(nextChild);
+			DeleteEntity(nextChild);
+			nextChild = nextState.Next;
+		}
+		
 		for (auto& storage : ComponentStorages)
 		{
 			if (storage.second->Has(EcsEntity))
@@ -151,15 +167,17 @@ public:
 		return (HasAllComponents<ComponentType>() || ...);
 	}
 
-	template <typename... ComponentType>
+	template<typename... ComponentType>
 	decltype(auto) GetComponent(const Entity EcsEntity) const
 	{
-		if constexpr (sizeof...(ComponentType) == 1u)
+		if constexpr (sizeof...(ComponentType) == 1)
 		{
 			return (GetComponentStorage<ComponentType>()->GetComponent(EcsEntity), ...);
 		}
-
-		return std::forward_as_tuple(GetComponent<ComponentType>(EcsEntity)...);
+		else
+		{
+			return std::tuple_cat(GetComponentStorage<ComponentType>()->GetComponentAsTuple(EcsEntity)...);
+		}
 	}
 
 	template <typename... ComponentType, typename... ExcludedComponents>
@@ -217,7 +235,7 @@ private:
 	}
 
 	template <typename ComponentType>
-	const EcsComponentStorage<ComponentType, Entity>& GetComponentStorage(
+	EcsComponentStorage<ComponentType, Entity>* GetComponentStorage(
 		EcsComponentType ComponentTypeId = ComponentTypeIdGetter<ComponentType>::Value) const
 	{
 		static_assert(!std::is_same_v<ComponentType, Entity>, "Attempting to pass Entity as Component");
@@ -226,7 +244,7 @@ private:
 		auto it = ComponentStorages.find(ComponentTypeId);
 		if (it != ComponentStorages.cend())
 		{
-			return static_cast<ComponentStorageType&>(*it->second);
+			return static_cast<ComponentStorageType*>(it->second.get());
 		}
 
 		return nullptr;

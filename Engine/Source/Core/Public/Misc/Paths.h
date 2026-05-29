@@ -3,7 +3,8 @@
 
 namespace LE
 {
-	using Path = std::filesystem::path;
+using Path = std::filesystem::path;
 
-	Path GetEngineRoot();
+Path GetEngineRoot();
+Path GetContentRoot();
 }

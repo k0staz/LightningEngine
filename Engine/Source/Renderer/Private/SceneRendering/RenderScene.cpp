@@ -35,7 +35,6 @@ void RenderScene::CreateStaticMeshRenderProxy(EcsEntity Entity, const Matrix4x4F
 	{
 		if (RenderObjectProxies.contains(Entity))
 		{
-			LE_ASSERT_DESC(false, "[Render Scene] Render Proxy double Add")
 			delete newProxy;
 			return;
 		}
@@ -77,5 +76,10 @@ void RenderScene::UpdateStaticMeshProxyTransform(EcsEntity Entity, const Matrix4
 		proxy->SetTransform(Transform);
 		proxy->UpdateConstantBuffer(CmdList);
 	});
+}
+
+bool RenderScene::HasStaticMeshRenderProxy(EcsEntity Entity) const
+{
+	return RenderObjectProxies.contains(Entity);
 }
 }

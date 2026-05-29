@@ -12,4 +12,9 @@ Path GetEngineRoot()
 
 	return thisFile;
 }
+
+Path GetContentRoot()
+{
+	return (GetEngineRoot() / "Content");
+}
 }

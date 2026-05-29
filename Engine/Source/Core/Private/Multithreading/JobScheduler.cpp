@@ -5,38 +5,38 @@
 
 namespace LE
 {
-static JobScheduler* gJobScheduler = nullptr;
-
-
-JobScheduler* JobScheduler::Get()
+void JobScheduler::StartThreads(int8 WorkerThreadsNum, int8 TaskThreadsNum)
 {
-	if (!gJobScheduler)
+	ThreadCount = WorkerThreadsNum + TaskThreadsNum;
+	ThreadPool.reserve(ThreadCount);
+	if (WorkerThreadsNum > 0)
 	{
-		gJobScheduler = new JobScheduler;
+		LE_INFO("-------------------------Spawning worker threads-------------------------");
+		for (uint8 i = 0; i < static_cast<uint8>(WorkerThreadsNum); ++i)
+		{
+			const std::string threadName = std::format("Worker Thread {}", i);
+			ThreadPool.emplace_back(i + 1, threadName, ThreadType::Worker, this);
+			LE_INFO("Thread {} was created", threadName);
+			ThreadPool[i].Start();
+		}
+		LE_INFO("-------------------------Finished Spawning worker threads-------------------------");
 	}
-
-	return gJobScheduler;
-}
-
-void JobScheduler::Init(int8 WorkerThreadsNum)
-{
-	if (WorkerThreadsNum <= 0)
+	
+	if (TaskThreadsNum > 0)
 	{
-		return;
-	}
-	ThreadCount = WorkerThreadsNum;
+		TaskThreadStart = WorkerThreadsNum;
+		TaskThreadCount = TaskThreadsNum;
 
-	ConstructUpdateGraph();
-	LE_INFO("-------------------------Spawning worker threads-------------------------");
-	ThreadPool.reserve(WorkerThreadsNum);
-	for (uint8 i = 0; i < static_cast<uint8>(WorkerThreadsNum); ++i)
-	{
-		const std::string threadName = std::format("Worker Thread {}", i);
-		ThreadPool.emplace_back(i + 1, threadName, ThreadType::Worker, this);
-		LE_INFO("Thread {} was created", threadName);
-		ThreadPool[i].Start();
+		LE_INFO("-------------------------Spawning task worker threads-------------------------");
+		for (uint8 i = WorkerThreadsNum; i < ThreadCount; ++i)
+		{
+			const std::string threadName = std::format("Task Worker Thread {}", i - WorkerThreadsNum);
+			ThreadPool.emplace_back(i + 1, threadName, ThreadType::Task, this);
+			LE_INFO("Thread {} was created", threadName);
+			ThreadPool[i].Start();
+		}
+		LE_INFO("-------------------------Finished Spawning task worker threads-------------------------");
 	}
-	LE_INFO("-------------------------Finished Spawning worker threads-------------------------");
 }
 
 void JobScheduler::StartRenderThread()
@@ -46,6 +46,10 @@ void JobScheduler::StartRenderThread()
 	RenderThread = new Thread(-1, renderThreadName, ThreadType::Render, this);
 	RenderThread->Start();
 	LE_INFO("-------------------------Finished Spawning render thread-------------------------");
+}
+
+void JobScheduler::Initialize()
+{
 }
 
 void JobScheduler::Shutdown()
@@ -119,6 +123,29 @@ void JobScheduler::OnJobFinished()
 	}
 }
 
+void JobScheduler::OnTaskFinalized(RefCountingPtr<AsyncTaskNodeBase> TaskNode)
+{
+	{
+		std::lock_guard lock(TasksMutex);
+		Tasks.emplace(TaskNode);
+	}
+	
+	if(TaskNode->IsReady())
+	{
+		OnTaskBecameAvailable(TaskNode);
+	}
+}
+
+void JobScheduler::OnTaskBecameAvailable(RefCountingPtr<AsyncTaskNodeBase> TaskNode)
+{
+	{
+		std::lock_guard lock(TasksMutex);
+		Tasks.erase(TaskNode);
+	}
+	
+	PushTask(TaskNode);
+}
+
 bool JobScheduler::AreAllFinished() const
 {
 	return ActiveJobs.load(std::memory_order_acquire) == 0;
@@ -134,7 +161,7 @@ void JobScheduler::HelpWorkerThreads()
 {
 	uint8 threadIdxToSteal = 0;
 
-	RefCountingPtr<JobNode> currentJob = nullptr;
+	RefCountingPtr<AsyncNode> currentJob = nullptr;
 	while (TryStealJobFromThread(threadIdxToSteal, currentJob))
 	{
 		currentJob->Execute();
@@ -142,7 +169,7 @@ void JobScheduler::HelpWorkerThreads()
 	}
 }
 
-bool JobScheduler::TryStealJobFromThread(uint8 RequestingThreadIdx, RefCountingPtr<JobNode>& OutJob, ThreadType StealingType)
+bool JobScheduler::TryStealJobFromThread(uint8 RequestingThreadIdx, RefCountingPtr<AsyncNode>& OutJob, ThreadType StealingType)
 {
 	uint8 threadIdxToSteal = (RequestingThreadIdx + 1) % ThreadCount;
 	while (threadIdxToSteal != RequestingThreadIdx)
@@ -171,6 +198,20 @@ void JobScheduler::PushJob(RefCountingPtr<JobNode> JobNode)
 	}
 
 	ThreadPool[idx % ThreadCount].PushJob(JobNode);
+}
+
+void JobScheduler::PushTask(RefCountingPtr<AsyncTaskNodeBase> TaskNode)
+{
+	uint32 idx = CurrentTaskThreadForPush.fetch_add(1, std::memory_order_acq_rel) + 1;
+	for (uint32 i = TaskThreadStart; i != ThreadCount; ++i)
+	{
+		if (ThreadPool[i + (idx % TaskThreadCount)].TryPushTask(TaskNode))
+		{
+			return;
+		}
+	}
+
+	ThreadPool[TaskThreadStart + (idx % TaskThreadCount)].PushTask(TaskNode);
 }
 
 void JobScheduler::ConstructUpdateGraphForPass(const UpdatePass* Pass, GraphBuildContext& Context)

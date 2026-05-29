@@ -4,6 +4,7 @@
 #include "ECS/EcsRegistry.h"
 #include "ECS/EcsSystem.h"
 #include "SceneRendering/SceneView.h"
+#include "Service/ServiceRegistry.h"
 
 namespace LE
 {

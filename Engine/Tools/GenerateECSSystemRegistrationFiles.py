@@ -3,7 +3,7 @@ import re
 import sys
 from pathlib import Path
 
-source_dir = Path("../../Source")
+source_dir = Path("../")
 output_dir_h = Path("Generated/Public")
 output_dir_cpp = Path("Generated/Private")
 
@@ -14,32 +14,39 @@ variant_pattern = re.compile(
 system_classes = []
 header_files = []
 
-# Find all shaders
+# Find all ECS Systems
 
 def get_relative_to_public(path: Path) -> Path:
     for parent in path.parents:
         if parent.name == "Public":
             return path.relative_to(parent)
 
-for header_file in source_dir.rglob("*.h"):
-    try:
-        with open(header_file, "r", encoding="utf-8") as f:
-            contents = f.read()
-            matches = variant_pattern.findall(contents)
-            for class_name in matches:
-                if(class_name == "SystemName"):
-                    continue
+modules_list = []
+if len(sys.argv) > 1:
+    module_strings = sys.argv[1]
+    modules_list = module_strings.split(',')
 
-                relative_header = get_relative_to_public(header_file)
-                if class_name not in system_classes:
-                    system_classes.append(class_name)
-                
-                formatted_header = relative_header.as_posix()
-                if formatted_header not in header_files:
-                    header_files.append(formatted_header)
+for module in modules_list:
+    full_path = source_dir / module
+    for header_file in source_dir.rglob("*.h"):
+        try:
+            with open(header_file, "r", encoding="utf-8") as f:
+                contents = f.read()
+                matches = variant_pattern.findall(contents)
+                for class_name in matches:
+                    if(class_name == "SystemName"):
+                        continue
 
-    except Exception as e:
-        print(f"Error reading {header_file}: {e}")
+                    relative_header = get_relative_to_public(header_file)
+                    if class_name not in system_classes:
+                        system_classes.append(class_name)
+                    
+                    formatted_header = relative_header.as_posix()
+                    if formatted_header not in header_files:
+                        header_files.append(formatted_header)
+
+        except Exception as e:
+            print(f"Error reading {header_file}: {e}")
 
 # Generate files
 # Header file
@@ -51,7 +58,7 @@ header_content = """#pragma once
 
 #include "ECS/EcsSystem.h"
 
-namespace LE::ECSSystemRegistration
+namespace LE::AutoRegistration
 {
 void RegisterAllSystems(EcsSystemManager& SystemManager);
 }
@@ -64,7 +71,7 @@ register_calls = "\n    ".join(f"SystemManager.RegisterSystem<{cls}>();" for cls
 cpp_content = f"""#include "ECSSystemAutoRegistration.h"
 {includes}
 
-namespace LE::ECSSystemRegistration
+namespace LE::AutoRegistration
 {{
 void RegisterAllSystems(EcsSystemManager& SystemManager)
 {{
@@ -81,8 +88,8 @@ cpp_file_name.parent.mkdir(parents=True, exist_ok=True)
 with open(cpp_file_name, "w", encoding="utf-8") as f:
     f.write(cpp_content)
 
-print(f"Generated {header_file_name}")
-print(f"Generated {cpp_file_name}")
+print(f"Generated {header_file_name.absolute()}")
+print(f"Generated {cpp_file_name.absolute()}")
 print(f"Found {len(system_classes)} ECS Systems")
 
 sys.exit(0)

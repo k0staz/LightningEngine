@@ -10,7 +10,16 @@ workspace "LightningEngine"
     startproject "Application"
 
     filter "system:windows"
-      buildoptions { "/EHsc", "/Zc:preprocessor", "/Zc:__cplusplus", "/utf-8" }
+    conformancemode "On"
+    buildoptions { 
+        "/EHsc", 
+        "/Zc:preprocessor", 
+        "/Zc:externConstexpr",
+        "/Zc:ternary",
+        "/Zc:__cplusplus", 
+        "/utf-8" 
+    }
+
 
     filter "configurations:Debug"
        defines { "TRACY_ENABLE" }
@@ -28,6 +37,8 @@ group "Engine"
     include "Engine/Source/Client/BuildClient.lua"
     include "Engine/Source/System/BuildSystem.lua"
     include "Engine/Source/Engine/BuildEngine.lua"
+    include "Engine/Source/AutoRegistration/BuildAutoRegistration.lua"
+    include "Engine/Source/Tools/BuildTools.lua"
 
 group "Windows"
     include "Engine/Source/Windows/D3D11RHI/BuildD3D11.lua"

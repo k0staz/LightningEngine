@@ -3,6 +3,7 @@
 Binaries/
 Engine/**/Generated/*
 Debug
+.idea/
 
 # Files
 *.vcxproj
@@ -47,3 +48,4 @@ Makefile
 #Exclude
 !3rdParty/
 vs-chromium-project.txt
+FBX/
