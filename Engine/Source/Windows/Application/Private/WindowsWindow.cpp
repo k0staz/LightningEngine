@@ -34,7 +34,7 @@ LRESULT WndProc(HWND hwnd, UINT umessage, WPARAM wparam, LPARAM lparam)
 void WindowsWindow::Init(const WindowDescription& InDescription, HINSTANCE InHInstance)
 {
 	// This will need to be moved to a common place (Application Class) for all windows at some point
-	LPCWSTR name = L"LightningEngine";
+	LPCSTR name = "LightningEngine";
 
 	{
 		WNDCLASSEX wc;

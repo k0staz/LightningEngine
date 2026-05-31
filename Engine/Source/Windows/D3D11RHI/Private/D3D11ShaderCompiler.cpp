@@ -37,12 +37,19 @@ private:
 	CompilerFunctions()
 	{
 
-		std::filesystem::path compilerPath = GetEngineRoot();
-		compilerPath /= "3rdParty/Windows/DirectX/d3dcompiler_47.dll";
-		CompilerDLL = LoadLibrary(compilerPath.c_str());
+		CompilerDLL = LoadLibraryW(L"d3dcompiler_47.dll");
 		if (!CompilerDLL)
 		{
-			LE_ASSERT_DESC(false, "Failed to load D3D11 compiler's dll")
+			DWORD lastError = GetLastError();
+    
+			if (lastError == ERROR_BAD_EXE_FORMAT)
+			{
+				LE_ASSERT_DESC(false, "d3dcompiler_47.dll found, but has an invalid or mismatched architecture (e.g., x86 vs x64).");
+			}
+			else
+			{
+				LE_ASSERT_DESC(false, "Failed to locate d3dcompiler_47.dll in the application execution directory.");
+			}
 		}
 
 		Compile = (pD3DCompile)(void*)(GetProcAddress(CompilerDLL, "D3DCompile"));

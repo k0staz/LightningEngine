@@ -1,7 +1,7 @@
 #include "World.h"
 
 #include "FBXImporter.h"
-#include "../../AutoRegistration/Generated/Public/ECSSystemAutoRegistration.h"
+#include "ECSMasterFile.h"
 #include "Assets/StaticMeshAsset.h"
 #include "Components/CameraComponent.h"
 #include "Components/StaticMeshComponent.h"
@@ -35,7 +35,7 @@ void World::Init()
 		UniquePtr<ECSModule> module = std::make_unique<ECSModule>();
 		module->Initialize(&Registry, &SystemManager);
 		RegisterECSModule(std::move(module));
-		AutoRegistration::RegisterAllSystems(SystemManager); // TODO: These needs to be moved out of there, and we need to create an registry for systems
+		AutoRegistration::EngineModule::RegisterAllSystems(SystemManager); // TODO: These needs to be moved out of there, and we need to create an registry for systems
 	}
 
 	InitTestData();
