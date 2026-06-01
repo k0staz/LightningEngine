@@ -5,7 +5,7 @@ import sys
 import posixpath
 
 def log_info(message: str):
-    sys.stderr.write(f"[Reflection Shader] {message}\n")
+    sys.stderr.write(f"[Reflection] [Shader] {message}\n")
     sys.stderr.flush()
 
 def main():
@@ -42,6 +42,8 @@ def main():
         if not shader_classes:
             continue
         
+        log_info(f"{header} - Found auto registration macro, processing")
+
         rel_path = posixpath.basename(header)
         file_name, _ = posixpath.splitext(rel_path)
         
@@ -60,31 +62,32 @@ def main():
             continue
 
         if posixpath.exists(gen_cpp) and posixpath.getmtime(header) <= posixpath.getmtime(gen_cpp):
+            log_info(f"{header} - Was not changed")
             continue
 
         header_content = f"""#pragma once
-        //==========================================================
-        //This file is auto generated do not change the content
-        //==========================================================
+//==========================================================
+//This file is auto generated do not change the content
+//==========================================================
 
-        namespace LE::Renderer::AutoRegistration::{gen_namespace}
-        {{
-        void RegisterAllMaterialShader();
-        }}
-        """
+namespace LE::Renderer::AutoRegistration::{gen_namespace}
+{{
+    void RegisterAllMaterialShader();
+}}
+"""
 
-        register_calls = "\n    ".join(f"{cls}::RegisterMetaType();" for cls in shader_classes)
+        register_calls = "\n        ".join(f"{cls}::RegisterMetaType();" for cls in shader_classes)
         cpp_content = f"""#include "{file_name}.gen.h"
-        #include "{header}"
+#include "{header}"
 
-        namespace LE::Renderer::AutoRegistration::{gen_namespace}
-        {{
-        void RegisterAllMaterialShader()
-        {{
-            {register_calls}
-        }}
-        }}
-        """
+namespace LE::Renderer::AutoRegistration::{gen_namespace}
+{{
+    void RegisterAllMaterialShader()
+    {{
+        {register_calls}
+    }}
+}}
+"""
         os.makedirs(posixpath.dirname(gen_cpp), exist_ok=True)
         with open(gen_h, "w") as f: f.write(header_content)
         with open(gen_cpp, "w") as f: f.write(cpp_content)
@@ -116,31 +119,28 @@ def main():
             f.write(f'#include "{file_name}.h"\n')
 
         f.write("\n")
-        register_calls = "\n    ".join(f"{namespace}::RegisterAllMaterialShader();" for namespace in generated_namespaces)
-        f.write(
-            f"""
-            namespace LE::Renderer::AutoRegistration::{args.module_name}
-            {{
-            void RegisterAllMaterialShader()
-            {{
-                {register_calls}
-            }}
-            }}
-            """
+        register_calls = "\n        ".join(f"{namespace}::RegisterAllMaterialShader();" for namespace in generated_namespaces)
+        f.write(f"""namespace LE::Renderer::AutoRegistration::{args.module_name}
+{{
+    void RegisterAllMaterialShader()
+    {{
+        {register_calls}
+    }}
+}}
+"""
         )
     os.makedirs(posixpath.dirname(args.master_header), exist_ok=True)
     with open(args.master_header, "w") as f:
-        f.write(
-            f"""#pragma once
-            //==========================================================
-            //This file is auto generated do not change the content
-            //==========================================================
+        f.write(f"""#pragma once
+//==========================================================
+//This file is auto generated do not change the content
+//==========================================================
 
-            namespace LE::Renderer::AutoRegistration::{args.module_name}
-            {{
-            void RegisterAllMaterialShader();
-            }}
-            """
+namespace LE::Renderer::AutoRegistration::{args.module_name}
+{{
+    void RegisterAllMaterialShader();
+}}
+"""
         )
     
     #Generate depfile
@@ -150,6 +150,8 @@ def main():
         else:
             dependencies_str = " ".join(tracked_headers)
             f.write(f"{master_cpp}: {dependencies_str}\n")
+    
+    log_info(f"Finished: {len(generated_header_files)} files were created")
 
 if __name__ == "__main__":
     main()

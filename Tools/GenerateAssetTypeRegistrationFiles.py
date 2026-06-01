@@ -5,7 +5,7 @@ import sys
 import posixpath
 
 def log_info(message: str):
-    sys.stderr.write(f"[Reflection Asset] {message}\n")
+    sys.stderr.write(f"[Reflection] [Asset] {message}\n")
     sys.stderr.flush()
 
 def main():
@@ -42,6 +42,8 @@ def main():
         if not asset_types:
             continue
         
+        log_info(f"{header} - Found auto registration macro, processing")
+
         rel_path = posixpath.basename(header)
         file_name, _ = posixpath.splitext(rel_path)
         
@@ -58,33 +60,34 @@ def main():
             continue
 
         if posixpath.exists(gen_cpp) and posixpath.getmtime(header) <= posixpath.getmtime(gen_cpp):
+            log_info(f"{header} - Was not changed")
             continue
 
         header_content = f"""#pragma once
-        //==========================================================
-        //This file is auto generated do not change the content
-        //==========================================================
+//==========================================================
+//This file is auto generated do not change the content
+//==========================================================
 
-        #include "AssetManager/AssetStorageFactory.h"
+#include "AssetManager/AssetStorageFactory.h"
 
-        namespace LE::AutoRegistration::{gen_namespace}
-        {{
-        void RegisterAllAssetTypes(AssetStorageFactory& Factory);
-        }}
-        """
+namespace LE::AutoRegistration::{gen_namespace}
+{{
+    void RegisterAllAssetTypes(AssetStorageFactory& Factory);
+}}
+"""
 
-        register_calls = "\n    ".join(f"Factory.Register(AssetTypeIdGetter<{cls}>::Value, ASSET_STORAGE_CONSTRUCTION_FUNC({cls}));" for cls in asset_types)
+        register_calls = "\n        ".join(f"Factory.Register(AssetTypeIdGetter<{cls}>::Value, ASSET_STORAGE_CONSTRUCTION_FUNC({cls}));" for cls in asset_types)
         cpp_content = f"""#include "{file_name}.gen.h"
-        #include "{header}"
+#include "{header}"
 
-        namespace LE::AutoRegistration::{gen_namespace}
-        {{
-        void RegisterAllAssetTypes(AssetStorageFactory& Factory)
-        {{
-            {register_calls}
-        }}
-        }}
-        """
+namespace LE::AutoRegistration::{gen_namespace}
+{{
+    void RegisterAllAssetTypes(AssetStorageFactory& Factory)
+    {{
+        {register_calls}
+    }}
+}}
+"""
         os.makedirs(posixpath.dirname(gen_cpp), exist_ok=True)
         with open(gen_h, "w") as f: f.write(header_content)
         with open(gen_cpp, "w") as f: f.write(cpp_content)
@@ -116,33 +119,30 @@ def main():
             f.write(f'#include "{file_name}.h"\n')
 
         f.write("\n")
-        register_calls = "\n    ".join(f"{namespace}::RegisterAllAssetTypes(Factory);" for namespace in generated_namespaces)
-        f.write(
-            f"""
-            namespace LE::AutoRegistration::{args.module_name}
-            {{
-            void RegisterAllAssetTypes(AssetStorageFactory& Factory)
-            {{
-                {register_calls}
-            }}
-            }}
-            """
+        register_calls = "\n        ".join(f"{namespace}::RegisterAllAssetTypes(Factory);" for namespace in generated_namespaces)
+        f.write(f"""namespace LE::AutoRegistration::{args.module_name}
+{{
+    void RegisterAllAssetTypes(AssetStorageFactory& Factory)
+    {{
+        {register_calls}
+    }}
+}}
+"""
         )
     os.makedirs(posixpath.dirname(args.master_header), exist_ok=True)
     with open(args.master_header, "w") as f:
-        f.write(
-            f"""#pragma once
-            //==========================================================
-            //This file is auto generated do not change the content
-            //==========================================================
+        f.write(f"""#pragma once
+//==========================================================
+//This file is auto generated do not change the content
+//==========================================================
 
-            #include "AssetManager/AssetStorageFactory.h"
+#include "AssetManager/AssetStorageFactory.h"
 
-            namespace LE::AutoRegistration::{args.module_name}
-            {{
-            void RegisterAllAssetTypes(AssetStorageFactory& Factory);
-            }}
-            """
+namespace LE::AutoRegistration::{args.module_name}
+{{
+    void RegisterAllAssetTypes(AssetStorageFactory& Factory);
+}}
+"""
         )
     
     #Generate depfile
@@ -152,6 +152,8 @@ def main():
         else:
             dependencies_str = " ".join(tracked_headers)
             f.write(f"{master_cpp}: {dependencies_str}\n")
+
+    log_info(f"Finished: {len(generated_header_files)} files were created")
 
 if __name__ == "__main__":
     main()
