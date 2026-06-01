@@ -2,6 +2,31 @@ cmake_minimum_required(VERSION 3.23)
 
 project(LightningEngine)
 
+find_package(Doxygen QUIET)
+
+if(DOXYGEN_FOUND)
+    set(DOXYGEN_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/docs")
+    
+    set(DOXYGEN_GENERATE_HTML YES)
+    set(DOXYGEN_GENERATE_LATEX NO)
+    set(DOXYGEN_RECURSIVE YES)
+    
+    set(DOXYGEN_SHOW_GROUPED_MEMB_IN_DISLINK YES)
+
+    # Point Doxygen to your entire source directory
+    doxygen_add_docs(docs
+        ${CMAKE_CURRENT_SOURCE_DIR}/src
+        COMMENT "Generating documentation"
+    )
+else()
+    message(WARNING "Doxygen not found on this system. Documentation ('docs' target) will be skipped.")
+    
+    add_custom_target(docs
+        COMMAND ${CMAKE_COMMAND} -E echo "Error: Cannot build documentation. Please install Doxygen."
+        COMMENT "Doxygen is missing!"
+    )
+endif()
+
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 
 set(CMAKE_CXX_STANDARD 20)
