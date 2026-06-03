@@ -9,16 +9,9 @@ target_include_directories(Engine
 
 target_link_libraries(Engine 
     PUBLIC 
-        EngineBridge 
-        Log 
-        Core 
-        CoreECS
-        System
-        RHI
-        D3D11RHI
-        Renderer
-        Client
-        WindowsApplication
-        Tools
-        AutoRegistration
+        EngineCore_Module
+        CoreECS_Module
+        Renderer_Module
+        RendererECSCore_Module
+        EngineTools_Module
 )

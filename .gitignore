@@ -66,6 +66,7 @@ CMakeScripts/
 cmake_install.cmake
 install_manifest.txt
 CMakeUserPresets.json
+CmakeLists.txt.DotSettings.user
 
 # ==============================================================================
 # Ninja Artifacts

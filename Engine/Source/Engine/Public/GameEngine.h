@@ -1,16 +1,12 @@
 #pragma once
 #include "IGameEngine.h"
+#include "ModuleRegistry.h"
 #include "RendererModule.h"
 #include "World.h"
 
 namespace LE
 {
 class SystemWindow;
-}
-
-namespace LE
-{
-class GameViewport;
 }
 
 namespace LE
@@ -22,32 +18,24 @@ public:
 	void Shutdown();
 
 	void Update(bool& IsDone);
-
-	// IGameEngine
-	Renderer::RendererModule* GetRendererModule() override { return &RendererModule; }
+	
 	IWorld* GetWorld() override { return GameWorld; }
-
-	void DrawFrame(const float);
-
 private:
 	// This will need to be moved to a separate Platform specific application class
 	void MakeWindow();
 
-	void DrawViewport();
-
+	void RegisterModules();
+	
 	void InitMaterials();
 
 	void InitJobScheduler();
-
-	void InitServices();
 
 public:
 	RefCountingPtr<SystemWindow> Window;
 
 	World* GameWorld;
-	GameViewport* Viewport;
-	Renderer::RendererModule RendererModule;
 	ServiceRegistry ServiceReg;
+	ModuleRegistry ModuleReg;
 };
 
 extern GameEngine gGameEngine;

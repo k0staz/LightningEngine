@@ -17,12 +17,12 @@ public:
 	void SetPrimaryViewInfo(const Renderer::SceneViewInfo& ViewInfo) override { PrimaryViewInfo = ViewInfo; }
 	const Renderer::SceneViewInfo& GetPrimaryViewInfo() const override { return PrimaryViewInfo; }
 
-private:
 	void InitTestData();
+	
 
 public:
 	EcsRegistry<EcsEntity> Registry;
-	EcsSystemManager SystemManager;
+	EcsSystemRegistry SystemRegistry;
 
 private:
 	Renderer::SceneViewInfo PrimaryViewInfo;

@@ -118,7 +118,7 @@ function(generate_module_ecs_reflection MODULE_NAME GEN_DIR ALL_MODULE_HEADERS O
 
     set(ECS_GEN_DIR "${GEN_DIR}/ECS")
     set(LOCAL_PUBLIC_DIR "${ECS_GEN_DIR}/Public")
-    set(LOCAL_MASTER_HEADER "${LOCAL_PUBLIC_DIR}/ECSMasterFile.h")
+    set(LOCAL_MASTER_HEADER "${LOCAL_PUBLIC_DIR}/ECSMasterFile.gen.h")
     set(LOCAL_PRIVATE_DIR "${ECS_GEN_DIR}/Private")
     set(MASTER_CPP "${LOCAL_PRIVATE_DIR}/ECSMasterFile.gen.cpp")
     set(CONSOLIDATED_DEPFILE "${ECS_GEN_DIR}/ECSMasterFile.d")
@@ -217,7 +217,7 @@ function(generate_module_reflection MODULE_NAME OUT_TARGET_FILES OUT_PUBLIC OUT_
     set(GEN_DIR "${CMAKE_CURRENT_BINARY_DIR}/generated/${MODULE_NAME}")
     # Track adding or removing headers
     file(GLOB_RECURSE ALL_MODULE_HEADERS CONFIGURE_DEPENDS
-            "${CMAKE_CURRENT_SOURCE_DIR}/../*.h"
+            "${CMAKE_CURRENT_SOURCE_DIR}/*.h"
         )
 
     generate_module_asset_reflection("${MODULE_NAME}" "${GEN_DIR}" "${ALL_MODULE_HEADERS}" ASSET_MASTER_FILE ASSET_TARGET_FILES ASSET_PUBLIC_DIR ASSET_PRIVATE_DIR)
@@ -259,19 +259,23 @@ endmacro()
 add_subdirectory(Engine/3rdParty/spdlog)
 add_subdirectory(Engine/3rdParty/tracy)
 
-add_subdirectory(Engine/Source/ClientBridge)
-add_subdirectory(Engine/Source/EngineBridge)
-add_subdirectory(Engine/Source/Log)
-add_subdirectory(Engine/Source/Core)
-add_subdirectory(Engine/Source/System)
-add_subdirectory(Engine/Source/RHI)
-add_subdirectory(Engine/Source/Windows/Application)
-add_subdirectory(Engine/Source/Renderer)
-add_subdirectory(Engine/Source/Windows/D3D11RHI)
-add_subdirectory(Engine/Source/CoreECS)
-add_subdirectory(Engine/Source/Tools)
-add_subdirectory(Engine/Source/Client)
-add_subdirectory(Engine/Source/AutoRegistration)
+# Engine Core Module
+add_subdirectory(Engine/Source/EngineCoreModule)
+
+# Core ECS Module
+add_subdirectory(Engine/Source/CoreECSModule)
+
+# Engine Tools Module
+add_subdirectory(Engine/Source/EngineToolsModule)
+
+# Renderer Module
+add_subdirectory(Engine/Source/RendererModule)
+
+# Renderer ECS Core Module
+add_subdirectory(Engine/Source/RendererECSCore)
+
+# Engine Module
 add_subdirectory(Engine/Source/Engine)
+
 add_subdirectory(Application)
 

@@ -2,15 +2,16 @@
 
 #include <thread>
 
-#include "AutoRegistration.h"
+#include "CoreECSModule.h"
 #include "D3D11DynamicRHI.h"
+#include "EngineCoreModule.h"
 #include "EngineGlobals.h"
+#include "EngineToolsModule.h"
 #include "FBXImporter.h"
-#include "GameViewport.h"
+#include "RendererECSCoreModule.h"
 #include "WindowsWindow.h"
 #include "Application/SystemWindow.h"
 #include "AssetManager/AssetManager.h"
-#include "AssetManager/AssetStorageFactory.h"
 #include "common/TracySystem.hpp"
 #include "EventCore/EventManager.h"
 #include "Multithreading/JobScheduler.h"
@@ -30,25 +31,29 @@ void GameEngine::Init()
 	tracy::SetThreadName("Main thread");
 	RegisterEngine(this);
 
-	InitServices();
+	RegisterModuleRegistry(&ModuleReg);
+	RegisterModules();
+
+	RegisterServiceRegistry(&ServiceReg);
+	ModuleReg.RegisterServices();
 	
-	RegisterAutoTypes();
+	GameWorld = new World;
+	GameWorld->Init();
+	
+	ModuleReg.RegisterReflection();
+	
+	GameWorld->InitTestData();
 	
 	D3D11::UseD3D11RHIModule();
 	InitMaterials();
 	
-	GameWorld = new World;
-	GameWorld->Init();
-
 	RHI::InitRHI();
 
 	MakeWindow();
+	RefCountingPtr<Renderer::Viewport> viewport = GetModuleRegistry().GetModule<RendererModule>().GetViewport(Window);
 
-	Viewport = new GameViewport;
-	Viewport->Viewport = new Renderer::Viewport(Viewport, GetRendererModule()->GetViewport(Window));
-	const WindowDescription& description = Window->GetDescription();
-	Viewport->Viewport->SetSizeXY(description.DesiredWidth, description.DesiredHeight);
-
+	InitJobScheduler();
+	
 	JobScheduler& scheduler = ServiceReg.GetService<JobScheduler>();
 	scheduler.ConstructUpdateGraph();
 }
@@ -59,11 +64,10 @@ void GameEngine::Shutdown()
 
 	GameWorld->Shutdown();
 	delete GameWorld;
-	delete Viewport;
 
 	if (Window)
 	{
-		RendererModule.DeleteViewport(Window);
+		GetModuleRegistry().GetModule<RendererModule>().DeleteViewport(Window);
 		delete Window;
 	}
 
@@ -87,8 +91,8 @@ void GameEngine::Update(bool& IsDone)
 		IsDone = true;
 		return;
 	}
-
-	gEventManager.DispatchEvents();
+	
+	GetServiceRegistry().GetService<EventManager>().DispatchEvents();
 
 	Clock::StartFrame();
 
@@ -103,21 +107,10 @@ void GameEngine::Update(bool& IsDone)
 
 	GetServiceRegistry().GetService<AssetManager>().OnFrameEnd();
 	FrameMarkNamed("Game Frame");
-
-	DrawViewport();
-	Delegate<void(const float)> renderDelegate;
-	renderDelegate.Attach<&GameEngine::DrawFrame>(this);
-	Renderer::RenderCommandList::Get().FinalizeFrame();
-	scheduler.StartFrameRender(renderDelegate);
-}
-
-void GameEngine::DrawFrame(const float)
-{
-	ZoneScopedN("Draw Frame");
-	JobScheduler& scheduler = ServiceReg.GetService<JobScheduler>();
-	scheduler.IncrementRenderThreadCount();
-	Renderer::RenderCommandList::Get().Render_ExecuteFrame();
-	FrameMark;
+	
+	RendererModule& rendererModule = GetModuleRegistry().GetModule<RendererModule>();
+	rendererModule.BeginRendering(Window, GameWorld->GetPrimaryViewInfo());
+	rendererModule.DrawFrame();
 }
 
 void GameEngine::MakeWindow()
@@ -139,9 +132,14 @@ void GameEngine::MakeWindow()
 	Window->SetInFocus();
 }
 
-void GameEngine::DrawViewport()
+void GameEngine::RegisterModules()
 {
-	Viewport->Viewport->Draw();
+	ModuleRegistry& moduleRegistry = GetModuleRegistry();
+	moduleRegistry.RegisterModule<EngineCoreModule>();
+	moduleRegistry.RegisterModule<CoreECSModule>();
+	moduleRegistry.RegisterModule<RendererModule>();
+	moduleRegistry.RegisterModule<RendererEcsCoreModule>();
+	moduleRegistry.RegisterModule<EngineToolsModule>();
 }
 
 void GameEngine::InitMaterials()
@@ -160,7 +158,7 @@ void GameEngine::InitMaterials()
 
 void GameEngine::InitJobScheduler()
 {
-	ServiceReg.RegisterService<JobScheduler>(std::make_unique<JobScheduler>());
+	ServiceReg.RegisterService<JobScheduler>();
 	const int availableThreadCount = std::thread::hardware_concurrency();
 	const int capCount = Min(availableThreadCount, static_cast<int>(Constants<int8>::CMax));
 	static constexpr int reservedThreads = NUM_TASK_THREADS + NUM_RENDER_THREADS + 1;
@@ -173,15 +171,5 @@ void GameEngine::InitJobScheduler()
 
 	Renderer::RenderCommandList::Get().Initialize(workerThreadCount + NUM_TASK_THREADS);
 	scheduler.StartRenderThread();
-}
-
-void GameEngine::InitServices()
-{
-	RegisterServiceRegistry(&ServiceReg);
-	ServiceReg.RegisterService<AssetManager>(std::make_unique<AssetManager>());
-	ServiceReg.RegisterService<AssetRegistry>(std::make_unique<AssetRegistry>());
-	ServiceReg.RegisterService<AssetStorageFactory>(std::make_unique<AssetStorageFactory>());
-	ServiceReg.RegisterService<FBXImporter>(std::make_unique<FBXImporter>());
-	InitJobScheduler();
 }
 }

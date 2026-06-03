@@ -70,17 +70,17 @@ def main():
 //This file is auto generated do not change the content
 //==========================================================
 
-namespace LE::Renderer::AutoRegistration::{gen_namespace}
+namespace LE::AutoRegistration::{gen_namespace}
 {{
     void RegisterAllMaterialShader();
 }}
 """
 
-        register_calls = "\n        ".join(f"{cls}::RegisterMetaType();" for cls in shader_classes)
+        register_calls = "\n        ".join(f"Renderer::{cls}::RegisterMetaType();" for cls in shader_classes)
         cpp_content = f"""#include "{file_name}.gen.h"
 #include "{header}"
 
-namespace LE::Renderer::AutoRegistration::{gen_namespace}
+namespace LE::AutoRegistration::{gen_namespace}
 {{
     void RegisterAllMaterialShader()
     {{
@@ -120,7 +120,7 @@ namespace LE::Renderer::AutoRegistration::{gen_namespace}
 
         f.write("\n")
         register_calls = "\n        ".join(f"{namespace}::RegisterAllMaterialShader();" for namespace in generated_namespaces)
-        f.write(f"""namespace LE::Renderer::AutoRegistration::{args.module_name}
+        f.write(f"""namespace LE::AutoRegistration::{args.module_name}
 {{
     void RegisterAllMaterialShader()
     {{
@@ -136,7 +136,7 @@ namespace LE::Renderer::AutoRegistration::{gen_namespace}
 //This file is auto generated do not change the content
 //==========================================================
 
-namespace LE::Renderer::AutoRegistration::{args.module_name}
+namespace LE::AutoRegistration::{args.module_name}
 {{
     void RegisterAllMaterialShader();
 }}

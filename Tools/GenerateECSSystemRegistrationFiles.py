@@ -72,17 +72,17 @@ def main():
 
 namespace LE::AutoRegistration::{gen_namespace}
 {{
-    void RegisterAllSystems(EcsSystemManager& SystemManager);
+    void RegisterAllSystems(EcsSystemRegistry& SystemRegistry);
 }}
 """
 
-        register_calls = "\n        ".join(f"SystemManager.RegisterSystem<{cls}>();" for cls in system_classes)
+        register_calls = "\n        ".join(f"SystemRegistry.RegisterSystem<{cls}>();" for cls in system_classes)
         cpp_content = f"""#include "{file_name}.gen.h"
 #include "{header}"
 
 namespace LE::AutoRegistration::{gen_namespace}
 {{
-    void RegisterAllSystems(EcsSystemManager& SystemManager)
+    void RegisterAllSystems(EcsSystemRegistry& SystemRegistry)
     {{
         {register_calls}
     }}
@@ -119,10 +119,10 @@ namespace LE::AutoRegistration::{gen_namespace}
             f.write(f'#include "{file_name}.h"\n')
 
         f.write("\n")
-        register_calls = "\n        ".join(f"{namespace}::RegisterAllSystems(SystemManager);" for namespace in generated_namespaces)
+        register_calls = "\n        ".join(f"{namespace}::RegisterAllSystems(SystemRegistry);" for namespace in generated_namespaces)
         f.write(f"""namespace LE::AutoRegistration::{args.module_name}
 {{
-    void RegisterAllSystems(EcsSystemManager& SystemManager)
+    void RegisterAllSystems(EcsSystemRegistry& SystemRegistry)
     {{
         {register_calls}
     }}
@@ -140,7 +140,7 @@ namespace LE::AutoRegistration::{gen_namespace}
 
 namespace LE::AutoRegistration::{args.module_name}
 {{
-    void RegisterAllSystems(EcsSystemManager& SystemManager);
+    void RegisterAllSystems(EcsSystemRegistry& SystemRegistry);
 }}
 """
         )

@@ -1,11 +1,11 @@
 #include "World.h"
 
 #include "FBXImporter.h"
-#include "ECSMasterFile.h"
-#include "Assets/StaticMeshAsset.h"
-#include "Components/CameraComponent.h"
-#include "Components/StaticMeshComponent.h"
-#include "Components/TransformComponent.h"
+#include "StaticMeshAsset.h"
+#include "CameraComponent.h"
+#include "StaticMeshComponent.h"
+#include "TestComponent.h"
+#include "TransformComponent.h"
 #include "Containers/Array.h"
 #include "ECS/Ecs.h"
 #include "ECS/EcsModule.h"
@@ -18,32 +18,18 @@
 
 namespace LE
 {
-void SaveTestStaticMesh()
-{
-	AssetRegistry& reg = GetServiceRegistry().GetService<AssetRegistry>();
-	
-	Path savePathTest = GetContentRoot() / "StaticMesh" / "TestAsset.leasset";
-
-	AssetManager& manager = GetServiceRegistry().GetService<AssetManager>();
-	AssetHandle<TestAsset> assetHandle = manager.GetAssetUsingPath<TestAsset>(savePathTest);
-	manager.LoadAssetAsync(assetHandle);
-}
-
 void World::Init()
 {
 	{
 		UniquePtr<ECSModule> module = std::make_unique<ECSModule>();
-		module->Initialize(&Registry, &SystemManager);
+		module->Initialize(&Registry, &SystemRegistry);
 		RegisterECSModule(std::move(module));
-		AutoRegistration::EngineModule::RegisterAllSystems(SystemManager); // TODO: These needs to be moved out of there, and we need to create an registry for systems
-	}
-
-	InitTestData();
+	};
 }
 
 void World::Shutdown()
 {
-	SystemManager.Shutdown();
+	SystemRegistry.Shutdown();
 }
 
 void World::InitTestData()
@@ -70,6 +56,8 @@ void World::InitTestData()
 
 		LE::StaticMeshComponent& staticMeshComponent = Registry.AddComponentToEntity<LE::StaticMeshComponent>(entity);
 		staticMeshComponent.AssetHandle = assetHandle;
+		
+		Registry.AddComponentToEntity<TestComponent>(entity);
 	}
 
 	{
@@ -80,6 +68,8 @@ void World::InitTestData()
 
 		LE::StaticMeshComponent& staticMeshComponent = Registry.AddComponentToEntity<LE::StaticMeshComponent>(entity);
 		staticMeshComponent.AssetHandle = assetHandle;
+		
+		Registry.AddComponentToEntity<TestComponent>(entity);
 	}
 
 	{
@@ -90,6 +80,8 @@ void World::InitTestData()
 
 		LE::StaticMeshComponent& staticMeshComponent = Registry.AddComponentToEntity<LE::StaticMeshComponent>(entity);
 		staticMeshComponent.AssetHandle = assetHandle;
+		
+		Registry.AddComponentToEntity<TestComponent>(entity);
 	}
 	
 	{
