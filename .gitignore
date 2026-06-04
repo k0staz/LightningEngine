@@ -4,6 +4,13 @@ Binaries/
 Engine/**/Generated/*
 Debug
 .idea/
+/build/
+/build*/
+/out/
+/bin/
+/lib/
+cmake-build-debug/
+cmake-build-release/
 
 # Files
 *.vcxproj
@@ -49,3 +56,28 @@ Makefile
 !3rdParty/
 vs-chromium-project.txt
 FBX/
+
+# ==============================================================================
+# CMake Artifacts
+# ==============================================================================
+CMakeCache.txt
+CMakeFiles/
+CMakeScripts/
+cmake_install.cmake
+install_manifest.txt
+CMakeUserPresets.json
+CmakeLists.txt.DotSettings.user
+
+# ==============================================================================
+# Ninja Artifacts
+# ==============================================================================
+*.ninja
+.ninja_deps
+.ninja_log
+
+# ==============================================================================
+# Compilation Database & Language Server Cache
+# ==============================================================================
+compile_commands.json
+.cache/
+.clangd/
