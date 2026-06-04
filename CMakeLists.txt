@@ -15,7 +15,7 @@ if(DOXYGEN_FOUND)
 
     # Point Doxygen to your entire source directory
     doxygen_add_docs(docs
-        ${CMAKE_CURRENT_SOURCE_DIR}/src
+        ${CMAKE_CURRENT_SOURCE_DIR}/Engine/Source
         COMMENT "Generating documentation"
     )
 else()
