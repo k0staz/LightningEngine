@@ -4,7 +4,7 @@ target_include_directories(Renderer_Module_D3D11RHI
     PUBLIC Public
     PRIVATE Private)
 
-find_package(D3DCompiler REQUIRED)
+find_package(D3DCompiler)
 if(D3DCompiler_FOUND)
     set_target_properties(Renderer_Module_D3D11RHI PROPERTIES
             INTERFACE_LINK_DEPENDS "${D3DCompiler_DLL_PATH}"

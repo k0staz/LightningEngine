@@ -14,7 +14,9 @@ jobs:
 
         steps:
             - name: Checkout Code
-              uses: actions/checkout@v4 
+              uses: actions/checkout@v4
+              with:
+                submodules: recursive
             
             - name: Install Toolchain Dependencies
               run: |
