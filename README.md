@@ -11,6 +11,6 @@ Stuff currently in progress:
  - More serious parallelization of rendering work.
  - Tooling (asset pipeline, editor).
  - Expanding the material/shader system to be more user-friendly.
- - Better documentation.
+ - Better [documentation.](https://k0staz.github.io/LightningEngine/)
 
 The end goal? A stable sandbox for experimenting with engine design, graphics features, and gameplay systems — something lightweight enough to hack on, but structured enough to scale.
