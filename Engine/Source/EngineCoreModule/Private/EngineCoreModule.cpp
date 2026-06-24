@@ -5,7 +5,7 @@
 
 #include "AssetMasterFile.gen.h"
 #include "ECSMasterFile.gen.h"
-#include "ShaderMasterRegistryFile.gen.h"
+#include "SystemManager.h"
 #include "ECS/Ecs.h"
 #include "EventCore/EventManager.h"
 
@@ -16,6 +16,7 @@ void LE::EngineCoreModule::RegisterServices()
 	serviceRegistry.RegisterService<AssetRegistry>();
 	serviceRegistry.RegisterService<AssetStorageFactory>();
 	serviceRegistry.RegisterService<EventManager>();
+	serviceRegistry.RegisterService<SystemManager>();
 }
 
 void LE::EngineCoreModule::ShutdownServices()
@@ -25,11 +26,11 @@ void LE::EngineCoreModule::ShutdownServices()
 	serviceRegistry.UnregisterService<AssetRegistry>();
 	serviceRegistry.UnregisterService<AssetStorageFactory>();
 	serviceRegistry.UnregisterService<EventManager>();
+	serviceRegistry.UnregisterService<SystemManager>();
 }
 
 void LE::EngineCoreModule::RegisterReflection()
 {
 	AutoRegistration::EngineCoreModule::RegisterAllAssetTypes(GetServiceRegistry().GetService<AssetStorageFactory>());
 	AutoRegistration::EngineCoreModule::RegisterAllSystems(GetECSModule().GetSystemRegistry());
-	AutoRegistration::EngineCoreModule::RegisterAllMaterialShader();
 }

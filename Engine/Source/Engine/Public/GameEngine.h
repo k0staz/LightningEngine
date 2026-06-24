@@ -2,6 +2,7 @@
 #include "IGameEngine.h"
 #include "ModuleRegistry.h"
 #include "RendererModule.h"
+#include "LEWindow.h"
 #include "World.h"
 
 namespace LE
@@ -21,17 +22,14 @@ public:
 	
 	IWorld* GetWorld() override { return GameWorld; }
 private:
-	// This will need to be moved to a separate Platform specific application class
 	void MakeWindow();
 
 	void RegisterModules();
-	
-	void InitMaterials();
 
 	void InitJobScheduler();
 
 public:
-	RefCountingPtr<SystemWindow> Window;
+	RefCountingPtr<LEWindow> MainWindow;
 
 	World* GameWorld;
 	ServiceRegistry ServiceReg;

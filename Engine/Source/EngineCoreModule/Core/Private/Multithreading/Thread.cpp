@@ -13,6 +13,7 @@ namespace
 	thread_local bool GIsMainThread = true;
 	thread_local bool GIsTaskThread = false;
 	thread_local LE::int8 GWorkerThreadIndex = -1;
+	thread_local LE::int8 GWorkerTaskThreadIndex = -1;
 }
 
 namespace LE
@@ -37,21 +38,32 @@ int8 Thread::GetWorkerThreadIndex()
 	return GWorkerThreadIndex;
 }
 
+int8 Thread::GetWorkerTaskThreadIndex()
+{
+	return GWorkerTaskThreadIndex;
+}
+
 void Thread::Start()
 {
 	IsRunning.store(true, std::memory_order_relaxed);
-	ThreadImpl = std::thread([this] {Main(); });
+	ThreadImpl = std::jthread([this] {Main(); });
 }
 
 void Thread::Stop()
 {
 	IsRunning.store(false, std::memory_order_relaxed);
 	IsReady.release();
+
+	if (ThreadImpl.joinable())
+	{
+		ThreadImpl.join();
+	}
 }
 
 void Thread::Main()
 {
 	GWorkerThreadIndex = Index;
+	GWorkerTaskThreadIndex = TaskIndex;
 	GIsMainThread = false;
 	GIsRenderThread = Type == ThreadType::Render;
 	GIsTaskThread = Type == ThreadType::Task;

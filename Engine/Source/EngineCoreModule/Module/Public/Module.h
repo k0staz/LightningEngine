@@ -25,6 +25,8 @@ public:
 	 * @brief Registers reflection introduced by this module
 	 */
 	virtual void RegisterReflection() = 0;
+
+	virtual void Shutdown() {}
 };
 
 template <typename Module>

@@ -7,3 +7,9 @@
 [submodule "Engine/3rdParty/OpenFBX"]
 	path = Engine/3rdParty/OpenFBX
 	url = https://github.com/nem0/OpenFBX.git
+[submodule "Engine/3rdParty/SDL"]
+	path = Engine/3rdParty/SDL
+	url = https://github.com/libsdl-org/SDL.git
+[submodule "Engine/3rdParty/slang"]
+	path = Engine/3rdParty/slang
+	url = https://github.com/shader-slang/slang.git

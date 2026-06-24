@@ -4,4 +4,4 @@ target_include_directories(EngineCore_Module_System
     PUBLIC Public
     PRIVATE Private)
 
-target_link_libraries(EngineCore_Module_System PUBLIC EngineCore_Module_Log)
+target_link_libraries(EngineCore_Module_System PUBLIC EngineCore_Module_Log EngineCore_Module_Core SDL3::SDL3 Renderer_Module)

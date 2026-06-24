@@ -15,6 +15,15 @@ std::vector<const UpdatePass*>& UpdatePass::GetUpdatePasses()
    return *gUpdatePassRegistry;
 }
 
+void UpdatePass::Shutdown()
+{
+	delete gUpdatePassRegistry;
+	gUpdatePassRegistry = nullptr;
+
+	delete gUpdatePassMap;
+	gUpdatePassMap = nullptr;
+}
+
 const UpdatePass* UpdatePass::GetUpdatePass(UpdatePassType UpdatePass)
 {
 	auto map = GetUpdatePassMap();

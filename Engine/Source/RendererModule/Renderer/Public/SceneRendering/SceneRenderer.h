@@ -1,25 +1,30 @@
 #pragma once
+#include "PipelineBatchStorage.h"
 #include "RenderScene.h"
-#include "SceneView.h"
-#include "MeshPassCommandBuilders/MeshPassCommandBuilder.h"
-
+#include "Templates/NonCopyable.h"
 
 namespace LE::Renderer
 {
-class SceneRender
+class SceneRender : NonCopyable
 {
 public:
-	SceneRender(SceneView View, const RenderScene* SceneToRender);
+    SceneRender(RenderScene* InScene, RenderContributorId GlobalInstanceId, RefCountingPtr<RHI::RHIWindow> TargetWindow) : Scene(InScene),
+        Window(TargetWindow), GlobalFrameDataContributorId(GlobalInstanceId)
+    {
+    }
 
-	void Render();
-
-	void BeginInitViews();
-
-	void RenderBasePass();
-	void SetupBasePassState(MeshPassRenderState& RenderState);
+    void Render();
 
 private:
-	SceneView View;
-	const RenderScene* Scene;
+    void ExtractPipelineBatches();
+    void WriteContributorsFrameData();
+    void ExecuteTestPass();
+
+private:
+    RenderScene* Scene;
+    RefCountingPtr<RHI::RHIWindow> Window;
+    RenderContributorId GlobalFrameDataContributorId = NullId{};
+
+    PipelineBatchStorage BatchStorage;
 };
 }

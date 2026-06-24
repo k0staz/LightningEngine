@@ -17,7 +17,7 @@ inline bool LoadFile(const Path& FilePath, std::vector<std::byte>& OutData)
 	std::ifstream stream(FilePath, std::ios::binary | std::ios::ate);
 	if (!stream.is_open())
 	{
-		LE_ASSERT_DESC(false, "Failed to open file for read at {}", FilePath.generic_string())
+		LE_WARN("Failed to open file for read at {}", FilePath.generic_string());
 		return false;
 	}
 

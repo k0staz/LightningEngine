@@ -147,7 +147,7 @@ void AssetRegistry::LoadManifest()
 	std::vector<std::byte> readBuffer;
 	if (!LoadFile(manifestPath, readBuffer))
 	{
-		LE_ASSERT_DESC(false, "Failed loading manifest file at {}", manifestPath.generic_string())
+		LE_WARN("Failed loading manifest file at {}", manifestPath.generic_string());
 		return;
 	}
 

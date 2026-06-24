@@ -405,7 +405,6 @@ protected:
 			GetSparseRef(entity) = EcsEntityNull;
 		}
 		Head = GetUsageHead();
-		Packed.clear();
 	}
 
 	void SwapPop(const iterator Iterator)

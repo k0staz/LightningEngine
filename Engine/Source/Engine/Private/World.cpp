@@ -1,7 +1,6 @@
 #include "World.h"
 
 #include "FBXImporter.h"
-#include "StaticMeshAsset.h"
 #include "CameraComponent.h"
 #include "StaticMeshComponent.h"
 #include "TestComponent.h"
@@ -30,19 +29,22 @@ void World::Init()
 void World::Shutdown()
 {
 	SystemRegistry.Shutdown();
+	Registry.Shutdown();
 }
 
 void World::InitTestData()
 {
-	/*Path testModel = GetContentRoot() / "StaticMesh" / "FBX" /"Sphere.fbx";
+	/*Path testModel = GetContentRoot() / "StaticMesh" / "FBX" /"Cone.fbx";
 
 	FBXImporter& fbxImporter = GetServiceRegistry().GetService<FBXImporter>();
-	fbxImporter.LoadAndConvertFbxModelAsync(testModel);*/
+	fbxImporter.LoadAndConvertFbxModel(testModel);*/
 	
 	Path testAsset = GetContentRoot() / "StaticMesh" / "Sphere.leasset";
-	
+	Path coneTestAsset = GetContentRoot() / "StaticMesh" / "Cone.leasset";
+
 	AssetManager& manager = GetServiceRegistry().GetService<AssetManager>();
 	AssetHandle<StaticMeshAsset> assetHandle = manager.GetAssetUsingPath<StaticMeshAsset>(testAsset);
+	AssetHandle<StaticMeshAsset> coneAssetHandle = manager.GetAssetUsingPath<StaticMeshAsset>(coneTestAsset);
 
 	LE::EcsEntity rootEntity = Registry.CreateEntity();
 	LE::EcsEntity meshRootEntity = Registry.CreateEntity(rootEntity);
@@ -79,7 +81,7 @@ void World::InitTestData()
 		transformComponent.Transform.RotateSelfX(1.2f);
 
 		LE::StaticMeshComponent& staticMeshComponent = Registry.AddComponentToEntity<LE::StaticMeshComponent>(entity);
-		staticMeshComponent.AssetHandle = assetHandle;
+		staticMeshComponent.AssetHandle = coneAssetHandle;
 		
 		Registry.AddComponentToEntity<TestComponent>(entity);
 	}
@@ -87,7 +89,7 @@ void World::InitTestData()
 	{
 		LE::EcsEntity entity = Registry.CreateEntity(rootEntity);
 		LE::TransformComponent& transformComponent = Registry.AddComponentToEntity<LE::TransformComponent>(entity);
-		transformComponent.Transform.SetPosition(0.0f, 0.0f, 0.0f);
+		transformComponent.Transform.SetPosition(0.0f, 0.0f, -10.0f);
 
 		Registry.AddComponentToEntity<LE::CameraComponent>(entity);
 	}

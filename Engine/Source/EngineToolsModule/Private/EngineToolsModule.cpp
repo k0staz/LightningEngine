@@ -25,6 +25,5 @@ void EngineToolsModule::RegisterReflection()
 {
 	AutoRegistration::EngineToolsModule::RegisterAllAssetTypes(GetServiceRegistry().GetService<AssetStorageFactory>());
 	AutoRegistration::EngineToolsModule::RegisterAllSystems(GetECSModule().GetSystemRegistry());
-	AutoRegistration::EngineToolsModule::RegisterAllMaterialShader();
 }
 }

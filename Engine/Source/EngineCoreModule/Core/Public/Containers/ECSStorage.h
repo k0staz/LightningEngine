@@ -20,14 +20,14 @@ class EcsStorageIterator
 
 public:
 	using value_type = typename iterator_traits::value_type;
-	using pointer = typename iterator_traits::const_pointer;
-	using reference = typename iterator_traits::const_reference;
+	using pointer = typename iterator_traits::pointer;
+	using reference = typename iterator_traits::reference;
 	using difference_type = typename iterator_traits::difference_type;
 	using iterator_category = std::random_access_iterator_tag;
 
 	constexpr EcsStorageIterator() noexcept = default;
 
-	constexpr EcsStorageIterator(ContainerType* ContainerPtr, const difference_type InOffset) noexcept
+	constexpr EcsStorageIterator(const ContainerType* ContainerPtr, const difference_type InOffset) noexcept
 		: Container(ContainerPtr)
 		  , Offset(InOffset)
 	{
@@ -115,7 +115,7 @@ public:
 	}
 
 private:
-	ContainerType* Container;
+	const ContainerType* Container;
 	difference_type Offset;
 };
 
@@ -345,8 +345,7 @@ private:
 	{
 		for (ComponentType* page : ComponentContainer)
 		{
-			delete[] page;
-			page = nullptr;
+			free(page);
 		}
 	}
 
@@ -364,7 +363,7 @@ private:
 			ComponentContainer.resize(pageIdx + 1, nullptr);
 			for (; current < ComponentContainer.size(); ++current)
 			{
-				ComponentContainer[current] = new ComponentType[Traits::PageSize];
+				ComponentContainer[current] = static_cast<ComponentType*>(malloc(Traits::PageSize * sizeof(ComponentType)));
 			}
 		}
 
@@ -464,6 +463,7 @@ protected:
 		{
 			delete[] statePage;
 		}
+		StateContainer.clear();
 
 		RootEntity = EcsEntityNull;
 		base_type::PopAll();
@@ -478,7 +478,7 @@ private:
 			Parent = RootEntity;
 		}
 
-		if (Parent != EcsEntityNull)
+		if (Parent != Child && Parent != EcsEntityNull)
 		{
 			EcsEntityState<Entity>& parentState = GetEntityStateRef(base_type::GetSparseIndex(Parent));
 			++parentState.ChildCount;

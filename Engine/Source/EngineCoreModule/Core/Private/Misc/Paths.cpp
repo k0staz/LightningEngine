@@ -17,4 +17,9 @@ Path GetContentRoot()
 {
 	return (GetEngineRoot() / "Content");
 }
+
+Path GetShaderRoot()
+{
+	return (GetEngineRoot() / "Shaders");
+}
 }

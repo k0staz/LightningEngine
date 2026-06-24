@@ -7,4 +7,5 @@ using Path = std::filesystem::path;
 
 Path GetEngineRoot();
 Path GetContentRoot();
+Path GetShaderRoot();
 }

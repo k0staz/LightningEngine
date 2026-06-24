@@ -1,6 +1,7 @@
 #pragma once
 #include "Templates/NonCopyable.h"
 #include "CoreDefinitions.h"
+#include "Math/Math.h"
 
 namespace LE
 {

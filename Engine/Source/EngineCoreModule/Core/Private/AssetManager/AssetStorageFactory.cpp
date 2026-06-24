@@ -3,9 +3,9 @@
 namespace LE
 {
 
-bool AssetStorageFactory::Register(const AssetTypeId TypeId, FactoryFunction Function)
+bool AssetStorageFactory::Register(const AssetTypeId TypeId, FactoryFunction Function, CreateFunction CreateF)
 {
-	FactoryFunctions[TypeId] = Function;
+	FactoryFunctions[TypeId] = {Function, CreateF};
 	return true;
 }
 
@@ -16,6 +16,16 @@ AssetStorageFactory::ReturnType AssetStorageFactory::Create(const AssetTypeId Ty
 		return nullptr;
 	}
 	
-	return FactoryFunctions[TypeId]();
+	return FactoryFunctions[TypeId].FactoryFunction();
+}
+
+bool AssetStorageFactory::Load(AssetInfo& Info, Asset& Asset)
+{
+	if (!FactoryFunctions.contains(Info.TypeId))
+	{
+		return false;
+	}
+	
+	return FactoryFunctions[Info.TypeId].CreateFunction(Asset, Info);
 }
 }

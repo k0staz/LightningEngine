@@ -1,13 +1,16 @@
 #pragma once
+#include "RenderCommandList.h"
+#include "RenderProxyStorage.h"
+#include "AssetManager/AssetManager.h"
+#include "Assets/StaticMeshAsset.h"
 #include "ECS/EcsEntity.h"
-#include "StaticMesh/StaticMeshRendering.h"
+#include "Math/Matrix4x4.h"
+#include "Multithreading/SharedResource.h"
 #include "Templates/RefCounters.h"
 
 
 namespace LE::Renderer
 {
-class RenderObjectProxy;
-
 class RenderScene : public RefCountableBase
 {
 public:
@@ -18,15 +21,17 @@ public:
 	RenderScene& operator=(RenderScene&&) = delete;
 	~RenderScene() override;
 
-	const Map<EcsEntity, RenderObjectProxy*>& GetProxyMap() const { return RenderObjectProxies; }
-
-	void CreateStaticMeshRenderProxy(EcsEntity Entity, const Matrix4x4F& Transform, const StaticMeshRenderData* RenderData, const Material* MeshMaterial);
-	void DeleteRenderObjectProxy(EcsEntity Entity);
-	void UpdateStaticMeshProxyTransform(EcsEntity Entity, const Matrix4x4F& Transform);
-
-	bool HasStaticMeshRenderProxy(EcsEntity Entity) const;
-
+	bool HasRenderProxy(EcsEntity EntityId) const;
+	
+	void CreateStaticMeshRenderProxy(EcsEntity EntityId, AssetHandle<StaticMeshAsset> MeshAsset, const Matrix4x4F& Transform);
+	void UpdateStaticMeshRenderProxy(EcsEntity EntityId, const Matrix4x4F& Transform);
+	
+	void DeleteRenderProxy(EcsEntity EntityId);
+	void SetRenderProxyEnabled(EcsEntity EntityId, bool Enabled);
+	
+	void GetEnabledRenderProxies(std::vector<RenderProxyState*>& EnabledProxies);
 private:
-	Map<EcsEntity, RenderObjectProxy*> RenderObjectProxies;
+	RenderProxyStorage<EcsEntity> RenderProxies;
+	
 };
 }

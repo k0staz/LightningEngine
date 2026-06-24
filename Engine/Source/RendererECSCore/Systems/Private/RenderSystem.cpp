@@ -19,18 +19,15 @@ void RenderSystem::Initialize()
 {
 	OnAddObserver.ReadsComponents<TransformComponent>();
 	OnAddObserver.WritesComponents<StaticMeshComponent>();
-	OnAddObserver.AddsResources<Renderer::StaticMeshRenderProxy>();
 	OnAddObserver.GetDelegate().Attach<&RenderSystem::OnAdd>(this);
 	UpdatePass::AddJob<RenderPass>(&OnAddObserver);
-
-	OnRemoveObserver.DeletesResources<Renderer::StaticMeshRenderProxy>();
+	
 	OnRemoveObserver.GetDelegate().Attach<&RenderSystem::OnRemove>(this);
 	UpdatePass::AddJob<RenderPass>(&OnRemoveObserver);
 
 	RenderUpdateStaticMesh.GetDelegate().Attach<&RenderSystem::UpdateStaticMeshes>(this);
 	RenderUpdateStaticMesh.ReadsComponents<TransformComponent>();
 	RenderUpdateStaticMesh.WritesComponents<StaticMeshComponent>();
-	RenderUpdateStaticMesh.ReadsResources<Renderer::StaticMeshRenderProxy>();
 	UpdatePass::AddJob<RenderPass>(&RenderUpdateStaticMesh);
 
 	RenderUpdateCamera.GetDelegate().Attach<&RenderSystem::UpdateCamera>(this);
@@ -41,10 +38,13 @@ void RenderSystem::Initialize()
 void RenderSystem::Shutdown()
 {
 }
-
+// TODO: should update only changed components
 void RenderSystem::UpdateStaticMeshes(const float DeltaSeconds)
 {
 	ZoneScopedN("RenderSystem::UpdateStaticMeshes");
+	//TODO: This needs to be reworked, we should not be allowed to get any component we want within job observer
+	// Instead we should take in observer payload, which allows to take either const ref, or ref
+	// Each usage of simple ref should mark that component as dirty
 	Renderer::RenderScene& renderScene = GetModuleRegistry().GetModule<RendererModule>().GetRenderScene();
 	auto view = ViewComponents<StaticMeshComponent, TransformComponent>();
 	for (const EcsEntity& entity : view)
@@ -54,17 +54,21 @@ void RenderSystem::UpdateStaticMeshes(const float DeltaSeconds)
 		{
 			continue;
 		}
-		else if(!renderScene.HasStaticMeshRenderProxy(entity))
+		else if(!renderScene.HasRenderProxy(entity))
 		{
+			// TODO: This should be moved to some streaming system
 			CreateRenderProxy(entity);
 			continue;
 		}
 		
 		const TransformComponent& transformComponent = view.GetComponents<TransformComponent>(entity);
-		renderScene.UpdateStaticMeshProxyTransform(entity, transformComponent.Transform);
+		
+		
+		renderScene.UpdateStaticMeshRenderProxy(entity, transformComponent.Transform);
 	}
 }
 
+// TODO: move it to a separate system dedicated for camera updates
 void RenderSystem::UpdateCamera(const float DeltaSeconds)
 {
 	ZoneScopedN("RenderSystem::UpdateCamera");
@@ -95,6 +99,7 @@ void RenderSystem::OnAdd(const OnAddObserverType::ObserverType& Observer)
 			continue;
 		}
 		
+		// TODO: This should be moved to some streaming system
 		CreateRenderProxy(entity);
 	}
 }
@@ -105,7 +110,7 @@ void RenderSystem::OnRemove(const OnRemoveObserverType::ObserverType& Observer)
 	Renderer::RenderScene& renderScene = GetModuleRegistry().GetModule<RendererModule>().GetRenderScene();
 	for (auto entity : Observer)
 	{
-		renderScene.DeleteRenderObjectProxy(entity);
+		renderScene.DeleteRenderProxy(entity);
 	}
 }
 
@@ -113,18 +118,8 @@ void RenderSystem::CreateRenderProxy(EcsEntity Entity)
 {
 	Renderer::RenderScene& renderScene = GetModuleRegistry().GetModule<RendererModule>().GetRenderScene();
 	const TransformComponent& transformComponent = GetComponent<TransformComponent>(Entity);
-	StaticMeshComponent& meshComponent = GetComponent<StaticMeshComponent>(Entity);
-
-	// TODO: Do we really need to store Render Data and Mesh Material in the component? Perhaps it could be stored in proxy
-	meshComponent.RenderData = new Renderer::StaticMeshRenderData();
-	const StaticMeshAsset& asset = meshComponent.AssetHandle.GetAssetRef();
-	meshComponent.RenderData->PrimitiveType = asset.PrimitiveType;
-	meshComponent.RenderData->VertexBuffers.Init(asset.Vertices);
-	meshComponent.RenderData->IndexBuffer.Init(asset.Indices);
-	meshComponent.RenderData->InitResources();
-
-	meshComponent.MeshMaterial = Renderer::Material::GetMaterialByName("BaseMaterial");
+	const StaticMeshComponent& meshComponent = GetComponent<StaticMeshComponent>(Entity);
 	
-	renderScene.CreateStaticMeshRenderProxy(Entity, transformComponent.Transform, meshComponent.RenderData, meshComponent.MeshMaterial);
+	renderScene.CreateStaticMeshRenderProxy(Entity, meshComponent.AssetHandle, transformComponent.Transform);
 }
 }

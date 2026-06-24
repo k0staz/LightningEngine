@@ -15,7 +15,7 @@ void JobScheduler::StartThreads(int8 WorkerThreadsNum, int8 TaskThreadsNum)
 		for (uint8 i = 0; i < static_cast<uint8>(WorkerThreadsNum); ++i)
 		{
 			const std::string threadName = std::format("Worker Thread {}", i);
-			ThreadPool.emplace_back(i + 1, threadName, ThreadType::Worker, this);
+			ThreadPool.emplace_back(i, threadName, ThreadType::Worker, this);
 			LE_INFO("Thread {} was created", threadName);
 			ThreadPool[i].Start();
 		}
@@ -31,7 +31,7 @@ void JobScheduler::StartThreads(int8 WorkerThreadsNum, int8 TaskThreadsNum)
 		for (uint8 i = WorkerThreadsNum; i < ThreadCount; ++i)
 		{
 			const std::string threadName = std::format("Task Worker Thread {}", i - WorkerThreadsNum);
-			ThreadPool.emplace_back(i + 1, threadName, ThreadType::Task, this);
+			ThreadPool.emplace_back(i, threadName, ThreadType::Task, this, i - WorkerThreadsNum);
 			LE_INFO("Thread {} was created", threadName);
 			ThreadPool[i].Start();
 		}
@@ -60,6 +60,8 @@ void JobScheduler::Shutdown()
 	}
 
 	RenderThread->Stop();
+
+	UpdatePass::Shutdown();
 }
 
 void JobScheduler::ConstructUpdateGraph()

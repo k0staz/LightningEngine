@@ -58,6 +58,7 @@ public:
 	void RegisterServices() const;
 	void RegisterReflection() const;
 	void ShutdownServices() const;
+	void Shutdown();
 
 private:
 	std::unordered_map<ModuleTypeId, std::unique_ptr<ModuleBase>> Modules;

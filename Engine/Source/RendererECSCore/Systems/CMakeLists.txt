@@ -4,4 +4,8 @@ target_include_directories(RendererECSCore_Module_Systems
     PUBLIC Public
     PRIVATE Private)
 
-target_link_libraries(RendererECSCore_Module_Systems PUBLIC EngineCore_Module RendererECSCore_Module_Components Renderer_Module)
+target_link_libraries(RendererECSCore_Module_Systems PUBLIC 
+        EngineCore_Module 
+        RendererECSCore_Module_Components 
+        Renderer_Module
+        CoreECS_Module)

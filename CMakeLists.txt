@@ -164,7 +164,7 @@ function(generate_module_ecs_reflection MODULE_NAME GEN_DIR ALL_MODULE_HEADERS O
 endfunction()
 
 function(generate_module_shader_reflection MODULE_NAME GEN_DIR ALL_MODULE_HEADERS OUT_MASTER_HEADER OUT_TARGET_FILES OUT_PUBLIC_DIR OUT_PRIVATE_DIR)
-    set(SHADER_REGISTRATION_SCRIPT "${CMAKE_SOURCE_DIR}/Tools/GenerateShaderRegistrationFiles.py")
+    set(SHADER_REGISTRATION_SCRIPT "${CMAKE_SOURCE_DIR}/Tools/GenerateShaderVariationFiles.py")
 
     set(SHADER_GEN_DIR "${GEN_DIR}/Shader")
     set(LOCAL_PUBLIC_DIR "${SHADER_GEN_DIR}/Public")
@@ -240,24 +240,34 @@ endfunction()
 
 macro(add_library targetName)
     _add_library(${targetName} ${ARGN})
-    if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)
-        if(TARGET ProjectOptions AND NOT "${targetName}" STREQUAL "ProjectOptions")
-            target_link_libraries("${targetName}" PRIVATE ProjectOptions)
+
+    set(_macro_args ${ARGN})
+    if(NOT "IMPORTED" IN_LIST _macro_args)
+        if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)
+            if(TARGET ProjectOptions AND NOT "${targetName}" STREQUAL "ProjectOptions")
+                target_link_libraries("${targetName}" PRIVATE ProjectOptions)
+            endif()
         endif()
-    endif()
+    endif ()
 endmacro()
 
 macro(add_executable targetName)
     _add_executable(${targetName} ${ARGN})
-    if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)
-        if(TARGET ProjectOptions)
-            target_link_libraries("${targetName}" PRIVATE ProjectOptions)
+
+    set(_macro_args ${ARGN})
+    if(NOT "IMPORTED" IN_LIST _macro_args)
+        if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)
+            if(TARGET ProjectOptions)
+                target_link_libraries("${targetName}" PRIVATE ProjectOptions)
+            endif()
         endif()
-    endif()
+    endif ()
 endmacro()
 
 add_subdirectory(Engine/3rdParty/spdlog)
 add_subdirectory(Engine/3rdParty/tracy)
+add_subdirectory(Engine/3rdParty/SDL)
+add_subdirectory(Engine/3rdParty/slang)
 
 # Engine Core Module
 add_subdirectory(Engine/Source/EngineCoreModule)
