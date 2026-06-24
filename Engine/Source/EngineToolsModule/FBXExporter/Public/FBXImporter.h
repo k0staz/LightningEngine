@@ -2,7 +2,7 @@
 
 #include <shared_mutex>
 
-#include "StaticMeshAsset.h"
+#include "Assets/StaticMeshAsset.h"
 #include "Misc/Paths.h"
 #include "Misc/Uid.h"
 #include "Service/ServiceBase.h"

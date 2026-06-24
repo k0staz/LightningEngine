@@ -1,6 +1,5 @@
 #include "RenderCommandList.h"
 
-#include "DynamicRHI.h"
 #include "Multithreading/Thread.h"
 
 namespace
@@ -26,7 +25,7 @@ void RenderCommandList::Initialize(int8 WorkerThreadNum)
 	RenderThreadFinished.release();
 }
 
-void RenderCommandList::EnqueueLambdaCommand(const RenderCommand& LambdaCommand)
+void RenderCommandList::EnqueueLambdaCommand(const RenderCommand LambdaCommand)
 {
 	if (Thread::IsRenderThread())
 	{
@@ -34,9 +33,9 @@ void RenderCommandList::EnqueueLambdaCommand(const RenderCommand& LambdaCommand)
 	}
 	else
 	{
-		const int8 workerThreadIdx = Thread::IsMainThread()? static_cast<int8>(0) : Thread::GetWorkerThreadIndex();
+		const int8 workerThreadIdx = Thread::IsMainThread()? static_cast<int8>(WriteRenderCommands.size() - 1) : Thread::GetWorkerThreadIndex();
 		LE_ASSERT_DESC(workerThreadIdx >= 0, "Trying to enqueue render command from non-working thread")
-		WriteRenderCommands[workerThreadIdx].emplace_back(LambdaCommand);
+		WriteRenderCommands[workerThreadIdx].emplace_back(std::move(LambdaCommand));
 	}
 }
 
@@ -64,7 +63,7 @@ void RenderCommandList::FinalizeFrame()
 	ReadRenderCommands.insert(ReadRenderCommands.end(), finalRenderCommandList.begin(), finalRenderCommandList.end());
 }
 
-void RenderCommandList::Render_ExecuteFrame()
+void RenderCommandList::ExecuteRenderCommands()
 {
 	for (RenderCommandWrapper& command : ReadRenderCommands)
 	{
@@ -73,69 +72,5 @@ void RenderCommandList::Render_ExecuteFrame()
 
 	ReadRenderCommands.clear();
 	RenderThreadFinished.release();
-}
-
-RefCountingPtr<RHI::RHIBuffer> RenderCommandList::CreateBuffer(uint32 Size, RHI::BufferUsageFlags UsageFlags, uint32 Stride,
-                                                               RHI::RHIResourceCreateInfo& CreateInfo)
-{
-	RHI::RHIBufferDesc bufferDesc{Size, Stride, UsageFlags};
-
-	RefCountingPtr<RHI::RHIBuffer> buffer = RHI::gDynamicRHI->RHICreateBuffer(bufferDesc, CreateInfo);
-	return buffer;
-}
-
-void RenderCommandList::UpdateConstantBuffer(RHI::RHIConstantBuffer* ConstantBuffer, const void* Value)
-{
-	RHI::gDynamicRHI->RHIUpdateConstantBuffer(*this, ConstantBuffer, Value);
-}
-
-RefCountingPtr<RHI::RHIBuffer> RenderCommandList::CreateVertexBuffer(uint32 Size, RHI::BufferUsageFlags UsageFlags,
-                                                                     RHI::RHIResourceCreateInfo& CreateInfo)
-{
-	return CreateBuffer(Size, UsageFlags | RHI::BUF_Vertex, 0, CreateInfo);
-}
-
-RefCountingPtr<RHI::RHIBuffer> RenderCommandList::CreateIndexBuffer(uint32 Stride, uint32 Size, RHI::BufferUsageFlags UsageFlags,
-                                                                    RHI::RHIResourceCreateInfo& CreateInfo)
-{
-	return CreateBuffer(Size, UsageFlags, Stride, CreateInfo);
-}
-
-RefCountingPtr<RHI::RHIReadView> RenderCommandList::CreateReadView(RHI::RHIBuffer* Buffer,
-                                                                   const RHI::RHIViewDescription::BufferReadViewInfo::Initializer& ViewDesc)
-{
-	return RHI::gDynamicRHI->RHICreateReadView(*this, Buffer, ViewDesc);
-}
-
-void RenderCommandList::BeginDrawingViewport(RHI::RHIViewport* Viewport)
-{
-	RHI::gDynamicRHI->RHIBeginDrawingViewport(Viewport);
-}
-
-void RenderCommandList::EndDrawingViewport(RHI::RHIViewport* Viewport)
-{
-	RHI::gDynamicRHI->RHIEndDrawingViewport(Viewport);
-}
-
-void RenderCommandList::SetGraphicsPSO(RHI::RHIPipelineStateObject* RHIPipelineStateObject, uint32 StencilRef)
-{
-	GetContext().RHISetPSO(RHIPipelineStateObject, StencilRef);
-}
-
-void RenderCommandList::DrawIndexedPrimitive(RHI::RHIBuffer* IndexBuffer, uint32 BaseVertexIndex, uint32 StartIndex, uint32 PrimitiveCount)
-{
-	GetContext().RHIDrawIndexedPrimitive(IndexBuffer, BaseVertexIndex, StartIndex, PrimitiveCount);
-}
-
-void RenderCommandList::SetShaderParametersCollection(RHI::RHIShader* Shader, RHI::RHIShaderParametersCollection& ParametersCollection)
-{
-	GetContext().RHISetShaderParameters(Shader, ParametersCollection.ParametersData, ParametersCollection.Parameters,
-	                                    ParametersCollection.ResourceParameters);
-	ParametersCollection.Reset();
-}
-
-RHI::RHIContext& RenderCommandList::GetContext()
-{
-	return *RHI::gDynamicRHI->RHIGetContext();
 }
 }

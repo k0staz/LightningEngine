@@ -4,229 +4,234 @@
 #include "CoreDefinitions.h"
 #include "Misc/EnumFlags.h"
 
-#define SHADER_PARAMETER_ALIGNMENT 16
-#define SHADER_PARAMETER_ARRAY_ELEMENT_ALIGNMENT 16
-#define SHADER_PARAMETER_POINTER_ALIGNMENT sizeof(uint64)
+#define EnableBitwiseOperations(EnumType) \
+    inline EnumType operator|(EnumType Lhs, EnumType Rhs) \
+    { \
+        return static_cast<EnumType>(static_cast<uint32_t>(Lhs) | static_cast<uint32_t>(Rhs)); \
+    } \
+    \
+    inline bool operator&(EnumType Lhs, EnumType Rhs) \
+    { \
+        return (static_cast<uint32_t>(Lhs) & static_cast<uint32_t>(Rhs)) != 0; \
+    }
 
-#define MAX_SIMULTANEOUS_RENDER_TARGETS 8
 
 namespace LE::RHI
 {
-enum class RHIInterfaceType : uint8
+constexpr uint32 DEFAULT_MIN_ALIGNMENT = 16;
+constexpr uint32 DEFAULT_UNIFORM_ALIGNMENT = 256;
+
+inline uint32 GlobalStorageAlignment = DEFAULT_MIN_ALIGNMENT;
+inline uint32 GlobalUniformAlignment = DEFAULT_UNIFORM_ALIGNMENT;
+
+enum class RHIDeviceType : uint8
 {
-	None,
+    None,
 
-	D3D11,
+    Vulkan,
 
-	Count,
+    Count,
 };
 
 enum class RHIResourceType : uint8
 {
-	None,
+    None,
 
-	Buffer,
-	Texture,
-	Viewport,
-	VertexShader,
-	PixelShader,
-	DepthStencilState,
-	ConstantBufferLayout,
-	ConstantBuffer,
-	VertexBufferLayout,
-	SamplerState,
-	ReadView,
-	WriteView,
-	PipelineStateObject,
-	BoundShaderState,
+    Buffer,
 
-	Count,
+    BufferSubAllocation,
+    GlobalBufferChannel,
+
+    Image,
+    ImageView,
+
+    VirtualMemoryBlock,
+    VirtualMemoryAllocation,
+
+    CommandList,
+
+    PipelineLayout,
+    PipelineObject,
+
+    Window,
+
+    Count,
 };
 
-enum class ShaderType : uint8
+/**
+ * @brief Buffer usage type. It abstracts boilerplate API specific configuration for buffer
+ */
+enum class RHIBufferUsageType : uint8
 {
-	Vertex = 0,
-	Pixel = 1,
+    Unknown,
 
-	Start = 0,
-	Count = 2,
+    /// Global buffer for mesh data. GPU-only. Use stage buffer to transfer data into it
+    MeshGlobal,
+
+    /// Global buffer for material data. GPU-only. Use stage buffer to transfer data into it
+    MaterialGlobal,
+
+    /// Global buffer used for frame data. CPU-to-GPU which is updated per frame. Memory is mapped
+    DynamicFrameData,
+
+    /// Staging buffer
+    UploadStaging,
+
+    Count,
 };
 
-enum BufferUsageFlags : uint8
+enum class RHIGlobalBufferChannelType : uint8
 {
-	BUF_None = 0,
-
-	BUF_Vertex = 1 << 0,
-	BUF_Index = 1 << 1,
-	BUF_ShaderResource = 1 << 2,
-};
-
-ENUM_CLASS_FLAGS(BufferUsageFlags)
-
-enum TextureCreateFlags: uint8
-{
-	TCF_None = 0,
-
-	TCF_RenderTargetable = 1 << 0,
-	TCF_DepthStencilTargetable = 1 << 1,
-	TCF_CPUReadBack = 1 << 2,
-	TCF_CPUWrite = 1 << 3,
-	TCF_ShaderResource = 1 << 4,
-};
-
-ENUM_CLASS_FLAGS(TextureCreateFlags)
-
-enum class TextureDimensions: uint8
-{
-	Texture2D,
-	Texture3D,
-};
-
-enum class CompareFunction : uint8
-{
-	Less,
-	LessEqual,
-	Greater,
-	GreaterEqual,
-	Equal,
-	NotEqual,
-	Never,
-	Always,
-
-	Count,
-};
-
-enum class StencilOp : uint8
-{
-	Keep,
-	Zero,
-	Replace,
-	SaturatedIncrement,
-	SaturatedDecrement,
-	Invert,
-	Increment,
-	Decrement,
-
-	Count,
-};
-
-enum class SamplerFilter : uint8
-{
-	Point,
-	Bilinear,
-	Trilinear,
-	Anisotropic,
-
-	Count,
-};
-
-enum class SamplerAddressMode : uint8
-{
-	Wrap,
-	Clamp,
-	Mirror,
-	Border,
-
-	Count,
-};
-
-enum class SamplerCompareFunction : uint8
-{
-	Never,
-	Less
-};
-
-enum ShaderParameterType : uint8
-{
-	SPT_Invalid,
-
-	SPT_Int32,
-	SPT_Uint32,
-	SPT_Float32,
-
-	SPT_Sampler,
-
-	SPT_Global_Buffer,
-	SPT_Global_Texture,
-
-	SPT_Global_ReadView,
-	SPT_Global_WriteView,
-
-	SPT_Texture,
-	SPT_Texture_ReadView,
-	SPT_Texture_WriteView,
-
-	SPT_Buffer_ReadView,
-	SPT_Buffer_WriteView,
-
-	SPT_Constant_Buffer,
-
-	SPT_Included_CBuffer,
-
-	SPT_Count
-};
-
-enum class VertexElementType : uint8
-{
-	Invalid,
-
-	Float2,
-	Float3,
-
-	Count,
-};
-
-enum class RenderTargetLoadAction : uint8
-{
-	NoAction,
-	Load,
-	Clear,
-
-	Count,
-};
-
-enum class RenderTargetStoreAction : uint8
-{
-	NoAction,
-	Store,
-
-	Count,
+    Unknown = 0,
+    Position,
+    Normal,
+    TexCoord,
+    Index,
+    Count
 };
 
 enum class PrimitiveType : uint8
 {
-	TriangleList,
-	TriangleStrip,
-	LineList,
-	PointList,
+    Unknown,
 
-	Count
+    TriangleList,
 };
 
-enum class PixelFormat : uint8
+enum class RHICommandListType : uint8
 {
-	Invalid,
+    Unknown,
 
-	R8G8B8A8_UNORM,
-	R32G32B32A32_FLOAT,
-	R32G32_FLOAT,
-
-	Count
+    Graphics,
+    Transfer,
 };
 
-struct PixelFormatInfo
+enum class RHIShaderStage : uint32
 {
-	PixelFormatInfo() = delete;
+    None = 0,
+    Vertex = 1 << 0,
+    Fragment = 1 << 1,
+    Compute = 1 << 2,
 
-	PixelFormatInfo(PixelFormat InFormat, uint32 InBlockBytes)
-		: Format(InFormat)
-		  , BlockBytes(InBlockBytes)
-	{
-	}
+    // Combined utility helpers
+    AllGraphics = Vertex | Fragment
+};
+EnableBitwiseOperations(RHIShaderStage)
 
-	PixelFormat Format;
-	uint32 BlockBytes;
+enum class RHIFormat : uint8
+{
+    None = 0,
+
+    // 8-bit per channel formats
+    R8_Unorm,
+    R8G8_Unorm,
+    R8G8B8A8_Unorm,
+    R8G8B8A8_Srgb,
+    B8G8R8A8_Unorm,
+    B8G8R8A8_Srgb,
+
+    // 16-bit float formats (HDR/render targets)
+    R16_Float,
+    R16G16_Float,
+    R16G16B16A16_Float,
+
+    // 32-bit float formats (Data/positions)
+    R32_Float,
+    R32G32_Float,
+    R32G32B32_Float,
+    R32G32B32A32_Float,
+
+    // Integer / Index / ID formats
+    R16_Uint,
+    R32_Uint,
+
+    // Packed / HDR formats
+    A2B10G10R10_Unorm,
+    B10G11R11_Float,
+
+    // Common Depth/Stencil formats
+    D16_Unorm,
+    D24_Unorm_S8_Uint,
+    D32_Float,
+    D32_Float_S8_Uint,
 };
 
-extern PixelFormatInfo GPixelFormats[static_cast<uint8>(PixelFormat::Count)];
+enum class RHIImageViewType : uint8
+{
+    None = 0,
+    View1D,
+    View2D,
+    View3D,
+    ViewCube,
+};
+
+enum class RHIImageAspectFlags : uint32
+{
+    Color = 1 << 0,
+    Depth = 1 << 1,
+    Stencil = 1 << 2,
+};
+EnableBitwiseOperations(RHIImageAspectFlags)
+
+enum class RHIImageUsageFlag : uint32
+{
+    Sampled = 1 << 0,
+    Storage = 1 << 1,
+    ColorAttachment = 1 << 2,
+    DepthStencil = 1 << 3,
+    TransferSrc = 1 << 4,
+    TransferDst = 1 << 5,
+};
+EnableBitwiseOperations(RHIImageUsageFlag)
+
+enum class RHILoadOp : uint8
+{
+    Load,
+    Clear,
+    Ignore
+};
+
+enum class RHIStoreOp : uint8
+{
+    Store,
+    Ignore
+};
+
+enum class RHIPipelineStageFlags : uint64
+{
+    None = 0,
+    Top = 1ULL << 0,
+    ColorTarget = 1ULL << 1,
+    DepthTarget = 1ULL << 2,
+    ComputeShader = 1ULL << 3,
+    FragmentShader = 1ULL << 4,
+    Transfer = 1ULL << 5,
+    Bottom = 1ULL << 6,
+};
+EnableBitwiseOperations(RHIPipelineStageFlags)
+
+enum class RHIAccessFlags : uint64
+{
+    None = 0,
+    Read = 1ULL << 0,
+    Write = 1ULL << 1,
+    ColorWrite = 1ULL << 2,
+    ColorRead = 1ULL << 3,
+    DepthWrite = 1ULL << 4,
+    DepthRead = 1ULL << 5,
+    ShaderRead = 1ULL << 6,
+    TransferWrite = 1ULL << 7,
+};
+EnableBitwiseOperations(RHIAccessFlags)
+
+enum class RHIImageLayout : uint32
+{
+    None,
+    General,
+    Attachment,
+    ColorAttachment,
+    DepthAttachment,
+    ShaderReadOnly,
+    Present,
+};
+
 }

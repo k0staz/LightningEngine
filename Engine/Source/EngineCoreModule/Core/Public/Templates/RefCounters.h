@@ -10,6 +10,21 @@ public:
 	RefCountableBase() = default;
 	virtual ~RefCountableBase() = default;
 
+	RefCountableBase(RefCountableBase&& other) noexcept
+	: RefsNum(other.RefsNum.load(std::memory_order_relaxed))
+	{
+		other.RefsNum.store(0, std::memory_order_relaxed);
+	}
+	RefCountableBase& operator=(RefCountableBase&& other) noexcept
+	{
+		if (this != &other)
+		{
+			RefsNum.store(other.RefsNum.load(std::memory_order_relaxed), std::memory_order_relaxed);
+			other.RefsNum.store(0, std::memory_order_relaxed);
+		}
+		return *this;
+	}
+	
 	RefCountableBase(const RefCountableBase&) = delete;
 	RefCountableBase& operator=(const RefCountableBase&) = delete;
 
@@ -51,55 +66,55 @@ concept RefCounterInterface = DerivesFromRefBase<T> || requires(T* Ptr)
 	Ptr->Release();
 };
 
-template <RefCounterInterface PointedType>
-class RefCountingPtr
+template <typename PointedType>
+class RefCountingPtrBase
 {
 public:
 	typedef PointedType* PointerType;
 
-	RefCountingPtr()
+	RefCountingPtrBase()
 		: Pointer(nullptr)
 	{
 	}
 
-	RefCountingPtr(PointerType InPtr)
+	RefCountingPtrBase(PointerType InPtr)
 		: Pointer(InPtr)
 	{
 		InternalAddRef();
 	}
 
-	RefCountingPtr(const RefCountingPtr& OtherCopy)
+	RefCountingPtrBase(const RefCountingPtrBase& OtherCopy)
 	{
 		Pointer = OtherCopy.Pointer;
 		InternalAddRef();
 	}
 
 	template <RefCounterInterface OtherCopyType>
-	RefCountingPtr(const RefCountingPtr<OtherCopyType>& OtherCopy)
+	RefCountingPtrBase(const RefCountingPtrBase<OtherCopyType>& OtherCopy)
 	{
 		Pointer = static_cast<PointerType>(OtherCopy.Pointer);
 		InternalAddRef();
 	}
 
-	RefCountingPtr(RefCountingPtr&& OtherMove)
+	RefCountingPtrBase(RefCountingPtrBase&& OtherMove)
 	{
 		Pointer = OtherMove.Pointer;
 		OtherMove.Pointer = nullptr;
 	}
 
 	template <RefCounterInterface OtherMoveType>
-	RefCountingPtr(RefCountingPtr<OtherMoveType>&& OtherMove)
+	RefCountingPtrBase(RefCountingPtrBase<OtherMoveType>&& OtherMove)
 	{
 		Pointer = static_cast<PointerType>(OtherMove.Pointer);
 		OtherMove.Pointer = nullptr;
 	}
 
-	~RefCountingPtr()
+	~RefCountingPtrBase()
 	{
 		InternalRelease();
 	}
 
-	RefCountingPtr& operator=(PointerType InPtr)
+	RefCountingPtrBase& operator=(PointerType InPtr)
 	{
 		if (Pointer == InPtr)
 		{
@@ -112,18 +127,18 @@ public:
 		return *this;
 	}
 
-	RefCountingPtr& operator=(const RefCountingPtr& OtherCopy)
+	RefCountingPtrBase& operator=(const RefCountingPtrBase& OtherCopy)
 	{
 		return *this = OtherCopy.Pointer;
 	}
 
 	template <RefCounterInterface OtherCopyType>
-	RefCountingPtr& operator=(const RefCountingPtr<OtherCopyType>& OtherCopy)
+	RefCountingPtrBase& operator=(const RefCountingPtrBase<OtherCopyType>& OtherCopy)
 	{
 		return *this = OtherCopy.GetPointer();
 	}
 
-	RefCountingPtr& operator=(RefCountingPtr&& OtherMove)
+	RefCountingPtrBase& operator=(RefCountingPtrBase&& OtherMove)
 	{
 		if (this == &OtherMove)
 		{
@@ -138,7 +153,7 @@ public:
 	}
 
 	template <RefCounterInterface OtherMoveType>
-	RefCountingPtr& operator=(RefCountingPtr<OtherMoveType>&& OtherMove)
+	RefCountingPtrBase& operator=(RefCountingPtrBase<OtherMoveType>&& OtherMove)
 	{
 		InternalRelease();
 		Pointer = static_cast<PointerType>(OtherMove.Pointer);
@@ -152,7 +167,7 @@ public:
 		return Pointer;
 	}
 
-	bool operator==(const RefCountingPtr& Other) const
+	bool operator==(const RefCountingPtrBase& Other) const
 	{
 		return GetPointer() == Other.GetPointer();
 	}
@@ -196,11 +211,18 @@ public:
 		return result;
 	}
 
-	void Swap(RefCountingPtr& Other)
+	void Swap(RefCountingPtrBase& Other)
 	{
 		PointerType* oldPtr = Pointer;
 		Pointer = Other.Pointer;
 		Other.Pointer = oldPtr;
+	}
+	
+	PointerType Detach() noexcept
+	{
+		PointerType oldPtr = Pointer;
+		Pointer = nullptr;
+		return oldPtr;
 	}
 
 	void Release()
@@ -228,8 +250,20 @@ private:
 private:
 	PointerType Pointer;
 
-	template <RefCounterInterface OtherType>
-	friend class RefCountingPtr;
+	template <typename OtherType>
+	friend class RefCountingPtrBase;
+};
+
+template <RefCounterInterface PointedType>
+class RefCountingPtr : public RefCountingPtrBase<PointedType>
+{
+	using RefCountingPtrBase<PointedType>::RefCountingPtrBase;
+};
+
+template<typename T>
+class ExternalRefCountingPtr : public RefCountingPtrBase<T>
+{
+	using RefCountingPtrBase<T>::RefCountingPtrBase;
 };
 }
 

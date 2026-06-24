@@ -26,6 +26,7 @@ struct UpdatePass
 	}
 
 	static std::vector<const UpdatePass*>& GetUpdatePasses();
+	static void Shutdown();
 
 	template<typename UpdatePassT, typename UpdateJobType>
 	static void AddJob(const UpdateJobType* Job)

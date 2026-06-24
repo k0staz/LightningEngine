@@ -5,948 +5,589 @@
 #include <utility>
 
 #include "RHIDefinitions.h"
+#include "ShaderCompiler.h"
 #include "Containers/Array.h"
 #include "Containers/ResourceArrays.h"
 #include "Math/LinearColor.h"
+#include "Math/Vector2.h"
 
 #undef max
 
-namespace LE::Renderer
-{
-class RenderCommandList;
-}
-
 namespace LE::RHI
 {
-struct RHIConstantBufferResourceInitializer;
-struct RHIConstantBufferInitializer;
-
+/**
+ * @brief Abstraction over API specific resources
+ */
 class RHIResource : public RefCountableBase
 {
 public:
-	RHIResource(RHIResourceType InResourceType)
-		: ResourceType(InResourceType)
-	{
-	}
+    RHIResource(RHIResourceType InResourceType)
+        : ResourceType(InResourceType)
+    {
+    }
 
-	RHIResource(const RHIResource&) = delete;
-	RHIResource& operator=(const RHIResource&) = delete;
+    RHIResource(const RHIResource&) = delete;
+    RHIResource& operator=(const RHIResource&) = delete;
 
-	virtual ~RHIResource() = default;
+    virtual ~RHIResource() = default;
 
-	inline RHIResourceType GetResourceType() const { return ResourceType; }
+    virtual bool IsValid() const = 0;
+
+    inline RHIResourceType GetResourceType() const { return ResourceType; }
 
 protected:
-	RHIResourceType ResourceType;
+    RHIResourceType ResourceType;
 };
 
-class RHIViewport : public RHIResource
+struct RHIBufferDescription
+{
+    bool IsValid() const { return Size > 0 && UsageType != RHIBufferUsageType::Unknown; }
+
+    uint64 Size = 0;
+    RHIBufferUsageType UsageType = RHIBufferUsageType::Unknown;
+};
+
+/**
+ * @brief Base abstraction for all graphics API buffer resources.
+ *
+ * Serves as the foundation for memory allocations. Extended into specialized
+ * subclasses (RHIGlobalBuffer for GPU-only data, RHILinearBuffer for CPU-mapped data).
+ */
+class RHIBuffer : public RHIResource
 {
 public:
-	RHIViewport() : RHIResource(RHIResourceType::Viewport)
-	{
-	}
-	
-	virtual void SetSizeX(uint32 InSizeX) = 0;
-	virtual void SetSizeY(uint32 InSizeY) = 0;
-	virtual void SetSizeXY(uint32 InSizeX, uint32 InSizeY) = 0;
-	
-	virtual uint32 GetSizeX() const = 0;
-	virtual uint32 GetSizeY() const = 0;
+    RHIBuffer()
+        : RHIResource(RHIResourceType::Buffer)
+    {
+    }
+
+    RHIBuffer(RHIBufferDescription CreateDescription)
+        : RHIResource(RHIResourceType::Buffer),
+          Description(CreateDescription)
+    {
+    }
+
+    RHIBufferUsageType GetUsageType() const { return Description.UsageType; }
+
+    uint64 GetSize() const { return Description.Size; }
+
+    template <typename T>
+    T* GetAs()
+    {
+        return dynamic_cast<T*>(this);
+    }
+
+    template <typename T>
+    const T* GetAs() const
+    {
+        return dynamic_cast<const T*>(this);
+    }
+
+    template <typename T>
+    bool Is() const { return GetAs<T>() != nullptr; }
+
+    bool IsGlobalBuffer() const;
+
+protected:
+    RHIBufferDescription Description;
 };
 
-struct RHIBufferDesc
-{
-	RHIBufferDesc() = default;
-
-	RHIBufferDesc(uint32 InSize, uint32 InStride, BufferUsageFlags InUsage)
-		: Size(InSize)
-		  , Stride(InStride)
-		  , Usage(InUsage)
-	{
-	}
-
-	static RHIBufferDesc Null()
-	{
-		return RHIBufferDesc(0, 0, BUF_None);
-	}
-
-	bool IsNull() const
-	{
-		return Usage == BUF_None && Size == 0 && Stride == 0;
-	}
-
-	uint32 Size = 0;
-	uint32 Stride = 0;
-	BufferUsageFlags Usage = BUF_None;
-};
-
-struct RHIResourceCreateInfo
-{
-	RHIResourceCreateInfo()
-		: ResourceArray(nullptr)
-	{
-	}
-
-	RHIResourceCreateInfo(ResourceArrayInterface* InResourceArray)
-		: ResourceArray(InResourceArray)
-	{
-	}
-
-	ResourceArrayInterface* ResourceArray;
-};
-
-class RHIViewableResource : public RHIResource
+/**
+ * @brief Represents a sub-allocation within a global buffer.
+ *
+ * In order to write to this sub-allocation, the user needs to create a staging buffer.
+ */
+class RHIBufferSubAllocation : public RHIResource
 {
 public:
-	RHIViewableResource(RHIResourceType Type)
-		: RHIResource(Type)
-	{
-	}
+    RHIBufferSubAllocation()
+        : RHIResource(RHIResourceType::BufferSubAllocation)
+    {
+    }
+
+    RHIBufferSubAllocation(uint64 InSize, uint64 InOffset, uint64 InGpuAddress)
+        : RHIResource(RHIResourceType::BufferSubAllocation),
+          Size(InSize),
+          Offset(InOffset),
+          GpuAddress(InGpuAddress)
+    {
+    }
+
+    bool IsSubAllocatedFrom(RHIBufferUsageType GlobalBufferUsageType) const;
+
+    uint64 GetSize() const { return Size; }
+
+    uint64 GetOffset() const { return Offset; }
+
+    uint64 GetGpuAddress() const { return GpuAddress; }
+
+protected:
+    RHIBufferUsageType OwnerBufferUsageType = RHIBufferUsageType::Unknown;
+    uint64 Size = 0;
+    uint64 Offset = 0;
+    uint64 GpuAddress = 0;
 };
 
-class RHIBuffer : public RHIViewableResource
+struct RHIGlobalBufferUploadDesc
+{
+    uint64 Size = 0;
+    uint64 GlobalBufferOffset = 0;
+    uint64 StageBufferOffset = 0;
+};
+
+class RHIGlobalBufferChannel : public RHIResource
 {
 public:
-	RHIBuffer(const RHIBufferDesc& InDesc) : RHIViewableResource(RHIResourceType::Buffer), Description(InDesc)
-	{
-	}
+    RHIGlobalBufferChannel() :
+        RHIResource(RHIResourceType::GlobalBufferChannel)
+    {
+    }
 
-	RHIBufferDesc const& GetDescription() const { return Description; }
+    RHIGlobalBufferChannel(RHIGlobalBufferChannelType InType, uint64 InSize, uint64 InOffset, uint64 InGpuAddress)
+        : RHIResource(RHIResourceType::GlobalBufferChannel),
+          Type(InType),
+          Size(InSize),
+          Offset(InOffset),
+          GpuAddress(InGpuAddress)
+    {
+    }
 
-	uint32 GetSize() const { return Description.Size; }
-	uint32 GetStride() const { return Description.Stride; }
-	BufferUsageFlags GetUsage() const { return Description.Usage; }
+    virtual RefCountingPtr<RHIBufferSubAllocation> CreateSubAllocation(uint64 InSize) = 0;
+    virtual void FreeSubAllocation(RefCountingPtr<RHIBufferSubAllocation> SubAllocation) = 0;
+
+    uint64 GetSize() const { return Size; }
+
+    uint64 GetOffset() const { return Offset; }
+
+    uint64 GetGpuAddress() const { return GpuAddress; }
+
+protected:
+    RHIGlobalBufferChannelType Type = RHIGlobalBufferChannelType::Unknown;
+    uint64 Size = 0;
+    uint64 Offset = 0;
+    uint64 GpuAddress = 0;
+};
+
+/**
+ * @brief Represents a global buffer used for static, GPU-only resources.
+ *
+ * It is designed for sub-allocations. To write to this sub-allocated memory,
+ * the user must use a staging buffer because global buffers are not mapped to CPU memory.
+ *
+ * @note This class supports a hierarchical allocation architecture. The buffer can either
+ *       be sub-allocated directly, or partitioned into dedicated, type-safe data channels
+ *       (e.g., Position, Indices) via RHIGlobalBufferChannel.
+ */
+class RHIGlobalBuffer : public RHIBuffer
+{
+public:
+    RHIGlobalBuffer() = default;
+
+    RHIGlobalBuffer(RHIBufferDescription CreateDescription)
+        : RHIBuffer(CreateDescription)
+    {
+    }
+
+    /**
+    * @brief Allocates a raw memory slot directly out of the parent global buffer's root space.
+    * @param Size The size of the requested sub-allocation in bytes.
+    * @return A reference-counted pointer to the allocated memory node tracking context.
+    * @note Enforces RHI-level memory alignment rules internally.
+    */
+    virtual RefCountingPtr<RHIBufferSubAllocation> CreateSubAllocation(uint64 Size) = 0;
+    /**
+     * @brief Frees a previously created root-level sub-allocation, recycling its memory.
+     * @param SubAllocation The reference-counted pointer tracking the allocation node to release.
+     */
+    virtual void FreeSubAllocation(RefCountingPtr<RHIBufferSubAllocation> SubAllocation) = 0;
+
+    /**
+     * @brief Fetches an existing dynamic data channel, or carves out a new one from the root block if it does not exist.
+     * @param ChannelType The type-safe enum identifier for the requested channel (e.g., Positions, Normals).
+     * @param Size The memory capacity in bytes to reserve for the channel if it needs to be initialized.
+     * @return A reference-counted pointer to the initialized channel context ready for isolated sub-allocations.
+     * @note Thread-safe.
+     */
+    virtual RefCountingPtr<RHIGlobalBufferChannel> GetCreateBufferChannel(RHIGlobalBufferChannelType ChannelType, uint64 Size) = 0;
+
+    /**
+    * @brief Destroys a specified data channel and releases its entire reserved block back to the parent root buffer.
+    * @param ChannelType The type-safe enum identifier of the channel block to remove.
+    * @warning Ensure all individual resource sub-allocations inside this channel have been freed before calling this.
+    */
+    virtual void RemoveBufferChannel(RHIGlobalBufferChannelType ChannelType) = 0;
+
+protected:
+    std::unordered_map<RHIGlobalBufferChannelType, RefCountingPtr<RHIGlobalBufferChannel>> ChannelMap;
+};
+
+/**
+ * @brief An abstract wrapper representing a specific sub-allocation within a virtual memory block.
+ *
+ * This class tracks the mathematical range, size, and relative offset assigned by a virtual block allocator.
+ * It serves as a backend-agnostic token used to reference unique slices of memory (like mesh data chunks or
+ * transient staging buffer allocations) before they map to a physical hardware device address.
+ */
+class RHIVirtualMemoryAllocation : public RHIResource
+{
+public:
+    RHIVirtualMemoryAllocation()
+        : RHIResource(RHIResourceType::VirtualMemoryAllocation)
+    {
+    }
+
+    virtual uint64 GetOffset() const = 0;
+    virtual uint64 GetSize() const = 0;
+};
+
+/**
+ * @brief An abstract wrapper around a purely software-driven mathematical memory block.
+ *
+ * This class isolates and exposes the bookkeeping functions of a virtual allocator (such as a VMA Virtual Block)
+ * to manage an abstract address space. It handles arbitrary range packing, fragmentation tracking, and alignments
+ * entirely on the CPU. It remains completely decoupled from physical GPU buffers until its calculated tracking
+ * offsets are manually applied to hardware resources.
+ */
+class RHIVirtualMemoryBlock : public RHIResource
+{
+public:
+    RHIVirtualMemoryBlock()
+        : RHIResource(RHIResourceType::VirtualMemoryBlock)
+    {
+    }
+
+    virtual RefCountingPtr<RHIVirtualMemoryAllocation> Allocate(uint64 InSize) = 0;
+    virtual void FreeAllocation(RefCountingPtr<RHIVirtualMemoryAllocation> Allocation) = 0;
+    virtual uint64 GetSize() const = 0;
+    virtual uint64 GetFreeSize() const = 0;
+};
+
+/**
+ * @brief Represents a linear buffer used for direct CPU-to-GPU writes.
+ *
+ * This memory is persistently mapped to the CPU, allowing immediate updates
+ * (like per-frame data or staging transfers) without requiring GPU copy commands.
+ */
+class RHILinearBuffer : public RHIBuffer
+{
+public:
+    RHILinearBuffer() = default;
+
+    RHILinearBuffer(RHIBufferDescription CreateDescription)
+        : RHIBuffer(CreateDescription)
+    {
+    }
+
+    /**
+     * @brief Writes raw CPU data directly into the persistently mapped buffer memory.
+     *
+     * @param RawData A pointer to the source data to be copied.
+     * @param WriteSize The size of the data to copy, in bytes.
+     * @return The precise 64-bit GPU virtual address corresponding to the written data region if
+     *         the buffer supports device addresses; otherwise, returns 0.
+     */
+    virtual uint64 Write(const void* RawData, uint64 WriteSize) = 0;
+
+    virtual void ResetBufferToDefault() = 0;
+    virtual uint64 GetCurrentGpuAddress() const = 0;
+    virtual uint64 GetUsedSize() const = 0;
+};
+
+struct RHIImageDesc
+{
+    uint32 Width = 0;
+    uint32 Height = 0;
+    uint32 Depth = 0;
+    uint32 MipLevels = 0;
+    uint32 ArraySize = 0;
+
+    RHIFormat Format = RHIFormat::None;
+    RHIImageUsageFlag Usage = RHIImageUsageFlag::ColorAttachment;
+};
+
+class RHIImage : public RHIResource
+{
+public:
+    RHIImage(const RHIImageDesc& CreateDescription)
+        : RHIResource(RHIResourceType::Image),
+          Desc(CreateDescription)
+    {
+    }
+
+    uint32 GetWidth() const { return Desc.Width; }
+    uint32 GetHeight() const { return Desc.Height; }
+    uint32 GetDepth() const { return Desc.Depth; }
+    uint32 GetMipLevels() const { return Desc.MipLevels; }
+    uint32 GetArraySize() const { return Desc.ArraySize; }
+    RHIFormat GetFormat() const { return Desc.Format; }
+    RHIImageUsageFlag GetUsage() const { return Desc.Usage; }
+
+protected:
+    RHIImageDesc Desc;
+};
+
+struct RHISubresourceRange
+{
+    RHIImageAspectFlags Aspect = RHIImageAspectFlags::Color;
+    uint32 BaseMipLevel = 0;
+    uint32 NumMipLevels = 1;
+    uint32 BaseArraySlice = 0;
+    uint32 NumArraySlices = 1;
+};
+
+struct RHIImageViewDesc
+{
+    RefCountingPtr<RHIImage> Image = nullptr;
+    RHIImageViewType ViewType = RHIImageViewType::None;
+    RHIFormat Format = RHIFormat::None;
+    RHISubresourceRange SubresourceRange = {};
+};
+
+class RHIImageView : public RHIResource
+{
+public:
+    RHIImageView(const RHIImageViewDesc& DescIn)
+        : RHIResource(RHIResourceType::ImageView),
+          Desc(DescIn)
+    {
+    }
+
+    RefCountingPtr<RHIImage> GetImage() const { return Desc.Image; }
+    RHIImageViewType GetViewType() const { return Desc.ViewType; }
+    RHIFormat GetFormat() const { return Desc.Format; }
+    RHIImageAspectFlags GetAspect() const { return Desc.SubresourceRange.Aspect; }
+
+    uint32 GetBaseMipLevel() const { return Desc.SubresourceRange.BaseMipLevel; }
+    uint32 GetNumMipLevels() const { return Desc.SubresourceRange.NumMipLevels; }
+    uint32 GetBaseArraySlice() const { return Desc.SubresourceRange.BaseArraySlice; }
+    uint32 GetNumArraySlices() const { return Desc.SubresourceRange.NumArraySlices; }
+
+protected:
+    RHIImageViewDesc Desc;
+};
+
+struct RHIPipelineLayoutDesc
+{
+    RHIShaderStage ShaderStages = RHIShaderStage::None;
+    uint32 PushConstantSize = 0;
+
+    bool operator==(const RHIPipelineLayoutDesc&) const = default;
+};
+
+class RHIPipelineLayout : public RHIResource
+{
+public:
+    RHIPipelineLayout()
+        : RHIResource(RHIResourceType::PipelineLayout)
+    {
+    }
+};
+
+struct RHIPipelineObjectDesc
+{
+    RefCountingPtr<RHIPipelineLayout> PipelineLayout;
+
+    RefCountingPtr<ShaderModuleBlob> ShaderModule = nullptr;
+    RHIShaderStage Stages = RHIShaderStage::None;
+};
+
+class RHIPipelineObject : public RHIResource
+{
+public:
+    RHIPipelineObject()
+        : RHIResource(RHIResourceType::PipelineObject)
+    {
+    }
+
+    RHIPipelineObject(RefCountingPtr<RHIPipelineLayout> InPipelineLayout)
+        : RHIResource(RHIResourceType::PipelineObject)
+        , PipelineLayout(InPipelineLayout)
+    {
+    }
+
+    RefCountingPtr<RHIPipelineLayout> GetPipelineLayout() const
+    {
+        return PipelineLayout;
+    }
 
 private:
-	RHIBufferDesc Description;
+    RefCountingPtr<RHIPipelineLayout> PipelineLayout = nullptr;
 };
 
-struct RHITextureDesc
+struct RHIWindowDesc
 {
-	RHITextureDesc() = default;
-
-	uint32 SizeX;
-	uint32 SizeY;
-	uint8 NumMips;
-	TextureCreateFlags CreateFlags = TCF_None;
-	TextureDimensions Dimension = TextureDimensions::Texture2D;
+    void* NativeWindowHandle = nullptr;
+    uint32 Width = 0;
+    uint32 Height = 0;
 };
 
-class RHITexture : public RHIViewableResource
+class RHIWindow : public RHIResource
 {
 public:
-	RHITexture(const RHITextureDesc& InTextureDesc) : RHIViewableResource(RHIResourceType::Texture), Description(InTextureDesc)
-	{
-	}
+    RHIWindow()
+        : RHIResource(RHIResourceType::Window)
+    {
+    }
 
-	virtual const RHITextureDesc& GetDescription() const { return Description; }
+    RHIWindow(RefCountingPtr<RHIImage> InDepthImage, RefCountingPtr<RHIImageView> InDepthImageView,
+              std::vector<RefCountingPtr<RHIImage>> InSwapchainImages, std::vector<RefCountingPtr<RHIImageView>> InSwapchainImageViews,
+              RHIFormat InFormat, uint32 InWidth, uint32 InHeight)
+        : RHIResource(RHIResourceType::Window),
+          DepthImage(InDepthImage)
+          , DepthImageView(InDepthImageView)
+          , Width(InWidth)
+          , Height(InHeight)
+          , SwapchainImages(InSwapchainImages)
+          , SwapchainImageViews(InSwapchainImageViews)
+          , SwapChainFormat(InFormat)
+    {
+    }
+
+    uint32 GetWidth() const { return Width; }
+
+    uint32 GetHeight() const { return Height; }
+
+    RefCountingPtr<RHIImage> GetDepthImage() const
+    {
+        return DepthImage;
+    }
+
+    RefCountingPtr<RHIImageView> GetDepthImageView() const
+    {
+        return DepthImageView;
+    }
+
+    RefCountingPtr<RHIImage> GetSwapchainImage(uint32 Index) const
+    {
+        return SwapchainImages[Index];
+    }
+
+    RefCountingPtr<RHIImageView> GetSwapchainImageView(uint32 Index) const
+    {
+        return SwapchainImageViews[Index];
+    }
+
+    uint32 GetSwapchainImageCount() const
+    {
+        return static_cast<uint32>(SwapchainImages.size());
+    }
+
+    RHIFormat GetSwapchainFormat() const
+    {
+        return SwapChainFormat;
+    }
+
+protected:
+    RefCountingPtr<RHIImage> DepthImage;
+    RefCountingPtr<RHIImageView> DepthImageView;
+
+    std::vector<RefCountingPtr<RHIImage>> SwapchainImages;
+    std::vector<RefCountingPtr<RHIImageView>> SwapchainImageViews;
+
+    RHIFormat SwapChainFormat = RHIFormat::None;
+
+    uint32 Width = 0;
+    uint32 Height = 0;
+};
+
+struct RHIRenderingAttachmentDesc
+{
+    RefCountingPtr<RHIImageView> Attachment = nullptr;
+    RHILoadOp LoadOp = RHILoadOp::Clear;
+    RHIStoreOp StoreOp = RHIStoreOp::Store;
+
+    union ClearValue
+    {
+        LinearColor ClearColor = {0.0f, 0.0f, 0.0f, 0.0f};
+        struct
+        {
+            float ClearDepth = 0.0f;
+            uint32 ClearStencil = 0;
+        } DepthStencil;
+    } ClearValue = {};
+};
+
+struct RHIRenderingDesc
+{
+    Vector2I RectangleOffset = Vector2I::Zero();
+    Vector2U RectangleExtent = Vector2U::Zero();
+    uint32 LayerCount = 1;
+    uint32 ColorAttachmentCount = 0;
+    const RHIRenderingAttachmentDesc* ColorAttachments = nullptr;
+    const RHIRenderingAttachmentDesc* DepthAttachment = nullptr;
+    const RHIRenderingAttachmentDesc* StencilAttachment = nullptr;
+};
+
+struct RHIImageMemoryBarrierDesc
+{
+    RefCountingPtr<RHIImage> Image = nullptr;
+    RHIPipelineStageFlags SrcStageFlags = RHIPipelineStageFlags::None;
+    RHIAccessFlags SrcAccessFlags = RHIAccessFlags::None;
+    RHIPipelineStageFlags DstStageFlags = RHIPipelineStageFlags::None;
+    RHIAccessFlags DstAccessFlags = RHIAccessFlags::None;
+    RHIImageLayout OldLayout = RHIImageLayout::None;
+    RHIImageLayout NewLayout = RHIImageLayout::None;
+
+    RHISubresourceRange SubresourceRange = {};
+};
+
+struct RHIDependencyDesc
+{
+    std::vector<RHIImageMemoryBarrierDesc> ImageMemoryBarriers;
+};
+
+struct RHIViewportDesc
+{
+    Vector2F Coordinates = {0};
+    float Width = 0;
+    float Height = 0;
+    float MinDepth = 0;
+    float MaxDepth = 0;
+};
+
+struct RHIPushConstantsDesc
+{
+    RefCountingPtr<RHIPipelineLayout> PipelineLayout = nullptr;
+    RHIShaderStage ShaderStage = RHIShaderStage::None;
+    uint32 Offset = 0;
+    uint32 Size = 0;
+    const void* Data = nullptr;
+};
+
+class RHICommandList : public RHIResource
+{
+public:
+    RHICommandList()
+        : RHIResource(RHIResourceType::CommandList)
+    {
+    }
+
+    RHICommandList(RHICommandListType InType)
+        : RHIResource(RHIResourceType::CommandList),
+          ListType(InType)
+    {
+    }
+
+    virtual void BeginRecording() = 0;
+    virtual void EndRecording() = 0;
+
+    virtual void PipelineBarrier(const RHIDependencyDesc& DependencyDesc) = 0;
+
+    virtual void BeginRendering(const RHIRenderingDesc& RenderingDesc) = 0;
+    virtual void EndRendering() = 0;
+
+    virtual void SetViewport(const RHIViewportDesc& ViewportDesc) = 0;
+    virtual void SetScissor(Vector2U Extent, Vector2I Offset = {0}) = 0;
+
+    virtual void BindPipeline(RefCountingPtr<RHIPipelineObject> PipelineObject) = 0;
+
+    virtual void PushConstants(const RHIPushConstantsDesc& PushConstantsDesc) = 0;
+
+    virtual void Draw(uint32 IndexCount, uint32 InstanceCount = 1, uint32 FirstIndex = 0, int32 VertexOffset = 0, uint32 FirstInstance = 0) = 0;
+
+    RHICommandListType GetListType() const { return ListType; }
 
 private:
-	RHITextureDesc Description;
+    RHICommandListType ListType = RHICommandListType::Unknown;
 };
-
-class RHIShader : public RHIResource
-{
-public:
-	RHIShader() = delete;
-
-	RHIShader(RHIResourceType InResourceType, ShaderType InShaderType)
-		: RHIResource(InResourceType)
-		  , Type(InShaderType)
-	{
-	}
-
-	ShaderType GetShaderType() const { return Type; }
-
-private:
-	ShaderType Type;
-};
-
-class RHIVertexShader : public RHIShader
-{
-public:
-	RHIVertexShader() : RHIShader(RHIResourceType::VertexShader, ShaderType::Vertex)
-	{
-	}
-};
-
-class RHIPixelShader : public RHIShader
-{
-public:
-	RHIPixelShader() : RHIShader(RHIResourceType::PixelShader, ShaderType::Pixel)
-	{
-	}
-};
-
-struct RHIDepthStencilStateDesc
-{
-	RHIDepthStencilStateDesc(
-		bool InEnableDepthWrite = true,
-		CompareFunction InDepthTest = CompareFunction::LessEqual,
-		bool InEnableFrontFaceStencil = false,
-		CompareFunction InFrontFaceStencilTest = CompareFunction::Always,
-		StencilOp InFrontFaceStencilFailOp = StencilOp::Keep,
-		StencilOp InFrontFaceDepthFailOp = StencilOp::Keep,
-		StencilOp InFrontFacePassFailOp = StencilOp::Keep,
-		bool InEnableBackFaceStencil = false,
-		CompareFunction InBackFaceStencilTest = CompareFunction::Always,
-		StencilOp InBackFaceStencilFailOp = StencilOp::Keep,
-		StencilOp InBackFaceDepthFailOp = StencilOp::Keep,
-		StencilOp InBackFacePassFailOp = StencilOp::Keep,
-		uint8 InStencilReadMask = 0xFF,
-		uint8 InStencilWriteMask = 0xFF
-	)
-		: bEnableDepthWrite(InEnableDepthWrite)
-		  , DepthTest(InDepthTest)
-		  , bEnableFrontFaceStencil(InEnableFrontFaceStencil)
-		  , FrontFaceStencilTest(InFrontFaceStencilTest)
-		  , FrontFaceStencilFailOp(InFrontFaceStencilFailOp)
-		  , FrontFaceDepthFailOp(InFrontFaceDepthFailOp)
-		  , FrontFacePassFailOp(InFrontFacePassFailOp)
-		  , bEnableBackFaceStencil(InEnableBackFaceStencil)
-		  , BackFaceStencilTest(InBackFaceStencilTest)
-		  , BackFaceStencilFailOp(InBackFaceStencilFailOp)
-		  , BackFaceDepthFailOp(InBackFaceDepthFailOp)
-		  , BackFacePassFailOp(InBackFacePassFailOp)
-		  , StencilReadMask(InStencilReadMask)
-		  , StencilWriteMask(InStencilWriteMask)
-	{
-	}
-
-	bool bEnableDepthWrite;
-	CompareFunction DepthTest;
-
-	bool bEnableFrontFaceStencil;
-	CompareFunction FrontFaceStencilTest;
-	StencilOp FrontFaceStencilFailOp;
-	StencilOp FrontFaceDepthFailOp;
-	StencilOp FrontFacePassFailOp;
-
-	bool bEnableBackFaceStencil;
-	CompareFunction BackFaceStencilTest;
-	StencilOp BackFaceStencilFailOp;
-	StencilOp BackFaceDepthFailOp;
-	StencilOp BackFacePassFailOp;
-
-	uint8 StencilReadMask;
-	uint8 StencilWriteMask;
-};
-
-class RHIDepthStencilState : public RHIResource
-{
-public:
-	RHIDepthStencilState() : RHIResource(RHIResourceType::DepthStencilState)
-	{
-	}
-};
-
-class ExclusiveDepthStencil
-{
-public:
-	enum Type : uint8
-	{
-		DepthNop = 0x00,
-		DepthRead = 0x01,
-		DepthWrite = 0x02,
-		DepthMask = 0x0f,
-
-		StencilNop = 0x00,
-		StencilRead = 0x10,
-		StencilWrite = 0x20,
-		StencilMask = 0xf0,
-
-		DepthNop_StencilNop = DepthNop + StencilNop,
-		DepthRead_StencilNop = DepthRead + StencilNop,
-		DepthWrite_StencilNop = DepthWrite + StencilNop,
-
-		DepthNop_StencilRead = DepthNop + StencilRead,
-		DepthRead_StencilRead = DepthRead + StencilRead,
-		DepthWrite_StencilRead = DepthWrite + StencilRead,
-
-		DepthNop_StencilWrite = DepthNop + StencilWrite,
-		DepthRead_StencilWrite = DepthRead + StencilWrite,
-		DepthWrite_StencilWrite = DepthWrite + StencilWrite,
-	};
-
-	ExclusiveDepthStencil(Type InValue = DepthNop_StencilNop)
-		: Value(InValue)
-	{
-	}
-
-	void SetDepthStencilWrite(bool Depth, bool Stencil)
-	{
-		Value = DepthNop_StencilNop;
-		if (Depth)
-		{
-			Value = static_cast<Type>(GetStencil() | DepthWrite);
-		}
-
-		if (Stencil)
-		{
-			Value = static_cast<Type>(GetDepth() | StencilWrite);
-		}
-	}
-
-	Type GetDepth() const
-	{
-		return static_cast<Type>(Value & DepthMask);
-	}
-
-	Type GetStencil() const
-	{
-		return static_cast<Type>(Value & StencilMask);
-	}
-
-	uint8 GetIndex() const
-	{
-		switch (Value)
-		{
-		case DepthWrite_StencilNop:
-		case DepthNop_StencilWrite:
-		case DepthWrite_StencilWrite:
-		case DepthNop_StencilNop:
-			return 0;
-
-		case DepthRead_StencilNop:
-		case DepthRead_StencilWrite:
-			return 1;
-
-		case DepthNop_StencilRead:
-		case DepthWrite_StencilRead:
-			return 2;
-
-		case DepthRead_StencilRead:
-			return 3;
-		}
-
-		LE_ASSERT(false)
-		return -1;
-	}
-
-	bool operator==(const ExclusiveDepthStencil& Other) const
-	{
-		return Value == Other.Value;
-	}
-
-	static constexpr uint32 MaxIndex = 4;
-
-protected:
-	Type Value;
-};
-
-struct RHIConstantBufferResource
-{
-	RHIConstantBufferResource() = delete;
-	RHIConstantBufferResource(const RHIConstantBufferResourceInitializer& Initializer);
-
-	friend bool operator==(const RHIConstantBufferResource& Left, const RHIConstantBufferResource& Right)
-	{
-		return Left.ResourceOffset == Right.ResourceOffset && Left.ResourceType == Right.ResourceType;
-	}
-
-	String Name;
-	uint16 ResourceOffset;
-	ShaderParameterType ResourceType;
-};
-
-struct RHIConstantBufferLayout : public RHIResource
-{
-	RHIConstantBufferLayout() = delete;
-	RHIConstantBufferLayout(const RHIConstantBufferInitializer& Initializer);
-
-	const String Name;
-
-	const Array<RHIConstantBufferResource> Resources;
-
-	const uint32 ConstantBufferSize;
-
-	friend bool operator==(const RHIConstantBufferLayout& Left, const RHIConstantBufferLayout& Right)
-	{
-		return Left.ConstantBufferSize == Right.ConstantBufferSize
-			&& Left.Resources == Right.Resources;
-	}
-};
-
-class RHIConstantBuffer : public RHIResource
-{
-public:
-	RHIConstantBuffer() = delete;
-
-	RHIConstantBuffer(const RHIConstantBufferLayout* InLayout)
-		: RHIResource(RHIResourceType::ConstantBuffer)
-		  , Layout(InLayout)
-		  , LayoutConstantBufferSize(InLayout->ConstantBufferSize)
-	{
-	}
-
-	uint32 GetSize() const
-	{
-		return LayoutConstantBufferSize;
-	}
-
-	const RHIConstantBufferLayout& GetLayout() const { return *Layout; }
-	const RHIConstantBufferLayout* GetLayoutPtr() const { return Layout; }
-
-	const Array<RefCountingPtr<RHIResource>>& GetResources() const { return Resources; }
-
-protected:
-	Array<RefCountingPtr<RHIResource>> Resources;
-
-private:
-	RefCountingPtr<const RHIConstantBufferLayout> Layout;
-	uint32 LayoutConstantBufferSize;
-};
-
-class RHIVertexBufferLayout : public RHIResource
-{
-public:
-	RHIVertexBufferLayout() : RHIResource(RHIResourceType::VertexBufferLayout)
-	{
-	}
-};
-
-struct RHISamplerStateInitializer
-{
-	SamplerFilter Filter = SamplerFilter::Point;
-	SamplerAddressMode AddressU = SamplerAddressMode::Wrap;
-	SamplerAddressMode AddressV = SamplerAddressMode::Wrap;
-	SamplerAddressMode AddressW = SamplerAddressMode::Wrap;
-	float MipMapBias = 0.0f;
-	float MinMipMapLevel = 0.0f;
-	float MaxMipMapLevel = FLOAT_MAX;
-	int32 MaxAnisotropy = 0;
-	LinearColor BorderColor = LinearColor::Black();
-	SamplerCompareFunction SamplerCompareFunction = SamplerCompareFunction::Never;
-};
-
-class RHISamplerState : public RHIResource
-{
-public:
-	RHISamplerState() : RHIResource(RHIResourceType::SamplerState)
-	{
-	}
-};
-
-struct RHIViewDescription
-{
-	RHIViewDescription()
-	{
-		MemsetZero(this, sizeof(*this));
-		Common.Type = ViewType::BufferReadView;
-	}
-
-	enum class ViewType : uint8
-	{
-		BufferReadView,
-		BufferWriteView,
-		TextureReadView,
-		TextureWriteView,
-	};
-
-	enum class BufferType : uint8
-	{
-		Invalid,
-
-		Typed,
-		Structured,
-		Raw,
-	};
-
-	struct CommonInfo
-	{
-		ViewType Type;
-		PixelFormat Format;
-	};
-
-	struct BufferInfo : public CommonInfo
-	{
-		BufferType TypeBuffer;
-		uint32 OffsetInBytes = 0;
-		uint32 ElementsNum = 0;
-		uint32 Stride = 0;
-
-		struct ViewInfo;
-
-	protected:
-		ViewInfo GetViewInfo(const RHIBuffer* Buffer) const;
-	};
-
-	struct BufferReadViewInfo : public BufferInfo
-	{
-		struct Initializer;
-		struct ViewInfo;
-		ViewInfo GetViewInfo(const RHIBuffer* Buffer) const;
-	};
-
-	struct BufferWriteViewInfo : public BufferInfo
-	{
-		struct Initializer;
-		struct ViewInfo;
-		ViewInfo GetViewInfo(const RHIBuffer* Buffer) const;
-	};
-
-	struct TextureInfo : public CommonInfo
-	{
-		TextureDimensions Dimensions;
-
-		struct ViewInfo;
-
-	protected:
-		ViewInfo GetViewInfo(const RHITexture* Texture) const;
-	};
-
-	struct TextureReadViewInfo : public TextureInfo
-	{
-		struct Initializer;
-		struct ViewInfo;
-		ViewInfo GetViewInfo(const RHITexture* Texture) const;
-	};
-
-	struct TextureWriteViewInfo : public TextureInfo
-	{
-		struct Initializer;
-		struct ViewInfo;
-		ViewInfo GetViewInfo(const RHITexture* Texture) const;
-	};
-
-	union
-	{
-		CommonInfo Common;
-
-		union
-		{
-			BufferReadViewInfo ReadView;
-			BufferWriteViewInfo WriteView;
-		} Buffer;
-
-		union
-		{
-			TextureReadViewInfo ReadView;
-			TextureWriteViewInfo WriteView;
-		} Texture;
-	};
-
-	static inline BufferReadViewInfo::Initializer CreateBufferReadView();
-	static inline BufferWriteViewInfo::Initializer CreateBufferWriteView();
-
-	static inline TextureReadViewInfo::Initializer CreateTextureReadView();
-	static inline TextureWriteViewInfo::Initializer CreateTextureWriteView();
-
-	bool IsReadView() const { return Common.Type == ViewType::BufferReadView || Common.Type == ViewType::TextureReadView; }
-	bool IsWriteView() const { return Common.Type == ViewType::BufferWriteView || Common.Type == ViewType::TextureWriteView; }
-
-	bool IsBufferView() const { return Common.Type == ViewType::BufferReadView || Common.Type == ViewType::BufferWriteView; }
-	bool IsTextureView() const { return !IsBufferView(); }
-
-protected:
-	RHIViewDescription(ViewType Type)
-	{
-		MemsetZero(this, sizeof(*this));
-		Common.Type = Type;
-	}
-};
-
-struct RHIViewDescription::BufferReadViewInfo::Initializer : private RHIViewDescription
-{
-	friend RHIViewDescription;
-	friend Renderer::RenderCommandList;
-
-protected:
-	Initializer()
-		: RHIViewDescription(ViewType::BufferReadView)
-	{
-	}
-
-public:
-	Initializer& SetType(BufferType BufferType)
-	{
-		Buffer.ReadView.TypeBuffer = BufferType;
-		return *this;
-	}
-
-	Initializer& SetFormat(PixelFormat Format)
-	{
-		Buffer.ReadView.Format = Format;
-		return *this;
-	}
-
-	Initializer& SetOffsetInBytes(uint32 OffsetInBytes)
-	{
-		Buffer.ReadView.OffsetInBytes = OffsetInBytes;
-		return *this;
-	}
-
-	Initializer& SetElementsNum(uint32 ElementsNum)
-	{
-		Buffer.ReadView.ElementsNum = ElementsNum;
-		return *this;
-	}
-
-	Initializer& SetStride(uint32 Stride)
-	{
-		Buffer.ReadView.Stride = Stride;
-		return *this;
-	}
-};
-
-struct RHIViewDescription::BufferWriteViewInfo::Initializer : private RHIViewDescription
-{
-	friend RHIViewDescription;
-	friend Renderer::RenderCommandList;
-
-protected:
-	Initializer()
-		: RHIViewDescription(ViewType::BufferWriteView)
-	{
-	}
-
-public:
-	Initializer& SetType(BufferType BufferType)
-	{
-		Buffer.WriteView.TypeBuffer = BufferType;
-		return *this;
-	}
-
-	Initializer& SetOffsetInBytes(uint32 OffsetInBytes)
-	{
-		Buffer.WriteView.OffsetInBytes = OffsetInBytes;
-		return *this;
-	}
-
-	Initializer& SetElementsNum(uint32 ElementsNum)
-	{
-		Buffer.WriteView.ElementsNum = ElementsNum;
-		return *this;
-	}
-
-	Initializer& SetStride(uint32 Stride)
-	{
-		Buffer.WriteView.Stride = Stride;
-		return *this;
-	}
-};
-
-struct RHIViewDescription::TextureReadViewInfo::Initializer : private RHIViewDescription
-{
-	friend RHIViewDescription;
-	friend Renderer::RenderCommandList;
-
-protected:
-	Initializer()
-		: RHIViewDescription(ViewType::TextureReadView)
-	{
-	}
-
-public:
-	Initializer& SetTextureDimensions(TextureDimensions Dimensions)
-	{
-		Texture.ReadView.Dimensions = Dimensions;
-		return *this;
-	}
-};
-
-struct RHIViewDescription::TextureWriteViewInfo::Initializer : private RHIViewDescription
-{
-	friend RHIViewDescription;
-	friend Renderer::RenderCommandList;
-
-protected:
-	Initializer()
-		: RHIViewDescription(ViewType::TextureWriteView)
-	{
-	}
-
-public:
-	Initializer& SetTextureDimensions(TextureDimensions Dimensions)
-	{
-		Texture.WriteView.Dimensions = Dimensions;
-		return *this;
-	}
-};
-
-inline RHIViewDescription::BufferReadViewInfo::Initializer RHIViewDescription::CreateBufferReadView()
-{
-	return {};
-}
-
-inline RHIViewDescription::BufferWriteViewInfo::Initializer RHIViewDescription::CreateBufferWriteView()
-{
-	return {};
-}
-
-inline RHIViewDescription::TextureReadViewInfo::Initializer RHIViewDescription::CreateTextureReadView()
-{
-	return {};
-}
-
-inline RHIViewDescription::TextureWriteViewInfo::Initializer RHIViewDescription::CreateTextureWriteView()
-{
-	return {};
-}
-
-struct RHIViewDescription::BufferInfo::ViewInfo
-{
-	uint32 OffsetInBytes;
-	uint32 StrideInBytes;
-	uint32 ElementsNum;
-	uint32 SizeInBytes;
-	BufferType Type;
-	bool IsNull;
-};
-
-struct RHIViewDescription::BufferReadViewInfo::ViewInfo : public RHIViewDescription::BufferInfo::ViewInfo
-{
-};
-
-struct RHIViewDescription::BufferWriteViewInfo::ViewInfo : public RHIViewDescription::BufferInfo::ViewInfo
-{
-};
-
-struct RHIViewDescription::TextureInfo::ViewInfo
-{
-	TextureDimensions Dimensions;
-};
-
-struct RHIViewDescription::TextureReadViewInfo::ViewInfo : public RHIViewDescription::TextureInfo::ViewInfo
-{
-};
-
-struct RHIViewDescription::TextureWriteViewInfo::ViewInfo : public RHIViewDescription::TextureInfo::ViewInfo
-{
-};
-
-class RHIView : public RHIResource
-{
-public:
-	RHIView(RHIResourceType InResourceType, RHIViewDescription InViewDescription, RHIViewableResource* InResource)
-		: RHIResource(InResourceType)
-		  , ViewDescription(InViewDescription)
-		  , Resource(InResource)
-	{
-	}
-
-	RHIViewableResource* GetResource() const
-	{
-		return Resource;
-	}
-
-	RHIBuffer* GetBuffer() const
-	{
-		LE_ASSERT(ViewDescription.IsBufferView())
-		return dynamic_cast<RHIBuffer*>(Resource.GetPointer());
-	}
-
-	RHITexture* GetTexture() const
-	{
-		LE_ASSERT(ViewDescription.IsTextureView())
-		return dynamic_cast<RHITexture*>(Resource.GetPointer());
-	}
-
-	bool IsBufferView() const
-	{
-		return ViewDescription.IsBufferView();
-	}
-
-	bool IsTextureView() const
-	{
-		return ViewDescription.IsTextureView();
-	}
-
-	const RHIViewDescription& GetViewDescription() const
-	{
-		return ViewDescription;
-	}
-
-protected:
-	RHIViewDescription ViewDescription;
-
-private:
-	RefCountingPtr<RHIViewableResource> Resource;
-};
-
-class RHIReadView : public RHIView
-{
-public:
-	RHIReadView(RHIViewDescription InViewDescription, RHIViewableResource* InResource)
-		: RHIView(RHIResourceType::ReadView, InViewDescription, InResource)
-	{
-		LE_ASSERT(ViewDescription.IsReadView())
-	}
-};
-
-class RHIWriteView : public RHIView
-{
-public:
-	RHIWriteView(RHIViewDescription InViewDescription, RHIViewableResource* InResource)
-		: RHIView(RHIResourceType::WriteView, InViewDescription, InResource)
-	{
-		LE_ASSERT(ViewDescription.IsWriteView())
-	}
-};
-
-class RHIRenderTargetView
-{
-public:
-	RHIRenderTargetView() = default;
-
-	RHIRenderTargetView(RHITexture* InTexture, RenderTargetLoadAction InLoadAction)
-		: Texture(InTexture)
-		  , LoadAction(InLoadAction)
-		  , StoreAction(RenderTargetStoreAction::Store)
-	{
-	}
-
-	RHITexture* Texture;
-	RenderTargetLoadAction LoadAction = RenderTargetLoadAction::NoAction;
-	RenderTargetStoreAction StoreAction = RenderTargetStoreAction::NoAction;
-};
-
-class RHIDepthRenderTargetView
-{
-public:
-	RHIDepthRenderTargetView()
-		: Texture(nullptr)
-		  , DepthLoadAction(RenderTargetLoadAction::NoAction)
-		  , DepthStoreAction(RenderTargetStoreAction::NoAction)
-		  , StencilLoadAction(RenderTargetLoadAction::NoAction)
-		  , StencilStoreAction(RenderTargetStoreAction::NoAction)
-		  , DepthStencilAccess(ExclusiveDepthStencil::DepthNop_StencilNop)
-	{
-	}
-
-	RHIDepthRenderTargetView(RHITexture* InTexture, RenderTargetLoadAction InLoadAction, RenderTargetStoreAction InStoreAction)
-		: Texture(InTexture)
-		  , DepthLoadAction(InLoadAction)
-		  , DepthStoreAction(InStoreAction)
-		  , StencilLoadAction(InLoadAction)
-		  , StencilStoreAction(InStoreAction)
-		  , DepthStencilAccess(ExclusiveDepthStencil::DepthWrite_StencilWrite)
-	{
-	}
-
-	RHIDepthRenderTargetView(RHITexture* InTexture, RenderTargetLoadAction InDepthLoadAction, RenderTargetStoreAction InDepthStoreAction,
-	                         RenderTargetLoadAction InStencilLoadAction, RenderTargetStoreAction InStencilStoreAction,
-	                         ExclusiveDepthStencil InDepthStencilAccess)
-		: Texture(InTexture)
-		  , DepthLoadAction(InDepthLoadAction)
-		  , DepthStoreAction(InDepthStoreAction)
-		  , StencilLoadAction(InStencilLoadAction)
-		  , StencilStoreAction(InStencilStoreAction)
-		  , DepthStencilAccess(InDepthStencilAccess)
-	{
-	}
-
-	bool operator==(const RHIDepthRenderTargetView& Other) const
-	{
-		return Texture == Other.Texture &&
-			DepthLoadAction == Other.DepthLoadAction &&
-			DepthStoreAction == Other.DepthStoreAction &&
-			StencilLoadAction == Other.StencilLoadAction &&
-			StencilStoreAction == Other.StencilStoreAction &&
-			DepthStencilAccess == Other.DepthStencilAccess;
-	}
-
-	RenderTargetStoreAction GetStencilStoreAction() const { return StencilStoreAction; }
-	ExclusiveDepthStencil GetDepthStencilAccess() const { return DepthStencilAccess; }
-
-public:
-	RHITexture* Texture;
-
-	RenderTargetLoadAction DepthLoadAction;
-	RenderTargetStoreAction DepthStoreAction;
-	RenderTargetLoadAction StencilLoadAction;
-
-private:
-	RenderTargetStoreAction StencilStoreAction;
-	ExclusiveDepthStencil DepthStencilAccess;
-};
-
-struct BoundShadersState
-{
-	BoundShadersState() = default;
-
-	RefCountingPtr<RHIVertexShader> GetVertexShader() const { return VertexShaderRHI; }
-	RefCountingPtr<RHIPixelShader> GetPixelShader() const { return PixelShaderRHI; }
-
-	RefCountingPtr<RHIVertexShader> VertexShaderRHI = nullptr;
-	RefCountingPtr<RHIPixelShader> PixelShaderRHI = nullptr;
-};
-
-class PipelineStateInitializer
-{
-public:
-	PipelineStateInitializer()
-		: DepthStencilState(nullptr)
-		  , Primitive(PrimitiveType::TriangleList)
-		  , DepthStencilPixelFormat(PixelFormat::Invalid)
-		  , DepthTargetLoadAction(RenderTargetLoadAction::NoAction)
-		  , DepthTargetStoreAction(RenderTargetStoreAction::NoAction)
-		  , StencilTargetLoadAction(RenderTargetLoadAction::NoAction)
-		  , StencilTargetStoreAction(RenderTargetStoreAction::NoAction)
-		  , DepthStencilAccess(ExclusiveDepthStencil::DepthNop_StencilNop)
-	{
-	}
-
-	PipelineStateInitializer(BoundShadersState InShaderState,
-	                         RHIDepthStencilState* InDepthStencilState,
-	                         PrimitiveType InPrimitive,
-	                         PixelFormat InDepthStencilPixelFormat,
-	                         RenderTargetLoadAction InDepthTargetLoadAction,
-	                         RenderTargetStoreAction InDepthTargetStoreAction,
-	                         RenderTargetLoadAction InStencilTargetLoadAction,
-	                         RenderTargetStoreAction InStencilTargetStoreAction,
-	                         ExclusiveDepthStencil InDepthStencilAccess)
-		: ShaderState(std::move(InShaderState))
-		  , DepthStencilState(InDepthStencilState)
-		  , Primitive(InPrimitive)
-		  , DepthStencilPixelFormat(InDepthStencilPixelFormat)
-		  , DepthTargetLoadAction(InDepthTargetLoadAction)
-		  , DepthTargetStoreAction(InDepthTargetStoreAction)
-		  , StencilTargetLoadAction(InStencilTargetLoadAction)
-		  , StencilTargetStoreAction(InStencilTargetStoreAction)
-		  , DepthStencilAccess(InDepthStencilAccess)
-	{
-	}
-
-	BoundShadersState ShaderState;
-	RHIDepthStencilState* DepthStencilState;
-
-	PrimitiveType Primitive;
-	PixelFormat DepthStencilPixelFormat;
-	RenderTargetLoadAction DepthTargetLoadAction;
-	RenderTargetStoreAction DepthTargetStoreAction;
-	RenderTargetLoadAction StencilTargetLoadAction;
-	RenderTargetStoreAction StencilTargetStoreAction;
-	ExclusiveDepthStencil DepthStencilAccess;
-};
-
-class RHIPipelineStateObject : public RHIResource
-{
-public:
-	RHIPipelineStateObject() : RHIResource(RHIResourceType::PipelineStateObject)
-	{
-	}
-};
-
-class RHINonNativePipelineStateObject : public RHIPipelineStateObject
-{
-public:
-	RHINonNativePipelineStateObject(PipelineStateInitializer InInitializer)
-		: Initializer(std::move(InInitializer))
-	{
-	}
-
-	PipelineStateInitializer Initializer;
-};
-
-class RHIBoundShaderState : public RHIResource
-{
-public:
-	RHIBoundShaderState()
-		: RHIResource(RHIResourceType::BoundShaderState)
-	{}
-};
-
-
 }

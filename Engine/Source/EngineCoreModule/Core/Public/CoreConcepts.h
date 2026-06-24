@@ -19,3 +19,6 @@ concept Identifier = requires
 	typename LE::IdTraits<T>::IdType;
 	typename LE::IdTraits<T>::GenerationType;
 };
+
+template <typename Type, typename BaseType>
+concept DerivedFrom = std::is_base_of_v<BaseType, Type>;

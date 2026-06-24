@@ -18,6 +18,5 @@ void RendererEcsCoreModule::RegisterReflection()
 {
 	AutoRegistration::RendererECSCoreModule::RegisterAllAssetTypes(GetServiceRegistry().GetService<AssetStorageFactory>());
 	AutoRegistration::RendererECSCoreModule::RegisterAllSystems(GetECSModule().GetSystemRegistry());
-	AutoRegistration::RendererECSCoreModule::RegisterAllMaterialShader();
 }
 }

@@ -1,0 +1,50 @@
+include(FindPackageHandleStandardArgs)
+
+if(CMAKE_SYSTEM_PROCESSOR MATCHES "(x86_64|AMD64|amd64)")
+    set(_DXC_ARCH "x64")
+elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "(i386|i686|X86|x86)")
+    set(_DXC_ARCH "x86")
+elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "(arm64|ARM64|aarch64)")
+    set(_DXC_ARCH "arm64")
+else()
+    set(_DXC_ARCH "x64")
+endif()
+
+if(CMAKE_HOST_WIN32)
+    if(DEFINED ENV{VULKAN_SDK})
+        set(_VULKAN_BIN_DIR "$ENV{VULKAN_SDK}/Bin")
+        if(EXISTS "${_VULKAN_BIN_DIR}/dxcompiler.dll")
+            set(DXC_COMPILER_DLL_PATH "${_VULKAN_BIN_DIR}/dxcompiler.dll" CACHE FILEPATH "Path to dxcompiler.dll")
+            set(DXC_DXIL_DLL_PATH "${_VULKAN_BIN_DIR}/dxil.dll" CACHE FILEPATH "Path to dxil.dll")
+        endif()
+
+        set(_VULKAN_INC_DIR "$ENV{VULKAN_SDK}/Include")
+        if(EXISTS "${_VULKAN_INC_DIR}/dxc/dxcapi.h")
+            set(DXC_INCLUDE_DIR "${_VULKAN_INC_DIR}" CACHE PATH "Path to DXC include root")
+        endif()
+    endif()
+
+    # Fallback to Windows Kits search approach if Vulkan SDK env isn't found
+    if(NOT DXC_COMPILER_DLL_PATH)
+        file(TO_CMAKE_PATH "$ENV{ProgramFiles\(x86\)}" _PROG_FILES)
+        set(_SDK_ROOT "${_PROG_FILES}/Windows Kits/10/bin")
+        
+        if(EXISTS "${_SDK_ROOT}")
+            file(GLOB _SDK_VERSIONS RELATIVE "${_SDK_ROOT}" "${_SDK_ROOT}/10.*")
+            list(SORT _SDK_VERSIONS ORDER DESCENDING)
+            
+            foreach(_VERSION ${_SDK_VERSIONS})
+                set(_TEST_PATH "${_SDK_ROOT}/${_VERSION}/${_DXC_ARCH}/dxcompiler.dll")
+                set(_TEST_DXIL_PATH "${_SDK_ROOT}/${_VERSION}/${_DXC_ARCH}/dxil.dll")
+                
+                if(EXISTS "${_TEST_PATH}" AND EXISTS "${_TEST_DXIL_PATH}")
+                    set(DXC_COMPILER_DLL_PATH "${_TEST_PATH}" CACHE FILEPATH "Path to dxcompiler.dll")
+                    set(DXC_DXIL_DLL_PATH "${_TEST_DXIL_PATH}" CACHE FILEPATH "Path to dxil.dll")
+                    break()
+                endif()
+            endforeach()
+        endif()
+    endif()
+endif()
+
+find_package_handle_standard_args(DXC REQUIRED_VARS DXC_COMPILER_DLL_PATH DXC_DXIL_DLL_PATH DXC_INCLUDE_DIR)

@@ -1,4 +1,4 @@
-file(GLOB_RECURSE TOOLS_SOURCES "Public/*.h" "Private/*cpp" "Private/*h" "../../3rdParty/OpenFBX/src/*")
+file(GLOB_RECURSE TOOLS_SOURCES "Public/*.h" "Private/*cpp" "Private/*h" "../../../3rdParty/OpenFBX/src/*")
 add_library(EngineTools_Module_FBXExporter STATIC ${TOOLS_SOURCES})
 target_include_directories(EngineTools_Module_FBXExporter
     PUBLIC Public

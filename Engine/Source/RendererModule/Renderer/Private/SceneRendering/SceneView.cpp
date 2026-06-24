@@ -1,48 +1,36 @@
 #include "SceneRendering/SceneView.h"
 
-#include "Viewport.h"
-
 namespace LE::Renderer
 {
-IMPLEMENT_GLOBAL_CONSTANT_BUFFER(ViewShaderParametersConstantBuffer, "ViewShaderParametersConstantBuffer")
-
 SceneView::SceneView(const SceneViewInfo& InitInfo)
-	: ViewTransform(InitInfo.ViewTransform)
-	  , FOV(InitInfo.FOV)
-	  , NearPlane(InitInfo.NearPlane)
+	: ViewInfo(InitInfo)
 {
 }
 
-void SceneView::SetupViewMatrices(Viewport* Viewport)
+void SceneView::SetupViewMatrices()
 {
-	ViewMatrices.WorldToView = Matrix4x4F::GetInverted(ViewTransform);
+	ThisFrameViewMatrices.WorldToView = Matrix4x4F::GetInverted(ViewInfo.ViewTransform);
 
-	if (Viewport->GetSizeY() == 0)
+	if (!ViewInfo.RhiWindow.IsValid())
+	{
+		return;
+	}
+	
+	const RHI::RHIWindow& RhiWindow = *ViewInfo.RhiWindow;
+	
+	if (RhiWindow.GetHeight() == 0)
 	{
 		LE_ASSERT(false)
 		return;
 	}
 
-	const float aspectRatio = static_cast<float>(Viewport->GetSizeX()) / static_cast<float>(Viewport->GetSizeY());
-	const float g = 1.0f / Tan(FOV * 0.5f);
+	const float aspectRatio = static_cast<float>(RhiWindow.GetWidth()) / static_cast<float>(RhiWindow.GetHeight());
+	const float g = 1.0f / Tan(ViewInfo.FOV * 0.5f);
 
 	static constexpr  float floatErrorCorrection = 1e-5f;
-	ViewMatrices.ViewToClip = Matrix4x4F(g / aspectRatio, 0.0f, 0.0f, 0.0f,
+	ThisFrameViewMatrices.ViewToClip = Matrix4x4F(g / aspectRatio, 0.0f, 0.0f, 0.0f,
 	                                     0.0f, g, 0.0f, 0.0f,
-	                                     0.0f, 0.0f, floatErrorCorrection, NearPlane * (1.0f - floatErrorCorrection),
+	                                     0.0f, 0.0f, floatErrorCorrection, ViewInfo.NearPlane * (1.0f - floatErrorCorrection),
 	                                     0.0f, 0.0f, 1.0f, 0.0f);
-}
-
-void SceneView::InitResourcesRHI()
-{
-	ViewShaderParametersConstantBuffer parameters;
-	parameters.ViewToClip = ViewMatrices.ViewToClip;
-	parameters.WorldToView = ViewMatrices.WorldToView;
-	CreateConstantBuffer(parameters);
-}
-
-void SceneView::CreateConstantBuffer(const ViewShaderParametersConstantBuffer& Parameters)
-{
-	ConstantBuffer = ConstantBufferRef<ViewShaderParametersConstantBuffer>::CreateConstantBuffer(Parameters);
 }
 }

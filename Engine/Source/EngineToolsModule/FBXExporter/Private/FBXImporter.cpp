@@ -3,6 +3,7 @@
 #include "ofbx.h"
 #include "FileManager/FileManager.h"
 #include "Multithreading/JobScheduler.h"
+#include "Service/ServiceRegistry.h"
 #include "tracy/Tracy.hpp"
 
 namespace LE
@@ -104,14 +105,12 @@ bool FBXImporter::ConvertToEngineType(ConvertRequest& Request)
 		{
 			Renderer::StaticMeshVertex& vertex = meshAsset->Vertices[vertexIdx];
 			ofbx::Vec3 ofbxPosition = positions.get(vertexIdx);
-			vertex.Position = {ofbxPosition.x, ofbxPosition.y, ofbxPosition.z, 1.0f};
+			vertex.Position = {ofbxPosition.x, ofbxPosition.y, ofbxPosition.z};
 			
 			if(normals.values)
 			{
 				ofbx::Vec3 n = normals.get(vertexIdx);
-				Vector3F normal(n.x, n.y, n.z);
-				vertex.Tangent = Vector3F::Cross(normal, Vector3F::Up());
-				vertex.Tangent.Normalize();
+				vertex.Normal = Vector3F(n.x, n.y, n.z);
 			}
 			
 			if(uvs.values)
@@ -134,7 +133,7 @@ bool FBXImporter::ConvertToEngineType(ConvertRequest& Request)
 				
 				for(int vertexIdx = 0; vertexIdx < vertexCount; ++vertexIdx)
 				{
-					const uint16 vertexIndex = static_cast<uint16>(indices[vertexIdx]);
+					const uint32 vertexIndex = static_cast<uint32>(indices[vertexIdx]);
 					meshAsset->Indices.emplace_back(vertexIndex);
 				}
 			}

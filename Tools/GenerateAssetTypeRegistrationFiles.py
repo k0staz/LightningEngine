@@ -76,7 +76,7 @@ namespace LE::AutoRegistration::{gen_namespace}
 }}
 """
 
-        register_calls = "\n        ".join(f"Factory.Register(AssetTypeIdGetter<{cls}>::Value, ASSET_STORAGE_CONSTRUCTION_FUNC({cls}));" for cls in asset_types)
+        register_calls = "\n        ".join(f"Factory.Register(AssetTypeIdGetter<{cls}>::Value, ASSET_STORAGE_CONSTRUCTION_FUNC({cls}), ASSET_STORAGE_LOAD_FUNC({cls}));" for cls in asset_types)
         cpp_content = f"""#include "{file_name}.gen.h"
 #include "{header}"
 

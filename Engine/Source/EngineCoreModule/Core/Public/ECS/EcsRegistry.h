@@ -214,6 +214,17 @@ public:
 		return { InType , GetCreateComponentStorage<ComponentType>()..., GetCreateComponentStorage<ExcludedComponents>()... };
 	}
 
+	void Shutdown()
+	{
+		for (auto& [_, storage] : ComponentStorages)
+		{
+			storage->Clear();
+		}
+		ComponentStorages.clear();
+
+		EntityStorage.Clear();
+	}
+
 private:
 	template <typename ComponentType>
 	EcsComponentStorage<ComponentType, Entity>& GetCreateComponentStorage(

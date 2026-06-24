@@ -29,15 +29,16 @@ public:
 	static bool IsRenderThread();
 	static bool IsTaskThread();
 	static int8 GetWorkerThreadIndex();
+	static int8 GetWorkerTaskThreadIndex();
 
 
-	Thread(int8 InIndex, std::string InName, ThreadType InType, JobScheduler* InOwner)
+	Thread(int8 InIndex, std::string InName, ThreadType InType, JobScheduler* InOwner, int8 InTaskIndex = -1)
 		: Index(InIndex)
+		  , TaskIndex(InTaskIndex)
 		  , Type(InType)
 		  , Owner(InOwner)
 		  , Name(std::move(InName))
-	{
-	}
+	{}
 
 	Thread(const Thread&) = delete;
 
@@ -64,13 +65,7 @@ public:
 		return *this;
 	}
 
-	~Thread() override
-	{
-		if (ThreadImpl.joinable())
-		{
-			ThreadImpl.join();
-		}
-	}
+	~Thread() override = default;
 
 	ThreadType GetType() const
 	{
@@ -99,10 +94,11 @@ protected:
 
 protected:
 	int8 Index;
+	int8 TaskIndex = -1;
 	ThreadType Type;
 	JobScheduler* Owner;
 	std::string Name;
-	std::thread ThreadImpl;
+	std::jthread ThreadImpl;
 	std::atomic<bool> IsRunning{false};
 	std::binary_semaphore IsReady{0};
 	std::atomic<uint64> CurrentFrame;

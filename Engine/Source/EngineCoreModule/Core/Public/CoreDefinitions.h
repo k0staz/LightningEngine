@@ -46,4 +46,7 @@ typedef int64_t int64;
 typedef std::string String;
 
 template<class> struct AlwaysFalse : std::false_type {};
+
+constexpr uint32 DEFAULT_TASK_WORKER_THREADS = 2;
+constexpr uint32 DEFAULT_FRAMES_IN_FLIGHT = 2;
 }

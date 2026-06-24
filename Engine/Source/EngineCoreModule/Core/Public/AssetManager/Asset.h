@@ -3,11 +3,12 @@
 #include "AssetRegistry.h"
 #include "Archive/Archive.h"
 #include "AssetManager/AssetCore.h"
+#include "Containers/ResourceSparseSet.h"
 #include "Misc/Uid.h"
 
 namespace LE
 {
-class Asset
+class Asset : public NonCopyable
 {
 public:
 	Asset(const Asset&) = delete;
@@ -129,7 +130,7 @@ private:
 	friend class AssetHandle;
 
 	template <Identifier IdType, DerivedFromAsset AssetType>
-	friend class AssetStorage;
+	using AssetStorage = ResourceSparseSet<IdType, AssetType, Asset, AssetTraits<IdType>>;
 	
 	friend class AssetManager;
 

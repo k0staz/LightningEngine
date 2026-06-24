@@ -1,85 +1,109 @@
 #include "SceneRendering/RenderScene.h"
 
-#include "RenderPasses/BaseRenderPass.h"
+#include "RenderCommandList.h"
+#include "RenderContributors/RenderContributorManager.h"
+#include "RenderContributors/MeshContributors/StaticMeshContributor.h"
+#include "RenderResourceManager/RenderResourceManager.h"
 
 namespace LE::Renderer
 {
 RenderScene::~RenderScene()
 {
-	for (auto& proxyEntry : RenderObjectProxies)
+	RenderProxies.Clear();
+}
+
+bool RenderScene::HasRenderProxy(EcsEntity EntityId) const
+{
+	return RenderProxies.Has(EntityId);
+}
+
+void RenderScene::CreateStaticMeshRenderProxy(EcsEntity EntityId, AssetHandle<StaticMeshAsset> MeshAsset, const Matrix4x4F& Transform)
+{
+	RenderCommandList::Get().EnqueueLambdaCommand([this, EntityId, MeshAsset, Transform](RenderCommandList& CmdList)
 	{
-		RenderObjectProxy* proxy = proxyEntry.second;
-		if (!proxy)
+		if (RenderProxies.Has(EntityId))
 		{
-			continue;
+			return;
 		}
 
-		delete proxy;
-		proxy = nullptr;
+		RenderProxyState& state = RenderProxies.AddProxy(EntityId);
+		state.EntityId = EntityId;
+		state.IsEnabled = true;
+		
+		RenderResourceManager& resourceManager = GetServiceRegistry().GetService<RenderResourceManager>();
+		auto resourceHandle = resourceManager.RequestStaticMesh(MeshAsset);
+		RenderContributorId contributorId = resourceManager.GetRenderContributor(resourceHandle);
+
+		state.MeshVariationTypeId = RenderContributorTypeIdGetter<StaticMeshContributor>::Value;
+		state.MeshVariationInstanceId = contributorId;
+
+		RenderContributorManager& contributorManager = GetServiceRegistry().GetService<RenderContributorManager>();
+		StaticMeshContributor& contributor = contributorManager.GetRenderContributor<StaticMeshContributor>(contributorId);
+
+		contributor.AddProxy(EntityId);
+		contributor.GetDynamicData(EntityId).LocalToWorld = Transform;
+	});
+}
+
+void RenderScene::UpdateStaticMeshRenderProxy(EcsEntity EntityId, const Matrix4x4F& Transform)
+{
+	RenderCommandList::Get().EnqueueLambdaCommand([this, EntityId, Transform](RenderCommandList& CmdList)
+	{
+		if (!RenderProxies.Has(EntityId))
+		{
+			return;
+		}
+
+		RenderContributorManager& contributorManager = GetServiceRegistry().GetService<RenderContributorManager>();
+		StaticMeshContributor& contributor = contributorManager.GetRenderContributor<StaticMeshContributor>(
+			RenderProxies.GetProxyState(EntityId).MeshVariationInstanceId);
+		contributor.GetDynamicData(EntityId).LocalToWorld = Transform;
 	}
-
-	RenderObjectProxies.clear();
+	);
 }
 
-void RenderScene::CreateStaticMeshRenderProxy(EcsEntity Entity, const Matrix4x4F& Transform, const StaticMeshRenderData* RenderData,
-                                              const Material* MeshMaterial)
+void RenderScene::DeleteRenderProxy(EcsEntity EntityId)
 {
-	// TODO: Here we need to create material instance based on the data from component
-	MaterialInstance* materialInstance = new MaterialInstance(MeshMaterial);
-	Vector4F color = {1.0f, 0.0f, 0.0f, 1.0f};
-	materialInstance->SetParameter(&BasePS::StaticGetMetaType(), "Color", reinterpret_cast<uint8*>(&color));
-	StaticMeshRenderProxy* newProxy = new StaticMeshRenderProxy(Entity, RenderData, materialInstance);
-
-	// Handle over to render thread
-	RenderCommandList::Get().EnqueueLambdaCommand([this, newProxy, Entity, Transform](RenderCommandList& CmdList)
+	RenderCommandList::Get().EnqueueLambdaCommand([this, EntityId](RenderCommandList& CmdList)
 	{
-		if (RenderObjectProxies.contains(Entity))
-		{
-			delete newProxy;
-			return;
-		}
-
-		RenderObjectProxies[Entity] = newProxy;
-		newProxy->CreateConstantBuffer();
-		newProxy->SetTransform(Transform);
-	});
-}
-
-void RenderScene::DeleteRenderObjectProxy(EcsEntity Entity)
-{
-	RenderCommandList::Get().EnqueueLambdaCommand([this, Entity](RenderCommandList& CmdList)
-	{
-		if (!RenderObjectProxies.contains(Entity))
-		{
-			LE_WARN("Trying to delete proxy, which container doesn't have for entity %d", Entity);
-			return;
-		}
-
-		RenderObjectProxy* proxy = RenderObjectProxies[Entity];
-		delete proxy;
-		proxy = nullptr;
-
-		RenderObjectProxies.erase(Entity);
-	});
-}
-
-void RenderScene::UpdateStaticMeshProxyTransform(EcsEntity Entity, const Matrix4x4F& Transform)
-{
-	RenderCommandList::Get().EnqueueLambdaCommand([this, Transform, Entity](RenderCommandList& CmdList)
-	{
-		if (!RenderObjectProxies.contains(Entity))
+		if (!RenderProxies.Has(EntityId))
 		{
 			return;
 		}
 
-		RenderObjectProxy* proxy = RenderObjectProxies[Entity];
-		proxy->SetTransform(Transform);
-		proxy->UpdateConstantBuffer(CmdList);
+		RenderProxyState& proxyState = RenderProxies.GetProxyState(EntityId);
+		RenderContributorManager& contributorManager = GetServiceRegistry().GetService<RenderContributorManager>();
+		RenderContributor& contributor = contributorManager.GetRenderContributor(proxyState.MeshVariationTypeId, proxyState.MeshVariationInstanceId);
+		contributor.RemoveProxy(EntityId);
 	});
 }
 
-bool RenderScene::HasStaticMeshRenderProxy(EcsEntity Entity) const
+void RenderScene::SetRenderProxyEnabled(EcsEntity EntityId, bool Enabled)
 {
-	return RenderObjectProxies.contains(Entity);
+	RenderCommandList::Get().EnqueueLambdaCommand([this, EntityId, Enabled](RenderCommandList& CmdList)
+	{
+		if (!RenderProxies.Has(EntityId))
+		{
+			return;
+		}
+
+		RenderProxyState& proxyState = RenderProxies.GetProxyState(EntityId);
+		proxyState.IsEnabled = Enabled;
+	});
+
+}
+
+void RenderScene::GetEnabledRenderProxies(std::vector<RenderProxyState*>& EnabledProxies)
+{
+	EnabledProxies.clear();
+	EnabledProxies.reserve(RenderProxies.Capacity());
+	for (EcsEntity EntityId : RenderProxies)
+	{
+		RenderProxyState& proxyState = RenderProxies.GetProxyState(EntityId);
+		if (proxyState.IsEnabled)
+		{
+			EnabledProxies.push_back(&proxyState);
+		}
+	}
 }
 }

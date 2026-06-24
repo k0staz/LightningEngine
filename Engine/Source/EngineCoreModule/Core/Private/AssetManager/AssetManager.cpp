@@ -16,11 +16,20 @@ void AssetManager::OnFrameEnd()
 		AssetStorageBase<IdType>& assetStorage = *AssetStorages[it.first];
 		for (const AssetId& id : it.second)
 		{
-			assetStorage.PopAsset(id);
+			assetStorage.PopResource(id);
 			LE_INFO("	asset with id {} of type {} is removed", id, it.first);
 		}
 	}
 
 	PendingDelete.clear();
+}
+
+void AssetManager::InternalLoadAsset(AssetInfo& Info) const
+{
+	const AssetStorageBase<IdType>& assetStorage = *GetAssetStorage(Info.TypeId);
+	Asset& loadAsset = assetStorage.GetResource(Info.RuntimeId);
+	AssetStorageFactory& factory = GetServiceRegistry().GetService<AssetStorageFactory>();
+	const bool result = factory.Load(Info, loadAsset);
+	loadAsset.SetState(result ? AssetState::Loaded : AssetState::FailedLoad);
 }
 }

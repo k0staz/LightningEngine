@@ -31,6 +31,16 @@ void ModuleRegistry::ShutdownServices() const
 	}
 }
 
+void ModuleRegistry::Shutdown()
+{
+	for (auto& val : Modules | std::views::values)
+	{
+		val->Shutdown();
+	}
+
+	Modules.clear();
+}
+
 ModuleRegistry& GetModuleRegistry()
 {
 	if (!gModuleRegistry)

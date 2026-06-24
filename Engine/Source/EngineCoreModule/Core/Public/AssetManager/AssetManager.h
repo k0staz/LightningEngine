@@ -206,6 +206,7 @@ private:
 class AssetManager : public ServiceBase
 {
 	using IdType = AssetId;
+	
 
 public:
 	AssetManager() = default;
@@ -216,6 +217,10 @@ public:
 
 	void Shutdown() override
 	{
+		for (auto& assetStorageIt : AssetStorages)
+		{
+			assetStorageIt.second->Clear();
+		}
 	}
 
 	using size_type = std::size_t;
@@ -255,7 +260,7 @@ public:
 		}
 
 		AssetStorageBase<IdType>& assetStorage = GetCreateAssetStorage(assetInfo.TypeId);
-		Asset& newAsset = assetStorage.CreateNewAsset(assetInfo.AssetUid);
+		Asset& newAsset = assetStorage.CreateAsset(assetInfo.AssetUid);
 		assetRegistry.UpdateAssetRuntimeId(assetInfo.AssetUid, newAsset.GetAssetId());
 
 		return AssetHandle{newAsset};
@@ -310,16 +315,12 @@ public:
 	void OnFrameEnd();
 
 private:
-	void InternalLoadAsset(AssetInfo& Info) const
-	{
-		const AssetStorageBase<IdType>& assetStorage = *GetAssetStorage(Info.TypeId);
-		assetStorage.LoadAsset(Info);
-	}
+	void InternalLoadAsset(AssetInfo& Info) const;
 	
 	Asset& GetAssetRef(IdType Id, AssetTypeId TypeId) const
 	{
 		const AssetStorageBase<IdType>& assetStorage = *GetAssetStorage(TypeId);
-		return assetStorage.GetAsset(Id);
+		return assetStorage.GetResource(Id);
 	}
 
 	template <DerivedFromAsset AssetType>
