@@ -1,5 +1,4 @@
 #pragma once
-#include "StaticMesh/StaticMeshRendering.h"
 #include "AssetManager/Asset.h"
 #include "RHIDefinitions.h"
 #include "AssetManager/AssetRegistrationUtil.h"
@@ -12,7 +11,10 @@ public:
 	using Asset::Asset;
 
 	std::vector<uint32> Indices;
-	std::vector<Renderer::StaticMeshVertex> Vertices;
+	std::vector<Vector3F> Positions;
+	std::vector<Vector3F> Normals;
+	std::vector<Vector2F> UVs;
+
 	RHI::PrimitiveType PrimitiveType = RHI::PrimitiveType::TriangleList;
 };
 
@@ -32,7 +34,17 @@ inline bool InvokeArchive(Archive::Context& Ctx, Archive::ArchiveWriter& Writer,
 		return false;
 	}
 
-	if (!Serialize(Ctx, Writer, Value.Vertices))
+	if (!Serialize(Ctx, Writer, Value.Positions))
+	{
+		return false;
+	}
+
+	if (!Serialize(Ctx, Writer, Value.Normals))
+	{
+		return false;
+	}
+
+	if (!Serialize(Ctx, Writer, Value.UVs))
 	{
 		return false;
 	}
@@ -59,7 +71,17 @@ inline bool InvokeArchive(Archive::Context& Ctx, Archive::ArchiveReader& Reader,
 		return false;
 	}
 
-	if (!Deserialize(Ctx, Reader, Value.Vertices))
+	if (!Deserialize(Ctx, Reader, Value.Positions))
+	{
+		return false;
+	}
+
+	if (!Deserialize(Ctx, Reader, Value.Normals))
+	{
+		return false;
+	}
+
+	if (!Deserialize(Ctx, Reader, Value.UVs))
 	{
 		return false;
 	}

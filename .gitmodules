@@ -13,3 +13,12 @@
 [submodule "Engine/3rdParty/slang"]
 	path = Engine/3rdParty/slang
 	url = https://github.com/shader-slang/slang.git
+[submodule "Engine/3rdParty/KTX-Software"]
+	path = Engine/3rdParty/KTX-Software
+	url = https://github.com/KhronosGroup/KTX-Software.git
+[submodule "Engine/3rdParty/stb"]
+	path = Engine/3rdParty/stb
+	url = https://github.com/nothings/stb.git
+[submodule "Engine/3rdParty/cgltf"]
+	path = Engine/3rdParty/cgltf
+	url = https://github.com/jkuhlmann/cgltf.git

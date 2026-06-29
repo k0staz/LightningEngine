@@ -39,7 +39,7 @@ public:
 
 	AssetHandle& operator=(const AssetHandle& OtherAssetHandle)
 	{
-		if (Id != OtherAssetHandle.Id && UnderlyingTypeId != OtherAssetHandle.UnderlyingTypeId)
+		if (Id != OtherAssetHandle.Id || UnderlyingTypeId != OtherAssetHandle.UnderlyingTypeId)
 		{
 			InternalRelease();
 			Id = OtherAssetHandle.Id;
@@ -54,7 +54,7 @@ public:
 	AssetHandle& operator=(const AssetHandle<OtherAssetType>& OtherAssetHandle)
 	{
 		static_assert(std::is_base_of_v<OtherAssetType, AssetType>, "AssetType must be derived from OtherAssetType");
-		if (Id != OtherAssetHandle.Id && UnderlyingTypeId != OtherAssetHandle.UnderlyingTypeId)
+		if (Id != OtherAssetHandle.Id || UnderlyingTypeId != OtherAssetHandle.UnderlyingTypeId)
 		{
 			InternalRelease();
 			Id = OtherAssetHandle.Id;
@@ -85,7 +85,7 @@ public:
 
 	AssetHandle& operator=(AssetHandle&& OtherAssetHandle) noexcept
 	{
-		if (Id != OtherAssetHandle.Id && UnderlyingTypeId != OtherAssetHandle.UnderlyingTypeId)
+		if (Id != OtherAssetHandle.Id || UnderlyingTypeId != OtherAssetHandle.UnderlyingTypeId)
 		{
 			InternalRelease();
 			Id = OtherAssetHandle.Id;
@@ -101,7 +101,7 @@ public:
 	AssetHandle& operator=(AssetHandle<OtherAssetType>&& OtherAssetHandle) noexcept
 	{
 		static_assert(std::is_base_of_v<OtherAssetType, AssetType>, "AssetType must be derived from OtherAssetType");
-		if (Id != OtherAssetHandle.Id && UnderlyingTypeId != OtherAssetHandle.UnderlyingTypeId)
+		if (Id != OtherAssetHandle.Id || UnderlyingTypeId != OtherAssetHandle.UnderlyingTypeId)
 		{
 			InternalRelease();
 			Id = OtherAssetHandle.Id;
@@ -151,7 +151,7 @@ private:
 		static_assert(std::is_base_of_v<OtherAssetType, AssetType>, "AssetType must be derived from OtherAssetType");
 		InternalAddRef();
 	}
-	
+
 	AssetHandle(const AssetType& Asset)
 		: Id(Asset.RuntimeId)
 		  , UnderlyingTypeId(Asset.TypeId)
@@ -161,7 +161,7 @@ private:
 
 	void InternalAddRef()
 	{
-		if(IsNull())
+		if(IsNull()|| !IsValid())
 		{
 			return;
 		}
@@ -174,7 +174,7 @@ private:
 
 	void InternalRelease()
 	{
-		if(IsNull())
+		if(IsNull() || !IsValid())
 		{
 			return;
 		}
@@ -456,8 +456,19 @@ template <DerivedFromAsset AssetType>
 bool InvokeArchive(Archive::Context& Ctx, Archive::ArchiveWriter& Writer, const AssetHandle<AssetType>& Value)
 {
 	using namespace LE::Archive;
-	
+
+	if (Value.IsNull() || !Value.IsValid())
+	{
+		return Serialize(Ctx, Writer, EmptyUid);
+	}
+
 	const Uid refAssetUid = Value->GetStableId();
+	if (!refAssetUid.IsValid())
+	{
+		LE_ASSERT_DESC(false, "Invalid Asset Handle")
+		return false;
+	}
+
 	if (!Serialize(Ctx, Writer, refAssetUid))
 	{
 		Ctx.Error.Desc = "Failed when writing UID for the referenced Asset";
@@ -484,6 +495,11 @@ bool InvokeArchive(Archive::Context& Ctx, Archive::ArchiveReader& Reader, AssetH
 	{
 		Ctx.Error.Desc = "Failed when reading UID for the referenced Asset";
 		return false;
+	}
+
+	if (!refAssetUid.IsValid())
+	{
+		return true;
 	}
 
 	AssetManager& manager = GetServiceRegistry().GetService<AssetManager>();

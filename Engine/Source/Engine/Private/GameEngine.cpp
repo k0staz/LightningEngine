@@ -7,7 +7,6 @@
 #include "EngineCoreModule.h"
 #include "EngineGlobals.h"
 #include "EngineToolsModule.h"
-#include "FBXImporter.h"
 #include "RenderCommandList.h"
 #include "RendererECSCoreModule.h"
 #include "SystemManager.h"

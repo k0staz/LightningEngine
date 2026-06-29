@@ -24,8 +24,7 @@ VertexOutput vertexMain<G : IGlobal, M : IMeshFetch>(uint vertexIdx: SV_VulkanVe
     output.Position = mul(pc.MeshData.GetPosition(vertexIdx, instanceIdx), pc.GlobalFrameData.GetWorldToView());
     output.Position = mul(output.Position, pc.GlobalFrameData.GetViewToClip());
 
-    //output.Normal = mul((float3x3)(pc.GlobalFrameData.GetWorldToView()), pc.MeshData.GetNormal(vertexIdx, instanceIdx));
-    output.Normal = pc.MeshData.GetNormal(vertexIdx, instanceIdx);
+    output.Normal = mul((float3x3)(pc.GlobalFrameData.GetWorldToView()), pc.MeshData.GetNormal(vertexIdx, instanceIdx));
     output.UV = pc.MeshData.GetUV(vertexIdx, instanceIdx);
 
     output.InstanceIndex = instanceIdx;
