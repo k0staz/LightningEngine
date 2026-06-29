@@ -2,7 +2,7 @@
 
 #include "AssetMasterFile.gen.h"
 #include "ECSMasterFile.gen.h"
-#include "FBXImporter.h"
+#include "GLTFImporter.h"
 #include "ShaderMasterRegistryFile.gen.h"
 #include "ECS/Ecs.h"
 
@@ -12,13 +12,13 @@ namespace LE
 void EngineToolsModule::RegisterServices()
 {
 	ServiceRegistry& registry = GetServiceRegistry();
-	registry.RegisterService<FBXImporter>();
+	registry.RegisterService<GLTFImporter>();
 }
 
 void EngineToolsModule::ShutdownServices()
 {
 	ServiceRegistry& registry = GetServiceRegistry();
-	registry.UnregisterService<FBXImporter>();
+	registry.UnregisterService<GLTFImporter>();
 }
 
 void EngineToolsModule::RegisterReflection()

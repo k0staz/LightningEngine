@@ -264,10 +264,19 @@ macro(add_executable targetName)
     endif ()
 endmacro()
 
-add_subdirectory(Engine/3rdParty/spdlog)
-add_subdirectory(Engine/3rdParty/tracy)
-add_subdirectory(Engine/3rdParty/SDL)
-add_subdirectory(Engine/3rdParty/slang)
+set(ENGINE_EXTERNALS "${CMAKE_CURRENT_SOURCE_DIR}/Engine/3rdParty")
+
+set(KTX_FEATURE_STATIC_LIBRARY ON CACHE INTERNAL "")
+set(KTX_FEATURE_WRITE ON CACHE INTERNAL "")
+set(KTX_FEATURE_TXC ON CACHE INTERNAL "")
+set(KTX_FEATURE_TOOLS OFF CACHE INTERNAL "")
+set(KTX_FEATURE_LOADTEST_APPS OFF CACHE INTERNAL "")
+
+add_subdirectory("${ENGINE_EXTERNALS}/spdlog")
+add_subdirectory("${ENGINE_EXTERNALS}/tracy")
+add_subdirectory("${ENGINE_EXTERNALS}/SDL")
+add_subdirectory("${ENGINE_EXTERNALS}/slang")
+add_subdirectory("${ENGINE_EXTERNALS}/KTX-Software")
 
 # Engine Core Module
 add_subdirectory(Engine/Source/EngineCoreModule)

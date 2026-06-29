@@ -17,7 +17,7 @@ namespace LE
 {
 void RenderSystem::Initialize()
 {
-	OnAddObserver.ReadsComponents<TransformComponent>();
+	OnAddObserver.ReadsComponents<TransformComponent, MaterialComponent>();
 	OnAddObserver.WritesComponents<StaticMeshComponent>();
 	OnAddObserver.GetDelegate().Attach<&RenderSystem::OnAdd>(this);
 	UpdatePass::AddJob<RenderPass>(&OnAddObserver);
@@ -26,7 +26,7 @@ void RenderSystem::Initialize()
 	UpdatePass::AddJob<RenderPass>(&OnRemoveObserver);
 
 	RenderUpdateStaticMesh.GetDelegate().Attach<&RenderSystem::UpdateStaticMeshes>(this);
-	RenderUpdateStaticMesh.ReadsComponents<TransformComponent>();
+	RenderUpdateStaticMesh.ReadsComponents<TransformComponent, MaterialComponent>();
 	RenderUpdateStaticMesh.WritesComponents<StaticMeshComponent>();
 	UpdatePass::AddJob<RenderPass>(&RenderUpdateStaticMesh);
 
@@ -46,15 +46,26 @@ void RenderSystem::UpdateStaticMeshes(const float DeltaSeconds)
 	// Instead we should take in observer payload, which allows to take either const ref, or ref
 	// Each usage of simple ref should mark that component as dirty
 	Renderer::RenderScene& renderScene = GetModuleRegistry().GetModule<RendererModule>().GetRenderScene();
-	auto view = ViewComponents<StaticMeshComponent, TransformComponent>();
+	auto view = ViewComponents<StaticMeshComponent, TransformComponent, MaterialComponent>();
 	for (const EcsEntity& entity : view)
 	{
 		const StaticMeshComponent& meshComponent = view.GetComponents<StaticMeshComponent>(entity);
+		bool areAssetsLoaded = true;
 		if(!meshComponent.AssetHandle->IsLoaded())
 		{
-			continue;
+			areAssetsLoaded &= false;
 		}
-		else if(!renderScene.HasRenderProxy(entity))
+
+		const MaterialComponent& materialComponent = view.GetComponents<MaterialComponent>(entity);
+		if(!materialComponent.AssetHandle->IsLoaded())
+		{
+			areAssetsLoaded &= false;
+		}
+
+		if (!areAssetsLoaded)
+			continue;
+
+		if(!renderScene.HasRenderProxy(entity))
 		{
 			// TODO: This should be moved to some streaming system
 			CreateRenderProxy(entity);
@@ -93,12 +104,23 @@ void RenderSystem::OnAdd(const OnAddObserverType::ObserverType& Observer)
 	for (auto entity : Observer)
 	{
 		StaticMeshComponent& staticMeshComponent = Observer.GetComponents<StaticMeshComponent>(entity);
+		bool areAssetsLoaded = true;
 		if(!staticMeshComponent.AssetHandle->IsLoaded())
 		{
 			manager.LoadAssetAsync(staticMeshComponent.AssetHandle);
-			continue;
+			areAssetsLoaded &= false;
 		}
-		
+
+		MaterialComponent& materialComponent = Observer.GetComponents<MaterialComponent>(entity);
+		if (!materialComponent.AssetHandle->IsLoaded())
+		{
+			manager.LoadAssetAsync(materialComponent.AssetHandle);
+			areAssetsLoaded &= false;
+		}
+
+		if (!areAssetsLoaded)
+			continue;
+
 		// TODO: This should be moved to some streaming system
 		CreateRenderProxy(entity);
 	}

@@ -239,13 +239,18 @@ void RenderResourceManager::RecordTransferCommandsTask(std::vector<PendingStatic
     RefCountingPtr<RHI::RHICommandList> commandList = device->CreateCommandList(RHI::RHICommandListType::Transfer);
 
     // Prepare CPU data for transfer
-    uint64 totalVertices = 0;
     uint64 totalIndices = 0;
+    uint64 totalPositions = 0;
+    uint64 totalNormals = 0;
+    uint64 totalUVs = 0;
+
     for (const auto& pendingLoad : PendingStaticMeshLoad)
     {
         const auto& asset = pendingLoad.Asset.GetAssetRef();
-        totalVertices += asset.Vertices.size();
         totalIndices += asset.Indices.size();
+        totalPositions += asset.Positions.size();
+        totalNormals += asset.Normals.size();
+        totalUVs += asset.UVs.size();
     }
 
     std::vector<uint32> batchIndices;
@@ -254,9 +259,9 @@ void RenderResourceManager::RecordTransferCommandsTask(std::vector<PendingStatic
     std::vector<Vector2F> batchTexCoords;
 
     batchIndices.reserve(totalIndices);
-    batchPositions.reserve(totalVertices);
-    batchNormals.reserve(totalVertices);
-    batchTexCoords.reserve(totalVertices);
+    batchPositions.reserve(totalPositions);
+    batchNormals.reserve(totalNormals);
+    batchTexCoords.reserve(totalUVs);
 
     struct MeshStagingInfo
     {
@@ -279,21 +284,14 @@ void RenderResourceManager::RecordTransferCommandsTask(std::vector<PendingStatic
         const StaticMeshAsset& staticMeshAsset = pendingLoad.Asset.GetAssetRef();
 
         batchIndices.insert(batchIndices.end(), staticMeshAsset.Indices.begin(), staticMeshAsset.Indices.end());
-
-        uint64 positionSizeBefore = batchPositions.size();
-        uint64 normalSizeBefore = batchNormals.size();
-        uint64 texCoordsSizeBefore = batchTexCoords.size();
-        for (const auto& vertex : staticMeshAsset.Vertices)
-        {
-            batchPositions.emplace_back(vertex.Position);
-            batchNormals.emplace_back(vertex.Normal);
-            batchTexCoords.emplace_back(vertex.TextureCord);
-        }
+        batchPositions.insert(batchPositions.end(), staticMeshAsset.Positions.begin(), staticMeshAsset.Positions.end());
+        batchNormals.insert(batchNormals.end(), staticMeshAsset.Normals.begin(), staticMeshAsset.Normals.end());
+        batchTexCoords.insert(batchTexCoords.end(), staticMeshAsset.UVs.begin(), staticMeshAsset.UVs.end());
 
         const uint64 indicesSize = staticMeshAsset.Indices.size() * sizeof(uint32);
-        const uint64 positionsSize = (batchPositions.size() - positionSizeBefore) * sizeof(Vector3F);
-        const uint64 normalsSize = (batchNormals.size() - normalSizeBefore) * sizeof(Vector3F);
-        const uint64 texCoordsSize = (batchTexCoords.size() - texCoordsSizeBefore) * sizeof(Vector2F);
+        const uint64 positionsSize = staticMeshAsset.Positions.size() * sizeof(Vector3F);
+        const uint64 normalsSize = staticMeshAsset.Normals.size() * sizeof(Vector3F);
+        const uint64 texCoordsSize = staticMeshAsset.UVs.size() * sizeof(Vector2F);
 
         StaticMeshRenderResource& resource = pendingLoad.ResourceHandle.Get();
         resource.IndexCount = staticMeshAsset.Indices.size();

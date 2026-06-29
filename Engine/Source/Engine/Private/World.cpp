@@ -1,7 +1,8 @@
 #include "World.h"
 
-#include "FBXImporter.h"
+#include "GLTFImporter.h"
 #include "CameraComponent.h"
+#include "MaterialComponent.h"
 #include "StaticMeshComponent.h"
 #include "TestComponent.h"
 #include "TransformComponent.h"
@@ -34,55 +35,33 @@ void World::Shutdown()
 
 void World::InitTestData()
 {
-	/*Path testModel = GetContentRoot() / "StaticMesh" / "FBX" /"Cone.fbx";
+	/*Path testModel = GetContentRoot() / "StaticMesh" / "GLTF" /"SphereWithRockMaterial.glb";
 
-	FBXImporter& fbxImporter = GetServiceRegistry().GetService<FBXImporter>();
-	fbxImporter.LoadAndConvertFbxModel(testModel);*/
+	auto& importer = GetServiceRegistry().GetService<GLTFImporter>();
+	importer.LoadAndConvertModel(testModel);*/
 	
 	Path testAsset = GetContentRoot() / "StaticMesh" / "Sphere.leasset";
-	Path coneTestAsset = GetContentRoot() / "StaticMesh" / "Cone.leasset";
+	Path testMaterial = GetContentRoot() / "Materials" / "Rock064.leasset";
 
 	AssetManager& manager = GetServiceRegistry().GetService<AssetManager>();
 	AssetHandle<StaticMeshAsset> assetHandle = manager.GetAssetUsingPath<StaticMeshAsset>(testAsset);
-	AssetHandle<StaticMeshAsset> coneAssetHandle = manager.GetAssetUsingPath<StaticMeshAsset>(coneTestAsset);
+	AssetHandle<MaterialInstanceAsset> materialHandle = manager.GetAssetUsingPath<MaterialInstanceAsset>(testMaterial);
 
 	LE::EcsEntity rootEntity = Registry.CreateEntity();
 	LE::EcsEntity meshRootEntity = Registry.CreateEntity(rootEntity);
-	
+
 	{
 		LE::EcsEntity entity = Registry.CreateEntity(meshRootEntity);
 		LE::TransformComponent& transformComponent = Registry.AddComponentToEntity<LE::TransformComponent>(entity);
-		transformComponent.Transform.SetPosition(0.0f, 2.0f, 5.0f);
-		transformComponent.Transform.RotateSelfZ(1.2f);
+		transformComponent.Transform.SetPosition(0.0f, 0.0f, 5.0f);
 		transformComponent.Transform.RotateSelfX(1.2f);
 
 		LE::StaticMeshComponent& staticMeshComponent = Registry.AddComponentToEntity<LE::StaticMeshComponent>(entity);
 		staticMeshComponent.AssetHandle = assetHandle;
-		
-		Registry.AddComponentToEntity<TestComponent>(entity);
-	}
 
-	{
-		LE::EcsEntity entity = Registry.CreateEntity(meshRootEntity);
-		LE::TransformComponent& transformComponent = Registry.AddComponentToEntity<LE::TransformComponent>(entity);
-		transformComponent.Transform.SetPosition(-5.0f, -2.0f, 5.0f);
-		transformComponent.Transform.RotateSelfX(1.2f);
+		MaterialComponent& materialComponent = Registry.AddComponentToEntity<MaterialComponent>(entity);
+		materialComponent.AssetHandle = materialHandle;
 
-		LE::StaticMeshComponent& staticMeshComponent = Registry.AddComponentToEntity<LE::StaticMeshComponent>(entity);
-		staticMeshComponent.AssetHandle = assetHandle;
-		
-		Registry.AddComponentToEntity<TestComponent>(entity);
-	}
-
-	{
-		LE::EcsEntity entity = Registry.CreateEntity(meshRootEntity);
-		LE::TransformComponent& transformComponent = Registry.AddComponentToEntity<LE::TransformComponent>(entity);
-		transformComponent.Transform.SetPosition(5.0f, -2.0f, 5.0f);
-		transformComponent.Transform.RotateSelfX(1.2f);
-
-		LE::StaticMeshComponent& staticMeshComponent = Registry.AddComponentToEntity<LE::StaticMeshComponent>(entity);
-		staticMeshComponent.AssetHandle = coneAssetHandle;
-		
 		Registry.AddComponentToEntity<TestComponent>(entity);
 	}
 	

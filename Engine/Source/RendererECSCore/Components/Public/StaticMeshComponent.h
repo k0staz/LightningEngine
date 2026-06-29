@@ -2,7 +2,6 @@
 #include "AssetManager/AssetManager.h"
 #include "Assets/StaticMeshAsset.h"
 #include "ECS/EcsComponent.h"
-#include "StaticMesh/StaticMeshRendering.h"
 
 namespace LE
 {
