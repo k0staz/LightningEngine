@@ -35,6 +35,11 @@ VkImageSubresourceRange MapSubresourceRange(const RHISubresourceRange& range);
 VkAttachmentLoadOp MapAttachmentLoadOp(RHILoadOp op);
 VkAttachmentStoreOp MapAttachmentStoreOp(RHIStoreOp op);
 VkRenderingAttachmentInfo MapRenderingAttachmentInfo(const RHIRenderingAttachmentDesc& desc);
+VkDescriptorType MapDescriptorType(RHIDescriptorType type);
+VkDescriptorBindingFlags MapDescriptorBindingFlags(RHIDescriptorBindingFlags flags);
+VkDescriptorSetLayoutCreateFlags MapDescriptorSetLayoutCreateFlags(RHIDescriptorSetLayoutCreateFlags flags);
+VkDescriptorPoolCreateFlags MapDescriptorPoolCreateFlags(RHIPoolCreateFlags flags);
+VkImageSubresourceLayers MapSubresourceLayers(const RHIImageSubresourceLayers& layers);
 
 VkImageType GetImageTypeFromImageDesc(const RHIImageDesc& Desc);
 

@@ -29,6 +29,9 @@ public:
 	 */
 	virtual void BeginFrame() = 0;
 
+	virtual uint32 GetGraphicsQueueFamilyIndex() const { return 0; }
+	virtual uint32 GetTransferQueueFamilyIndex() const { return 0; }
+
 	virtual RefCountingPtr<RHIBuffer> CreateBuffer(RHIBufferDescription BufferDesc) = 0;
 	virtual void DestroyBuffer(RefCountingPtr<RHIBuffer> Buffer) = 0;
 
@@ -48,19 +51,6 @@ public:
 	virtual void SubmitCommandList(RHICommandListType ListType, const std::vector<RefCountingPtr<RHICommandList>>& CommandLists, uint32 SwapchainImageIdx = 0) = 0;
 
 	virtual void Present(RefCountingPtr<RHIWindow> Window, uint32 SwapchainImageIdx) = 0;
-
-	/**
-	 * @brief Copies data to a global buffer.
-	 *
-	 * @param CommandList Command List where copy command will be recorded.
-	 * @param GlobalBuffer The destination global buffer.
-	 * @param StageBuffer The staging buffer used to transfer data.
-	 * @param Descriptions Upload descriptions
-	 */
-	virtual void CopyToGlobalBuffer(RefCountingPtr<RHICommandList> CommandList,
-	                                RefCountingPtr<RHIGlobalBuffer> GlobalBuffer,
-	                                RefCountingPtr<RHILinearBuffer> StageBuffer,
-	                                const std::vector<RHIGlobalBufferUploadDesc>& Descriptions) = 0;
 	
 	virtual RefCountingPtr<RHIPipelineLayout> CreatePipelineLayout(const RHIPipelineLayoutDesc& PipelineLayoutDesc) = 0;
 	virtual RefCountingPtr<RHIPipelineObject> CreatePipelineObject(const RHIPipelineObjectDesc& PipelineObjectDesc) = 0;
@@ -80,6 +70,20 @@ public:
 	virtual void DestroyImageView(RefCountingPtr<RHIImageView> ImageView) = 0;
 
 	virtual uint64 GetCurrentTransferTimelineValue() const = 0;
+
+	virtual RefCountingPtr<RHISampler> CreateSampler(const RHISamplerType& SamplerDesc) = 0;
+	virtual void DestroySampler(RefCountingPtr<RHISampler> Sampler) = 0;
+
+	virtual RefCountingPtr<RHIDescriptorSetLayout> CreateDescriptorSetLayout(const RHIDescriptorSetLayoutDesc& DescriptorSetLayoutDesc) = 0;
+	virtual void DestroyDescriptorSetLayout(RefCountingPtr<RHIDescriptorSetLayout> DescriptorSetLayout) = 0;
+
+	virtual RefCountingPtr<RHIDescriptorSetPool> CreateDescriptorSetPool(const RHIDescriptorSetPoolDesc& DescriptorSetPoolDesc) = 0;
+	virtual void DestroyDescriptorSetPool(RefCountingPtr<RHIDescriptorSetPool> DescriptorSetPool) = 0;
+
+	virtual RefCountingPtr<RHIDescriptorSet> CreateDescriptorSet(const RHIDescriptorSetDesc& Desc) = 0;
+	virtual void FreeDescriptorSet(RefCountingPtr<RHIDescriptorSet> DescriptorSet) = 0;
+
+	virtual void UpdateDescriptorSet(const RHIUpdateDescriptorSetDesc& Desc) = 0;
 
 protected:
 	RHIDeviceType CurrentDeviceType = RHIDeviceType::None;

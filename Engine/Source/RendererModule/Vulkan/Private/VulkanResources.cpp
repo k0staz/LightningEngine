@@ -420,6 +420,14 @@ void VulkanCommandList::PipelineBarrier(const RHIDependencyDesc& DependencyDesc)
         vkBarrier.newLayout = MapImageLayout(imageBarrier.NewLayout);
         vkBarrier.image = ResourceCast(imageBarrier.Image.GetPointer())->GetVkImage();
         vkBarrier.subresourceRange = MapSubresourceRange(imageBarrier.SubresourceRange);
+        if (imageBarrier.SrcQueueFamilyIndex.has_value())
+        {
+            vkBarrier.srcQueueFamilyIndex = imageBarrier.SrcQueueFamilyIndex.value();
+        }
+        if (imageBarrier.DstQueueFamilyIndex.has_value())
+        {
+            vkBarrier.dstQueueFamilyIndex = imageBarrier.DstQueueFamilyIndex.value();
+        }
     }
 
     VkDependencyInfo dependencyInfo = {};
@@ -564,5 +572,125 @@ void VulkanCommandList::Draw(uint32 IndexCount, uint32 InstanceCount, uint32 Fir
     }
 
     vkCmdDraw(VulkanCommandBuffer, IndexCount, InstanceCount, FirstIndex, FirstInstance);
+}
+
+void VulkanCommandList::CopyToGlobalBuffer(RefCountingPtr<RHIGlobalBuffer> GlobalBuffer, RefCountingPtr<RHILinearBuffer> StageBuffer,
+                                           const std::vector<RHIGlobalBufferUploadDesc>& Descriptions)
+{
+    if (!IsValid())
+    {
+        LE_ASSERT_DESC(false, "Trying to use a non-valid command buffer")
+        return;
+    }
+
+    if (Descriptions.empty())
+    {
+        return;
+    }
+
+    if (!StageBuffer.IsValid() || !StageBuffer->IsValid())
+    {
+        LE_ASSERT_DESC(false, "Invalid stage buffer")
+        return;
+    }
+
+    if (!GlobalBuffer || !GlobalBuffer->IsValid())
+    {
+        LE_ASSERT_DESC(false, "Invalid global buffer")
+        return;
+    }
+
+    std::vector<VkBufferCopy2> copyRegions;
+    copyRegions.reserve(Descriptions.size());
+    for (const auto& desc : Descriptions)
+    {
+        VkBufferCopy2 region = {
+            .sType = VK_STRUCTURE_TYPE_BUFFER_COPY_2,
+            .srcOffset = desc.StageBufferOffset,
+            .dstOffset = desc.GlobalBufferOffset,
+            .size = desc.Size
+        };
+        copyRegions.emplace_back(region);
+    }
+
+    VkCopyBufferInfo2 copyInfo = {
+        .sType = VK_STRUCTURE_TYPE_COPY_BUFFER_INFO_2,
+        .pNext = nullptr,
+        .srcBuffer = ResourceCast(StageBuffer.GetPointer())->GetHandle(),
+        .dstBuffer = ResourceCast(GlobalBuffer.GetPointer())->GetHandle(),
+        .regionCount = static_cast<uint32_t>(copyRegions.size()),
+        .pRegions = copyRegions.data()
+    };
+
+    vkCmdCopyBuffer2(VulkanCommandBuffer, &copyInfo);
+}
+
+void VulkanCommandList::CopyBufferToImage(RefCountingPtr<RHILinearBuffer> StageBuffer, const RHIBufferImageCopyDesc& Desc)
+{
+    if (!IsValid() || !StageBuffer || !StageBuffer->IsValid())
+    {
+        return;
+    }
+
+    if (!Desc.Image || !Desc.Image->IsValid())
+    {
+        return;
+    }
+
+    VulkanLinearBuffer* stageBuffer = ResourceCast(StageBuffer.GetPointer());
+    VulkanImage* image = ResourceCast(Desc.Image.GetPointer());
+
+    std::vector<VkBufferImageCopy> copyRegions;
+    copyRegions.reserve(Desc.Regions.size());
+    for (const auto& region : Desc.Regions)
+    {
+        VkBufferImageCopy& copyRegion = copyRegions.emplace_back();
+        copyRegion.bufferOffset = region.SourceBufferOffset;
+        copyRegion.imageExtent = {region.Extent.X, region.Extent.Y, region.Extent.Z};
+        copyRegion.imageOffset = {region.Offset.X, region.Offset.Y, region.Offset.Z};
+        copyRegion.imageSubresource = MapSubresourceLayers(region.SubresourceLayers);
+    }
+
+    vkCmdCopyBufferToImage(VulkanCommandBuffer, stageBuffer->GetHandle(), image->GetVkImage(), VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                           copyRegions.size(), copyRegions.data());
+}
+
+void VulkanCommandList::BindDescriptorSets(RefCountingPtr<RHIPipelineLayout> PipelineLayout,
+                                           const std::vector<RefCountingPtr<RHI::RHIDescriptorSet>>& DescriptorSets)
+{
+    if (!IsValid())
+    {
+        LE_ASSERT_DESC(false, "Trying to use a non-valid command buffer")
+        return;
+    }
+
+    if (!PipelineLayout || !PipelineLayout->IsValid())
+    {
+        LE_ASSERT_DESC(false, "Trying to bind invalid pipeline layout");
+        return;
+    }
+
+    if (DescriptorSets.empty())
+    {
+        LE_WARN("Trying to bind empty descriptor sets");
+        return;
+    }
+
+    std::vector<VkDescriptorSet> descriptorSets;
+    descriptorSets.reserve(DescriptorSets.size());
+    for (const auto& descriptorSet : DescriptorSets)
+    {
+        if (!descriptorSet || !descriptorSet->IsValid())
+        {
+            LE_ERROR("Trying to bind invalid descriptor set");
+            continue;
+        }
+
+        descriptorSets.push_back(ResourceCast(descriptorSet.GetPointer())->GetVkDescriptorSet());
+    }
+
+    vkCmdBindDescriptorSets(VulkanCommandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
+                            ResourceCast(PipelineLayout.GetPointer())->GetVkPipelineLayout(), 0, descriptorSets.size(),
+                            descriptorSets.data(), 0, nullptr);
 }
 }

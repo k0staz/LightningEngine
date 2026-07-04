@@ -2,6 +2,7 @@
 #include "RenderCommandList.h"
 #include "RenderProxyStorage.h"
 #include "AssetManager/AssetManager.h"
+#include "Assets/MaterialInstanceAsset.h"
 #include "Assets/StaticMeshAsset.h"
 #include "ECS/EcsEntity.h"
 #include "Math/Matrix4x4.h"
@@ -25,6 +26,8 @@ public:
 	
 	void CreateStaticMeshRenderProxy(EcsEntity EntityId, AssetHandle<StaticMeshAsset> MeshAsset, const Matrix4x4F& Transform);
 	void UpdateStaticMeshRenderProxy(EcsEntity EntityId, const Matrix4x4F& Transform);
+
+	void AddMaterialToRenderProxy(EcsEntity EntityId, AssetHandle<MaterialInstanceAsset> AssetMaterial);
 	
 	void DeleteRenderProxy(EcsEntity EntityId);
 	void SetRenderProxyEnabled(EcsEntity EntityId, bool Enabled);

@@ -24,10 +24,9 @@ StaticMeshContributor::StaticMeshDynamicData& StaticMeshContributor::GetDynamicD
 	return fallbackData;
 }
 
-void StaticMeshContributor::SetRenderResourceId(RenderResourceHandle<const StaticMeshRenderResource> Resource)
+void StaticMeshContributor::SetRenderResource(RenderResourceHandle<const StaticMeshRenderResource> Resource)
 {
 	RenderResource = Resource;
-
 }
 
 bool StaticMeshContributor::HasProxy(EcsEntity Entity)

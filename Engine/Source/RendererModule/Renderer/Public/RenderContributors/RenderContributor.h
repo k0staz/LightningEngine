@@ -70,7 +70,7 @@ public:
 		return TypeId;
 	}
 
-	virtual RenderContributorMetaType GetMetaType() const = 0;
+	[[nodiscard]] virtual RenderContributorMetaType GetMetaType() const = 0;
 
 	template <DerivedFromRenderContributor Type>
 	bool IsOfType() const

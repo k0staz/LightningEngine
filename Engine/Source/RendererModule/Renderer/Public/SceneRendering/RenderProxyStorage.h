@@ -6,11 +6,14 @@ namespace LE::Renderer
 {
 struct RenderProxyState
 {
-	EcsEntity EntityId;
+	EcsEntity EntityId = EcsEntityNull;
 	bool IsEnabled = true;
+
 	RenderContributorTypeId MeshVariationTypeId = NullId{};
 	RenderContributorId MeshVariationInstanceId = NullId{};
-	std::unordered_map<RenderContributorTypeId, RenderContributorId> ProxyContributors;
+
+	RenderContributorTypeId MaterialVariationTypeId = NullId{};
+	RenderContributorId MaterialVariationInstanceId = NullId{};
 };
 
 template<typename Entity>

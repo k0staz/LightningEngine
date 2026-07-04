@@ -142,6 +142,9 @@ void VulkanDevice::Initialize()
         transferQueueFamily = graphicsQueueFamily;
     }
 
+    TransferQueueFamilyIndex = transferQueueFamily;
+    GraphicsQueueFamilyIndex = graphicsQueueFamily;
+
     const std::set<uint32> foundQueueFamilies{graphicsQueueFamily, transferQueueFamily};
 
     // Logical device
@@ -171,6 +174,8 @@ void VulkanDevice::Initialize()
         .pNext = &enabledVk11Features,
         .descriptorIndexing = true,
         .shaderSampledImageArrayNonUniformIndexing = true,
+        .descriptorBindingSampledImageUpdateAfterBind = true,
+        .descriptorBindingPartiallyBound = true,
         .descriptorBindingVariableDescriptorCount = true,
         .runtimeDescriptorArray = true,
         .timelineSemaphore = true,
@@ -183,7 +188,7 @@ void VulkanDevice::Initialize()
         .dynamicRendering = true
     };
 
-    VkPhysicalDeviceFeatures enabledVk10Features{.samplerAnisotropy = VK_TRUE};
+    VkPhysicalDeviceFeatures enabledVk10Features{.samplerAnisotropy = VK_TRUE, .shaderInt64 = true};
 
     const std::vector<const char*> deviceExtensions{VK_KHR_SWAPCHAIN_EXTENSION_NAME, VK_EXT_VERTEX_INPUT_DYNAMIC_STATE_EXTENSION_NAME};
 
@@ -450,58 +455,6 @@ void VulkanDevice::DestroyBuffer(RefCountingPtr<RHIBuffer> Buffer)
     vulkanBuffer->Reset();
 }
 
-void VulkanDevice::CopyToGlobalBuffer(RefCountingPtr<RHICommandList> CommandList, RefCountingPtr<RHIGlobalBuffer> GlobalBuffer,
-                                      RefCountingPtr<RHILinearBuffer> StageBuffer,
-                                      const std::vector<RHIGlobalBufferUploadDesc>& Descriptions)
-{
-    if (Descriptions.empty())
-    {
-        return;
-    }
-
-    if (!StageBuffer.IsValid() || !StageBuffer->IsValid())
-    {
-        LE_ASSERT_DESC(false, "Invalid stage buffer")
-        return;
-    }
-
-    if (!GlobalBuffer || !GlobalBuffer->IsValid())
-    {
-        LE_ASSERT_DESC(false, "Invalid global buffer")
-        return;
-    }
-
-    if (!CommandList || !CommandList->IsValid())
-    {
-        LE_ASSERT_DESC(false, "Invalid command list")
-        return;
-    }
-
-    std::vector<VkBufferCopy2> copyRegions;
-    copyRegions.reserve(Descriptions.size());
-    for (const auto& desc : Descriptions)
-    {
-        VkBufferCopy2 region = {
-            .sType = VK_STRUCTURE_TYPE_BUFFER_COPY_2,
-            .srcOffset = desc.StageBufferOffset,
-            .dstOffset = desc.GlobalBufferOffset,
-            .size = desc.Size
-        };
-        copyRegions.emplace_back(region);
-    }
-
-    VkCopyBufferInfo2 copyInfo = {
-        .sType = VK_STRUCTURE_TYPE_COPY_BUFFER_INFO_2,
-        .pNext = nullptr,
-        .srcBuffer = ResourceCast(StageBuffer.GetPointer())->GetHandle(),
-        .dstBuffer = ResourceCast(GlobalBuffer.GetPointer())->GetHandle(),
-        .regionCount = static_cast<uint32_t>(copyRegions.size()),
-        .pRegions = copyRegions.data()
-    };
-
-    vkCmdCopyBuffer2(ResourceCast(CommandList.GetPointer())->GetVkCommandBuffer(), &copyInfo);
-}
-
 RefCountingPtr<RHICommandList> VulkanDevice::CreateCommandList(RHICommandListType ListType)
 {
     uint32 threadIdx = 0;
@@ -572,7 +525,8 @@ RefCountingPtr<RHICommandList> VulkanDevice::CreateCommandList(RHICommandListTyp
     return new VulkanCommandList{commandBuffer, ListType};
 }
 
-void VulkanDevice::SubmitCommandList(RHICommandListType ListType, const std::vector<RefCountingPtr<RHICommandList>>& CommandLists, uint32 SwapchainImageIdx)
+void VulkanDevice::SubmitCommandList(RHICommandListType ListType, const std::vector<RefCountingPtr<RHICommandList>>& CommandLists,
+                                     uint32 SwapchainImageIdx)
 {
     if (!Thread::IsRenderThread())
     {
@@ -673,7 +627,7 @@ void VulkanDevice::Present(RefCountingPtr<RHIWindow> Window, uint32 SwapchainIma
 
     VulkanWindow* vulkanWindow = ResourceCast(Window.GetPointer());
 
-    VkPresentInfoKHR presentInfo {.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR};
+    VkPresentInfoKHR presentInfo{.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR};
     presentInfo.waitSemaphoreCount = 1;
     presentInfo.pWaitSemaphores = &RenderCompleteSemaphores[SwapchainImageIdx];
     presentInfo.swapchainCount = 1;
@@ -690,11 +644,20 @@ RefCountingPtr<RHIPipelineLayout> VulkanDevice::CreatePipelineLayout(const RHIPi
         .size = PipelineLayoutDesc.PushConstantSize
     };
 
+    std::vector<VkDescriptorSetLayout> descriptorSetLayouts;
+    descriptorSetLayouts.reserve(PipelineLayoutDesc.DescriptorSetLayouts.size());
+    for (const auto& DescriptorSetLayout : PipelineLayoutDesc.DescriptorSetLayouts)
+    {
+        descriptorSetLayouts.push_back(ResourceCast(DescriptorSetLayout.GetPointer())->GetVkDescriptorSetLayout());
+    }
+
     VkPipelineLayoutCreateInfo pipelineLayoutCreateInfo
     {
         .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
+        .setLayoutCount = static_cast<uint32_t>(descriptorSetLayouts.size()),
+        .pSetLayouts = descriptorSetLayouts.data(),
         .pushConstantRangeCount = 1,
-        .pPushConstantRanges = &pushConstantRange
+        .pPushConstantRanges = &pushConstantRange,
     };
 
     VkPipelineLayout pipelineLayout;
@@ -1062,5 +1025,302 @@ void VulkanDevice::DestroyImageView(RefCountingPtr<RHIImageView> ImageView)
     }
 
     vkDestroyImageView(Device, vulkanImageView->GetVkImageView(), nullptr);
+}
+
+RefCountingPtr<RHISampler> VulkanDevice::CreateSampler(const RHISamplerType& SamplerType)
+{
+    VkSamplerCreateInfo createInfo{.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO};
+    createInfo.mipLodBias = 0.0f;
+    createInfo.minLod = 0.0f;
+    createInfo.maxLod = VK_LOD_CLAMP_NONE;
+    createInfo.borderColor = VK_BORDER_COLOR_FLOAT_OPAQUE_BLACK;
+    createInfo.unnormalizedCoordinates = VK_FALSE;
+    createInfo.compareEnable = VK_FALSE;
+    createInfo.compareOp = VK_COMPARE_OP_ALWAYS;
+
+    switch (SamplerType)
+    {
+    case RHISamplerType::LinearRepeat:
+        createInfo.magFilter = VK_FILTER_LINEAR;
+        createInfo.minFilter = VK_FILTER_LINEAR;
+        createInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+        createInfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+        createInfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+        createInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
+        break;
+    case RHISamplerType::LinearClamp:
+        createInfo.magFilter = VK_FILTER_LINEAR;
+        createInfo.minFilter = VK_FILTER_LINEAR;
+        createInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+        createInfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+        createInfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+        createInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
+        break;
+    case RHISamplerType::PointRepeat:
+        createInfo.magFilter = VK_FILTER_NEAREST;
+        createInfo.minFilter = VK_FILTER_NEAREST;
+        createInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+        createInfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+        createInfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+        createInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_NEAREST;
+        break;
+    case RHISamplerType::PointClamp:
+        createInfo.magFilter = VK_FILTER_NEAREST;
+        createInfo.minFilter = VK_FILTER_NEAREST;
+        createInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+        createInfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+        createInfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+        createInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_NEAREST;
+        break;
+    case RHISamplerType::Anisotropic:
+        createInfo.magFilter = VK_FILTER_LINEAR;
+        createInfo.minFilter = VK_FILTER_LINEAR;
+        createInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+        createInfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+        createInfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+        createInfo.anisotropyEnable = VK_TRUE;
+        createInfo.maxAnisotropy = 16.0f;
+        createInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
+        break;
+    case RHISamplerType::Count:
+    default:
+        LE_ASSERT_DESC(false, "Invalid sampler type")
+        return nullptr;
+        break;
+    }
+
+    VkSampler sampler;
+    if (!CheckVkResult(vkCreateSampler(Device, &createInfo, nullptr, &sampler)))
+    {
+        LE_ASSERT_DESC(false, "Failed to create sampler")
+        return nullptr;
+    }
+
+    return new VulkanSampler(sampler);
+}
+
+void VulkanDevice::DestroySampler(RefCountingPtr<RHISampler> Sampler)
+{
+    if (!Sampler || !Sampler->IsValid())
+    {
+        return;
+    }
+
+    VulkanSampler* vulkanSampler = ResourceCast(Sampler.GetPointer());
+    if (!vulkanSampler)
+    {
+        return;
+    }
+
+    vkDestroySampler(Device, vulkanSampler->GetVkSampler(), nullptr);
+}
+
+RefCountingPtr<RHIDescriptorSetLayout> VulkanDevice::CreateDescriptorSetLayout(const RHIDescriptorSetLayoutDesc& DescriptorSetLayoutDesc)
+{
+    if (DescriptorSetLayoutDesc.BindingFlags.empty() || DescriptorSetLayoutDesc.Bindings.empty())
+    {
+        return nullptr;
+    }
+
+    std::vector<VkDescriptorSetLayoutBinding> bindings;
+    std::vector<std::vector<VkSampler>> samplers;
+    samplers.reserve(DescriptorSetLayoutDesc.Bindings.size());
+    bindings.reserve(DescriptorSetLayoutDesc.Bindings.size());
+    for (const auto& bindingDesc : DescriptorSetLayoutDesc.Bindings)
+    {
+        VkDescriptorSetLayoutBinding& bindingCI = bindings.emplace_back();
+        bindingCI.binding = bindingDesc.Binding;
+        bindingCI.descriptorType = MapDescriptorType(bindingDesc.DescriptorType);
+        bindingCI.descriptorCount = bindingDesc.DescriptorCount;
+        bindingCI.stageFlags = ShaderStageFlagBit(bindingDesc.ShaderStage);
+        if (!bindingDesc.ImmutableSamplers.empty())
+        {
+            std::vector<VkSampler>& samplerArray = samplers.emplace_back();
+            samplerArray.reserve(bindingDesc.ImmutableSamplers.size());
+            for (const auto& sampler : bindingDesc.ImmutableSamplers)
+            {
+                if (!sampler)
+                {
+                    LE_ASSERT_DESC(false, "Invalid immutable sampler");
+                    continue;
+                }
+
+                VulkanSampler* vkSampler = ResourceCast(sampler.GetPointer());
+                samplerArray.push_back(vkSampler->GetVkSampler());
+            }
+            bindingCI.pImmutableSamplers = samplerArray.data();
+        }
+        else
+        {
+            bindingCI.pImmutableSamplers = nullptr;
+        }
+    }
+
+    std::vector<VkDescriptorBindingFlags> bindingFlags;
+    bindingFlags.reserve(DescriptorSetLayoutDesc.BindingFlags.size());
+    for (const auto& bindingFlag : DescriptorSetLayoutDesc.BindingFlags)
+    {
+        bindingFlags.push_back(MapDescriptorBindingFlags(bindingFlag));
+    }
+
+    VkDescriptorSetLayoutBindingFlagsCreateInfo bindingFlagsInfo{
+        .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_BINDING_FLAGS_CREATE_INFO
+    };
+    bindingFlagsInfo.pBindingFlags = bindingFlags.data();
+    bindingFlagsInfo.bindingCount = bindingFlags.size();
+
+    VkDescriptorSetLayoutCreateInfo layoutInfo{.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO};
+    layoutInfo.pNext = &bindingFlagsInfo;
+    layoutInfo.flags = MapDescriptorSetLayoutCreateFlags(DescriptorSetLayoutDesc.Flags);
+    layoutInfo.bindingCount = bindings.size();
+    layoutInfo.pBindings = bindings.data();
+
+    VkDescriptorSetLayout vkDescriptorSetLayout = nullptr;
+    if (!CheckVkResult(vkCreateDescriptorSetLayout(Device, &layoutInfo, nullptr, &vkDescriptorSetLayout)))
+    {
+        return nullptr;
+    }
+
+    return new VulkanDescriptorSetLayout(vkDescriptorSetLayout, DescriptorSetLayoutDesc);
+}
+
+void VulkanDevice::DestroyDescriptorSetLayout(RefCountingPtr<RHIDescriptorSetLayout> DescriptorSetLayout)
+{
+    if (!DescriptorSetLayout || !DescriptorSetLayout->IsValid())
+    {
+        return;
+    }
+
+    VulkanDescriptorSetLayout* vulkanLayout = ResourceCast(DescriptorSetLayout.GetPointer());
+    vkDestroyDescriptorSetLayout(Device, vulkanLayout->GetVkDescriptorSetLayout(), nullptr);
+}
+
+RefCountingPtr<RHIDescriptorSetPool> VulkanDevice::CreateDescriptorSetPool(const RHIDescriptorSetPoolDesc& DescriptorSetPoolDesc)
+{
+    if (DescriptorSetPoolDesc.PoolSizes.empty())
+    {
+        return nullptr;
+    }
+
+    std::vector<VkDescriptorPoolSize> poolSizes;
+    poolSizes.reserve(DescriptorSetPoolDesc.PoolSizes.size());
+    for (const auto& poolSize : DescriptorSetPoolDesc.PoolSizes)
+    {
+        VkDescriptorPoolSize& vkPoolSize = poolSizes.emplace_back();
+        vkPoolSize.type = MapDescriptorType(poolSize.DescriptorType);
+        vkPoolSize.descriptorCount = poolSize.DescriptorCount;
+    }
+
+    VkDescriptorPoolCreateInfo poolInfo{.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO};
+    poolInfo.maxSets = DescriptorSetPoolDesc.MaxSets;
+    poolInfo.flags = MapDescriptorPoolCreateFlags(DescriptorSetPoolDesc.Flags);
+    poolInfo.pPoolSizes = poolSizes.data();
+    poolInfo.poolSizeCount = poolSizes.size();
+
+    VkDescriptorPool vkDescriptorPool;
+    if (!CheckVkResult(vkCreateDescriptorPool(Device, &poolInfo, nullptr, &vkDescriptorPool)))
+    {
+        LE_ASSERT_DESC(false, "Failed to create descriptor pool");
+        return nullptr;
+    }
+
+    return new VulkanDescriptorSetPool(vkDescriptorPool, DescriptorSetPoolDesc);
+}
+
+void VulkanDevice::DestroyDescriptorSetPool(RefCountingPtr<RHIDescriptorSetPool> DescriptorSetPool)
+{
+    if (!DescriptorSetPool || !DescriptorSetPool->IsValid())
+    {
+        return;
+    }
+
+    VulkanDescriptorSetPool* vulkanPool = ResourceCast(DescriptorSetPool.GetPointer());
+
+    vkDestroyDescriptorPool(Device, vulkanPool->GetVkDescriptorSetPool(), nullptr);
+}
+
+RefCountingPtr<RHIDescriptorSet> VulkanDevice::CreateDescriptorSet(const RHIDescriptorSetDesc& Desc)
+{
+    if (!Desc.Layout || !Desc.Pool)
+    {
+        return nullptr;
+    }
+
+    VulkanDescriptorSetPool* vulkanSetPool = ResourceCast(Desc.Pool.GetPointer());
+    VulkanDescriptorSetLayout* vulkanSetLayout = ResourceCast(Desc.Layout.GetPointer());
+
+    VkDescriptorSetAllocateInfo allocInfo{.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO};
+    allocInfo.descriptorPool = vulkanSetPool->GetVkDescriptorSetPool();
+    allocInfo.pSetLayouts = vulkanSetLayout->GetVkDescriptorSetLayoutPtr();
+    allocInfo.descriptorSetCount = 1;
+
+    VkDescriptorSet vkDescriptorSet;
+    if (!CheckVkResult(vkAllocateDescriptorSets(Device, &allocInfo, &vkDescriptorSet)))
+    {
+        LE_ASSERT_DESC(false, "Failed to allocate descriptor set");
+        return nullptr;
+    }
+
+    return new VulkanDescriptorSet(vkDescriptorSet, Desc.Pool);
+}
+
+void VulkanDevice::FreeDescriptorSet(RefCountingPtr<RHIDescriptorSet> DescriptorSet)
+{
+    if (!DescriptorSet || !DescriptorSet->IsValid())
+    {
+        return;
+    }
+
+    VulkanDescriptorSetPool* vulkanPool = ResourceCast(DescriptorSet->GetPool().GetPointer());
+    VulkanDescriptorSet* vulkanDescriptorSet = ResourceCast(DescriptorSet.GetPointer());
+
+    vkFreeDescriptorSets(Device, vulkanPool->GetVkDescriptorSetPool(), 1, vulkanDescriptorSet->GetVkDescriptorSetPtr());
+}
+
+void VulkanDevice::UpdateDescriptorSet(const RHIUpdateDescriptorSetDesc& Desc)
+{
+    if (Desc.ImageInfos.empty() || !Desc.Set || !Desc.Set->IsValid())
+    {
+        return;
+    }
+
+    std::vector<VkDescriptorImageInfo> vulkanImageInfos;
+    vulkanImageInfos.reserve(Desc.ImageInfos.size());
+    for (const RHIDescriptorImageInfoDesc& imageInfo : Desc.ImageInfos)
+    {
+        if (!imageInfo.View || !imageInfo.View->IsValid())
+        {
+            continue;
+        }
+
+        VkDescriptorImageInfo& vulkanImageInfo = vulkanImageInfos.emplace_back();
+        vulkanImageInfo.imageLayout = MapImageLayout(imageInfo.Layout);
+        vulkanImageInfo.imageView = ResourceCast(imageInfo.View.GetPointer())->GetVkImageView();
+        if (imageInfo.Sampler && imageInfo.Sampler->IsValid())
+        {
+            vulkanImageInfo.sampler = ResourceCast(imageInfo.Sampler.GetPointer())->GetVkSampler();
+        }
+    }
+
+    VkWriteDescriptorSet writeDescriptorSet = {};
+    writeDescriptorSet.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    writeDescriptorSet.dstSet = ResourceCast(Desc.Set.GetPointer())->GetVkDescriptorSet();
+    writeDescriptorSet.dstBinding = Desc.Binding;
+    writeDescriptorSet.dstArrayElement = Desc.ArrayElement;
+    writeDescriptorSet.descriptorCount = static_cast<uint32_t>(vulkanImageInfos.size());
+    writeDescriptorSet.descriptorType = MapDescriptorType(Desc.DescriptorType);
+    writeDescriptorSet.pImageInfo = vulkanImageInfos.data();
+
+    vkUpdateDescriptorSets(Device, 1, &writeDescriptorSet, 0, nullptr);
+}
+
+uint32 VulkanDevice::GetGraphicsQueueFamilyIndex() const
+{
+    return GraphicsQueueFamilyIndex;
+}
+
+uint32 VulkanDevice::GetTransferQueueFamilyIndex() const
+{
+    return TransferQueueFamilyIndex;
 }
 }

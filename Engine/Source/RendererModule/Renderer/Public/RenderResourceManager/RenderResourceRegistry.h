@@ -5,39 +5,86 @@
 
 namespace LE::Renderer
 {
-class StaticMeshRenderResourceStorage final : public ResourceSparseSet<RenderResourceId, StaticMeshRenderResource, RenderResource, RenderResourceTraits<RenderResourceId>>
+class RenderResourceStorageBase : public ResourceSparseSetBase<RenderResourceId, RenderResource, RenderResourceTraits<RenderResourceId>>
 {
 public:
+	using base_type = ResourceSparseSetBase<RenderResourceId, RenderResource, RenderResourceTraits<RenderResourceId>>;
+
 	struct ResourceState
 	{
-		bool IsValid() const
+		[[nodiscard]] bool IsValid() const
 		{
 			return ResourceId != NullId{};
 		}
 
 		Uid AssetUid;
 		RenderResourceId ResourceId = NullId{};
-		RenderContributorId ContributorInstanceId = NullId{};
 	};
-	
-	StaticMeshRenderResource& CreateNewResource() override
+
+	void ReleaseRenderResource(RenderResourceId ResourceId)
 	{
-		RenderContributorId contributorId = GetAvailableId();
-		RenderContributorId& sparse = TryAdd(contributorId);
-		StaticMeshRenderResource* contributor = std::to_address(GetCreateResource(base_type::GetIndex(sparse)));
-		std::construct_at(contributor, contributorId, RenderResourceTypeIdGetter<StaticMeshRenderResource>::Value);
-		return static_cast<StaticMeshRenderResource&>(*contributor);
+		if (!this->Has(ResourceId))
+		{
+			return;
+		}
+
+		ResourceState& state = ResourceStates.at(ResourceId);
+		base_type::PopResource(ResourceId);
+		ResourceMap.erase(state.AssetUid);
+		ResourceStates.erase(ResourceId);
 	}
 
-	void ReleaseRenderResource(RenderResourceId ResourceId);
-	void ReleaseRenderResource(const Uid& AssetUid);
-	
-	ResourceState GetCreateRenderResourceState(const Uid& AssetUid);
-	ResourceState GetRenderResourceState(RenderResourceId ResourceId) const;
-	
-	StaticMeshRenderResource& GetRenderResource(RenderResourceId ResourceId) const;
+	void ReleaseRenderResource(const Uid& AssetUid)
+	{
+		auto it = ResourceMap.find(AssetUid);
+		if (it != ResourceMap.end())
+		{
+			ReleaseRenderResource(ResourceStates[it->second].ResourceId);
+		}
+	}
 
-	std::vector<ResourceState> GetAllRenderResourceStates() const;
+	ResourceState GetCreateRenderResourceState(const Uid& AssetUid)
+	{
+		auto it = ResourceMap.find(AssetUid);
+		if (it != ResourceMap.end())
+		{
+			return ResourceStates[it->second];
+		}
+
+		RenderResource& renderResource = CreateNewResource();
+
+		ResourceState newState;
+		newState.AssetUid = AssetUid;
+		newState.ResourceId = renderResource.GetId();
+
+		ResourceMap[AssetUid] = newState.ResourceId;
+		ResourceStates[newState.ResourceId] = newState;
+
+		return newState;
+	}
+
+	[[nodiscard]] ResourceState GetRenderResourceState(RenderResourceId ResourceId) const
+	{
+		if (!this->Has(ResourceId))
+		{
+			return {};
+		}
+
+		return ResourceStates.at(ResourceId);
+	}
+
+	[[nodiscard]] std::vector<ResourceState> GetAllRenderResourceStates() const
+	{
+		std::vector<ResourceState> states;
+		states.reserve(ResourceStates.size());
+
+		for (const auto& it : ResourceStates)
+		{
+			states.push_back(it.second);
+		}
+
+		return states;
+	}
 
 	void Clear() override
 	{
@@ -48,5 +95,19 @@ public:
 private:
 	std::unordered_map<Uid, RenderResourceId> ResourceMap;
 	std::unordered_map<RenderResourceId, ResourceState> ResourceStates;
+};
+
+template<DerivedFromRenderResource RenderResourceType>
+class RenderResourceStorage final : public ResourceSparseSet<RenderResourceId, RenderResourceType, RenderResource, RenderResourceTraits<RenderResourceId>, RenderResourceStorageBase>
+{
+public:
+	RenderResource& CreateNewResource() override
+	{
+		RenderContributorId contributorId = this->GetAvailableId();
+		RenderContributorId& sparse = this->TryAdd(contributorId);
+		RenderResourceType* contributor = std::to_address(this->GetCreateResource(this->GetIndex(sparse)));
+		std::construct_at(contributor, contributorId, RenderResourceTypeIdGetter<RenderResourceType>::Value);
+		return *contributor;
+	}
 };
 }

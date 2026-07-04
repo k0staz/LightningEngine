@@ -2,6 +2,7 @@
 
 #include "RHIDevice.h"
 #include "ShaderVariationRegistry.h"
+#include "RenderResourceManager/RenderResourceManager.h"
 #include "Service/ServiceRegistry.h"
 #include "tracy/Tracy.hpp"
 
@@ -60,7 +61,10 @@ RefCountingPtr<RHI::RHIPipelineObject> PipelineObjectManager::GetPipelineObject(
 
 	RHI::RHIPipelineObjectDesc pipelineObjectDesc = {};
 
+	auto& resourceManager = GetServiceRegistry().GetService<RenderResourceManager>();
+
 	RHI::RHIPipelineLayoutDesc layoutDesc = {};
+	layoutDesc.DescriptorSetLayouts.push_back(resourceManager.GetGlobalDescriptorSetLayout());
 	layoutDesc.ShaderStages = shaderPassDesc.PushConstantStages;
 	layoutDesc.PushConstantSize = shaderPassDesc.PushConstantSize;
 
@@ -83,6 +87,13 @@ RefCountingPtr<RHI::RHIPipelineObject> PipelineObjectManager::GetPipelineObject(
 		auto& meshVariation = shaderDesc.ModuleSpecializations.emplace_back();
 		meshVariation = shaderVariationReg.GetRenderContributorData(Key.MeshContributorTypeId);
 	}
+
+	if (Key.MaterialContributorTypeId != NullId{})
+	{
+		auto& materialVariation = shaderDesc.ModuleSpecializations.emplace_back();
+		materialVariation = shaderVariationReg.GetRenderContributorData(Key.MaterialContributorTypeId);
+	}
+
 	RHI::ShaderCompiler::SpecializedProgram specializedProgram = shaderCompiler.CompileProgram(shaderDesc);
 	pipelineObjectDesc.ShaderModule = specializedProgram.CompiledModule;
 

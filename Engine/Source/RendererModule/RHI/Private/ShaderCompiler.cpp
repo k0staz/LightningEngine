@@ -50,19 +50,22 @@ void ShaderCompiler::Shutdown()
 {
 	for (auto& value : LoadedModules | std::views::values)
 	{
-		value->release();
+		value->Release();
+		value = nullptr;
 	}
 
 	LoadedModules.clear();
 
 	if (SlangSession)
 	{
-		SlangSession->release();
+		SlangSession->Release();
+		SlangSession = nullptr;
 	}
 
 	if (SlangGlobalSession)
 	{
-		SlangGlobalSession->release();
+		SlangGlobalSession->Release();
+		SlangGlobalSession = nullptr;
 	}
 }
 

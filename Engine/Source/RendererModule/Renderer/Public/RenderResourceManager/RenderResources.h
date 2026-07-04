@@ -138,4 +138,19 @@ public:
 };
 
 REGISTER_RENDER_RESOURCE_TYPE(StaticMeshRenderResource, "StaticMeshRenderResource")
+
+class TextureRenderResource : public RenderResource
+{
+public:
+	using RenderResource::RenderResource;
+
+	TextureRenderResource(TextureRenderResource&& other) noexcept = default;
+	TextureRenderResource& operator=(TextureRenderResource&& other) noexcept = default;
+
+	uint64 BindingSlot = 0;
+	RefCountingPtr<RHI::RHIImage> Texture = nullptr;
+	RefCountingPtr<RHI::RHIImageView> TextureView = nullptr;
+};
+
+REGISTER_RENDER_RESOURCE_TYPE(TextureRenderResource, "TextureRenderResource")
 }

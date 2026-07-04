@@ -1,10 +1,12 @@
 #pragma once
 #include <semaphore>
+#include <stack>
 
 #include "RenderResourceRegistry.h"
 #include "RenderResources.h"
 #include "Assets/StaticMeshAsset.h"
 #include "AssetManager/AssetManager.h"
+#include "Assets/TextureAsset.h"
 #include "Misc/Uid.h"
 #include "Service/ServiceBase.h"
 
@@ -24,6 +26,7 @@ public:
         : ResourceId(Object.Id),
           ResourceTypeId(Object.TypeId)
     {
+        InternalAddRef();
     }
 
     RenderResourceHandle(const RenderResourceHandle& OtherHandle)
@@ -175,6 +178,8 @@ private:
         Get().AddRef();
     }
 
+    void ScheduleRelease() const;
+
     void InternalRelease() const
     {
         if (!IsValid())
@@ -182,7 +187,10 @@ private:
             return;
         }
 
-        Get().ReleaseRef();
+        if (Get().ReleaseRef() == 0)
+        {
+            ScheduleRelease();
+        }
     }
 
 private:
@@ -196,6 +204,7 @@ private:
 class RenderResourceManager : public ServiceBase
 {
     struct PendingStaticMeshLoad;
+    struct PendingTextureLoad;
     struct BatchTransferContext;
 
 public:
@@ -203,20 +212,46 @@ public:
     void Shutdown() override;
     void OnBeginFrame();
 
+    void EnqueuePendingBarriers(RefCountingPtr<RHI::RHICommandList> CommandList);
+
     void DispatchBatchLoadTasks();
     void FinalizeBatchLoad();
 
     RenderResourceHandle<const StaticMeshRenderResource> RequestStaticMesh(AssetHandle<StaticMeshAsset> Asset);
-    RenderContributorId GetRenderContributor(RenderResourceHandle<const StaticMeshRenderResource> StaticMeshResource) const;
+    RenderResourceHandle<const TextureRenderResource> RequestTexture(AssetHandle<TextureAsset> Asset);
 
-    bool HasResource(RenderResourceId ResourceId) const;
+    bool HasResource(RenderResourceTypeId TypeId, RenderResourceId ResourceId) const;
 
-    void ReleaseStaticMesh(RenderResourceHandle<const StaticMeshRenderResource> StaticMeshResource);
-    void ReleaseStaticMesh(RenderResourceId ResourceId);
-
+    RefCountingPtr<RHI::RHIDescriptorSetLayout> GetGlobalDescriptorSetLayout() const;
+    RefCountingPtr<RHI::RHIDescriptorSet> GetGlobalDescriptorSet() const;
 private:
-    void RecordTransferCommandsTask(std::vector<PendingStaticMeshLoad> PendingStaticMeshLoad);
-    RenderResource& GetRenderResource(RenderResourceId ResourceId) const;
+    void RecordTransferCommandsStaticMeshTask(std::vector<PendingStaticMeshLoad> PendingStaticMeshLoad);
+    void RecordTransferCommandsTextureTask(std::vector<PendingTextureLoad> PendingTextureLoad);
+    void OnTransferTaskEnd(RefCountingPtr<RHI::RHICommandList> CommandList);
+    RenderResource& GetRenderResource(RenderResourceTypeId TypeId, RenderResourceId ResourceId) const;
+
+    void RecordPendingResourceDelete(RenderResourceTypeId TypeId, RenderResourceId ResourceId);
+    void ReleaseResource(RenderResourceTypeId TypeId, RenderResourceId ResourceId);
+    void ReleaseStaticMesh(RenderResourceId ResourceId);
+    void ReleaseTexture(RenderResourceId ResourceId);
+    void OnBeginFrameProcessPendingDelete();
+
+    uint64 GetFreeTextureBindingSlot();
+
+    template <DerivedFromRenderResource Resource>
+    RenderResourceStorageBase& GetCreateResourceStorage(RenderResourceTypeId TypeId = RenderResourceTypeIdGetter<Resource>::Value)
+    {
+        auto it = ResourceStorages.find(TypeId);
+        if (it != ResourceStorages.end())
+        {
+            return *it->second;
+        }
+
+        ResourceStorages[TypeId] = std::make_shared<RenderResourceStorage<Resource>>();
+        return *ResourceStorages[TypeId];
+    }
+
+    RenderResourceStorageBase* GetResourceStorage(RenderResourceTypeId TypeId) const;
 
 private:
     struct PendingStaticMeshLoad
@@ -225,10 +260,29 @@ private:
         AssetHandle<StaticMeshAsset> Asset;
     };
 
+    struct PendingTextureLoad
+    {
+        RenderResourceHandle<TextureRenderResource> ResourceHandle;
+        AssetHandle<TextureAsset> Asset;
+    };
+
+    struct PendingResourceDelete
+    {
+        RenderResourceTypeId TypeId;
+        RenderResourceId ResourceId;
+    };
+
+    struct PendingResourceBarriers
+    {
+        uint32 TimelineValue = 0;
+        std::vector<RHI::RHIImageMemoryBarrierDesc> ImageBarriers;
+    };
+
     struct BatchTransferContext
     {
         std::mutex ContextMutex;
         std::vector<RefCountingPtr<RHI::RHICommandList>> FinalizedList;
+        PendingResourceBarriers PendingBarriers;
         uint32 RemainingTaskCount;
         bool WasStarted;
         std::binary_semaphore CompletionSignal{0};
@@ -247,15 +301,38 @@ private:
         RefCountingPtr<RHI::RHILinearBuffer> StageBuffer = nullptr;
     };
 
-    StaticMeshRenderResourceStorage StaticMeshStorage;
+    struct TextureSlots
+    {
+        std::mutex SlotMutex;
+        uint64 HeadSlotIndex = RHI::TRANSIENT_TEXTURE_SLOT_COUNT;
+        std::stack<uint64> FreeSlots;
+    };
+
+    std::unordered_map<RenderResourceTypeId, std::shared_ptr<RenderResourceStorageBase>> ResourceStorages;
+
     RefCountingPtr<RHI::RHIGlobalBuffer> GlobalMeshBuffer;
     StaticMeshChannels StaticMeshChannels;
 
     std::mutex StaticMeshLoadsMutex;
     std::vector<PendingStaticMeshLoad> PendingStaticMeshLoads;
 
+    std::mutex TextureLoadsMutex;
+    std::vector<PendingTextureLoad> PendingTextureLoads;
+
+    std::mutex PendingResourceDeletesMutex;
+    std::array<std::vector<PendingResourceDelete>, DEFAULT_FRAMES_IN_FLIGHT> PendingResourceDeletes;
+
+    std::array<RefCountingPtr<RHI::RHISampler>, static_cast<std::size_t>(RHI::RHISamplerType::Count)> GlobalSamplers;
+    RefCountingPtr<RHI::RHIDescriptorSetPool> GlobalDescriptorSetPool;
+    RefCountingPtr<RHI::RHIDescriptorSetLayout> GlobalDescriptorSetLayout;
+    RefCountingPtr<RHI::RHIDescriptorSet> GlobalDescriptorSet;
+    TextureSlots TextureBindingSlots;
+
     BatchTransferContext ThisFrameBatchContext = {};
     FrameTransferContext FrameTransferContexts[DEFAULT_FRAMES_IN_FLIGHT][DEFAULT_TASK_WORKER_THREADS];
+
+    std::stack<PendingResourceBarriers> PendingBarriers;
+    std::mutex PendingBarriersMutex;
 
     template <DerivedFromRenderResource Resource>
     friend class RenderResourceHandle;
@@ -269,15 +346,22 @@ bool RenderResourceHandle<Resource>::IsValid() const
         return false;
     }
 
-    RenderResourceManager& manager = GetServiceRegistry().GetService<RenderResourceManager>();
-    return manager.HasResource(ResourceId);
+    auto& manager = GetServiceRegistry().GetService<RenderResourceManager>();
+    return manager.HasResource(ResourceTypeId, ResourceId);
 }
 
 template <DerivedFromRenderResource Resource>
 Resource& RenderResourceHandle<Resource>::Get() const
 {
-    RenderResourceManager& manager = GetServiceRegistry().GetService<RenderResourceManager>();
-    return static_cast<Resource&>(manager.GetRenderResource(ResourceId));
+    auto& manager = GetServiceRegistry().GetService<RenderResourceManager>();
+    return static_cast<Resource&>(manager.GetRenderResource(ResourceTypeId, ResourceId));
+}
+
+template <DerivedFromRenderResource Resource>
+void RenderResourceHandle<Resource>::ScheduleRelease() const
+{
+    auto& manager = GetServiceRegistry().GetService<RenderResourceManager>();
+    manager.RecordPendingResourceDelete(ResourceTypeId, ResourceId);
 }
 }
 

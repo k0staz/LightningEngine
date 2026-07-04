@@ -13,6 +13,7 @@ enum class RenderContributorMetaType : uint8
 	GlobalData,
 	
 	MeshData,
+	MaterialData,
 };
 
 template<typename Type>

@@ -21,6 +21,15 @@ namespace LE::RHI
 constexpr uint32 DEFAULT_MIN_ALIGNMENT = 16;
 constexpr uint32 DEFAULT_UNIFORM_ALIGNMENT = 256;
 
+constexpr uint64 TEXTURE_SLOT_COUNT = 1024;
+constexpr uint64 TRANSIENT_TEXTURE_SLOT_COUNT = 64;
+
+constexpr uint64 GLOBAL_TEXTURES_BINDING = 0;
+constexpr uint64 GLOBAL_SAMPLERS_BINDING = 1;
+
+constexpr uint64 GLOBAL_TEXTURES_BINDING_SET = 0;
+constexpr uint64 GLOBAL_SAMPLERS_BINDING_SET = 0;
+
 inline uint32 GlobalStorageAlignment = DEFAULT_MIN_ALIGNMENT;
 inline uint32 GlobalUniformAlignment = DEFAULT_UNIFORM_ALIGNMENT;
 
@@ -52,6 +61,12 @@ enum class RHIResourceType : uint8
 
     PipelineLayout,
     PipelineObject,
+
+    Sampler,
+
+    DescriptorSetLayout,
+    DescriptorSetPool,
+    DescriptorSet,
 
     Window,
 
@@ -115,6 +130,7 @@ enum class RHIShaderStage : uint32
     // Combined utility helpers
     AllGraphics = Vertex | Fragment
 };
+
 EnableBitwiseOperations(RHIShaderStage)
 
 enum class RHIFormat : uint8
@@ -155,6 +171,8 @@ enum class RHIFormat : uint8
     D32_Float_S8_Uint,
 };
 
+RHIFormat MapFromVkFormat(uint32 VkFormat);
+
 enum class RHIImageViewType : uint8
 {
     None = 0,
@@ -170,6 +188,7 @@ enum class RHIImageAspectFlags : uint32
     Depth = 1 << 1,
     Stencil = 1 << 2,
 };
+
 EnableBitwiseOperations(RHIImageAspectFlags)
 
 enum class RHIImageUsageFlag : uint32
@@ -181,6 +200,7 @@ enum class RHIImageUsageFlag : uint32
     TransferSrc = 1 << 4,
     TransferDst = 1 << 5,
 };
+
 EnableBitwiseOperations(RHIImageUsageFlag)
 
 enum class RHILoadOp : uint8
@@ -207,6 +227,7 @@ enum class RHIPipelineStageFlags : uint64
     Transfer = 1ULL << 5,
     Bottom = 1ULL << 6,
 };
+
 EnableBitwiseOperations(RHIPipelineStageFlags)
 
 enum class RHIAccessFlags : uint64
@@ -221,6 +242,7 @@ enum class RHIAccessFlags : uint64
     ShaderRead = 1ULL << 6,
     TransferWrite = 1ULL << 7,
 };
+
 EnableBitwiseOperations(RHIAccessFlags)
 
 enum class RHIImageLayout : uint32
@@ -231,7 +253,46 @@ enum class RHIImageLayout : uint32
     ColorAttachment,
     DepthAttachment,
     ShaderReadOnly,
+    TransferDst,
     Present,
 };
+
+enum class RHISamplerType : uint32
+{
+    LinearRepeat = 0,
+    LinearClamp = 1,
+    PointRepeat = 2,
+    PointClamp = 3,
+    Anisotropic = 4,
+    Count
+};
+
+enum class RHIDescriptorType : uint32
+{
+    Sampler = 0,
+    SampledImage,
+};
+
+enum class RHIPoolCreateFlags : uint64
+{
+    None = 0,
+    UpdateAfterBind = 1ULL << 0,
+};
+EnableBitwiseOperations(RHIPoolCreateFlags)
+
+enum class RHIDescriptorBindingFlags : uint64
+{
+    None = 0,
+    PartiallyBound = 1ULL << 0,
+    UpdateAfterBind = 1ULL << 1,
+};
+EnableBitwiseOperations(RHIDescriptorBindingFlags)
+
+enum class RHIDescriptorSetLayoutCreateFlags : uint64
+{
+    None = 0,
+    UpdateAfterBindPool = 1ULL << 0,
+};
+EnableBitwiseOperations(RHIDescriptorSetLayoutCreateFlags)
 
 }

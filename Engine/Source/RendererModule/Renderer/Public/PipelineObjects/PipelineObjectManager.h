@@ -16,6 +16,7 @@ public:
 		ShaderPassTypeId ShaderTypeId;
 		RenderContributorTypeId GlobalContributorTypeId;
 		RenderContributorTypeId MeshContributorTypeId;
+		RenderContributorTypeId MaterialContributorTypeId;
 		
 		bool operator==(const PipelinePermutationKey&) const = default;
 	};

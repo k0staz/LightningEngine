@@ -46,6 +46,18 @@ typedef VkImage_T* VkImage;
 struct VkImageView_T;
 typedef VkImageView_T* VkImageView;
 
+struct VkSampler_T;
+typedef VkSampler_T* VkSampler;
+
+struct VkDescriptorSetLayout_T;
+typedef VkDescriptorSetLayout_T* VkDescriptorSetLayout;
+
+struct VkDescriptorPool_T;
+typedef VkDescriptorPool_T* VkDescriptorPool;
+
+struct VkDescriptorSet_T;
+typedef VkDescriptorSet_T* VkDescriptorSet;
+
 typedef uint32_t VkShaderStageFlags; 
 
 typedef uint64_t VkDeviceAddress;
