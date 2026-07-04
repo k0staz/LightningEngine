@@ -10,6 +10,7 @@
 #include "Containers/ResourceArrays.h"
 #include "Math/LinearColor.h"
 #include "Math/Vector2.h"
+#include "Math/Vector3.h"
 
 #undef max
 
@@ -37,6 +38,98 @@ public:
 
 protected:
     RHIResourceType ResourceType;
+};
+
+class RHISampler : public RHIResource
+{
+public:
+    RHISampler()
+        : RHIResource(RHIResourceType::Sampler)
+    {
+    }
+
+private:
+    RHISamplerType Type = RHISamplerType::LinearRepeat;
+};
+
+struct RHIDescriptorSetLayoutBindingDesc
+{
+    uint32 Binding = 0;
+    RHIDescriptorType DescriptorType = RHIDescriptorType::Sampler;
+    uint32 DescriptorCount = 1;
+    RHIShaderStage ShaderStage = RHIShaderStage::AllGraphics;
+    std::vector<RefCountingPtr<RHISampler>> ImmutableSamplers;
+};
+
+struct RHIDescriptorSetLayoutDesc
+{
+    std::vector<RHIDescriptorBindingFlags> BindingFlags;
+    std::vector<RHIDescriptorSetLayoutBindingDesc> Bindings;
+    RHIDescriptorSetLayoutCreateFlags Flags = RHIDescriptorSetLayoutCreateFlags::None;
+};
+
+class RHIDescriptorSetLayout : public RHIResource
+{
+public:
+    RHIDescriptorSetLayout(RHIDescriptorSetLayoutDesc InDesc)
+        : RHIResource(RHIResourceType::DescriptorSetLayout)
+          , Desc(InDesc)
+    {
+    }
+
+    const RHIDescriptorSetLayoutDesc& GetDesc() const { return Desc; }
+
+private:
+    RHIDescriptorSetLayoutDesc Desc;
+};
+
+struct RHIDescriptorSetPoolDesc
+{
+    struct PoolSizes
+    {
+        RHIDescriptorType DescriptorType = RHIDescriptorType::Sampler;
+        uint32 DescriptorCount = 0;
+    };
+
+    uint32 MaxSets = 0;
+    RHIPoolCreateFlags Flags = RHIPoolCreateFlags::None;
+    std::vector<PoolSizes> PoolSizes;
+};
+
+class RHIDescriptorSetPool : public RHIResource
+{
+public:
+    RHIDescriptorSetPool(RHIDescriptorSetPoolDesc InDesc)
+        : RHIResource(RHIResourceType::DescriptorSetPool)
+          , Desc(InDesc)
+    {
+    }
+
+    const RHIDescriptorSetPoolDesc& GetDesc() const { return Desc; }
+
+private:
+    RHIDescriptorSetPoolDesc Desc;
+};
+
+struct RHIDescriptorSetDesc
+{
+    RefCountingPtr<RHIDescriptorSetPool> Pool = nullptr;
+    RefCountingPtr<RHIDescriptorSetLayout> Layout = nullptr;
+};
+
+class RHIDescriptorSet : public RHIResource
+{
+public:
+    RHIDescriptorSet(RefCountingPtr<RHIDescriptorSetPool> InPool)
+        : RHIResource(RHIResourceType::DescriptorSet)
+          , Pool(InPool)
+    {
+    }
+
+    RefCountingPtr<RHIDescriptorSetPool> GetPool() const { return Pool; }
+
+private:
+    RefCountingPtr<RHIDescriptorSetPool> Pool = nullptr;
 };
 
 struct RHIBufferDescription
@@ -366,10 +459,34 @@ protected:
     RHIImageViewDesc Desc;
 };
 
+struct RHIImageSubresourceLayers
+{
+    RHIImageAspectFlags Aspect = RHIImageAspectFlags::Color;
+    uint32 MipLevel = 0;
+    uint32 BaseArraySlice = 0;
+    uint32 NumArraySlices = 0;
+};
+
+struct RHIBufferImageCopyDesc
+{
+    RefCountingPtr<RHIImage> Image = nullptr;
+
+    struct CopyRegion
+    {
+        uint64 SourceBufferOffset = 0;
+        Vector3U Extent = {0};
+        Vector3I Offset = {0};
+        RHIImageSubresourceLayers SubresourceLayers = {};
+    };
+
+    std::vector<CopyRegion> Regions;
+};
+
 struct RHIPipelineLayoutDesc
 {
     RHIShaderStage ShaderStages = RHIShaderStage::None;
     uint32 PushConstantSize = 0;
+    std::vector<RefCountingPtr<RHIDescriptorSetLayout>> DescriptorSetLayouts;
 
     bool operator==(const RHIPipelineLayoutDesc&) const = default;
 };
@@ -401,7 +518,7 @@ public:
 
     RHIPipelineObject(RefCountingPtr<RHIPipelineLayout> InPipelineLayout)
         : RHIResource(RHIResourceType::PipelineObject)
-        , PipelineLayout(InPipelineLayout)
+          , PipelineLayout(InPipelineLayout)
     {
     }
 
@@ -499,6 +616,7 @@ struct RHIRenderingAttachmentDesc
     union ClearValue
     {
         LinearColor ClearColor = {0.0f, 0.0f, 0.0f, 0.0f};
+
         struct
         {
             float ClearDepth = 0.0f;
@@ -527,6 +645,8 @@ struct RHIImageMemoryBarrierDesc
     RHIAccessFlags DstAccessFlags = RHIAccessFlags::None;
     RHIImageLayout OldLayout = RHIImageLayout::None;
     RHIImageLayout NewLayout = RHIImageLayout::None;
+    std::optional<uint32> SrcQueueFamilyIndex;
+    std::optional<uint32> DstQueueFamilyIndex;
 
     RHISubresourceRange SubresourceRange = {};
 };
@@ -583,11 +703,35 @@ public:
 
     virtual void PushConstants(const RHIPushConstantsDesc& PushConstantsDesc) = 0;
 
-    virtual void Draw(uint32 IndexCount, uint32 InstanceCount = 1, uint32 FirstIndex = 0, int32 VertexOffset = 0, uint32 FirstInstance = 0) = 0;
+    virtual void Draw(uint32 IndexCount, uint32 InstanceCount = 1, uint32 FirstIndex = 0, int32 VertexOffset = 0,
+                      uint32 FirstInstance = 0) = 0;
+
+    virtual void CopyToGlobalBuffer(RefCountingPtr<RHIGlobalBuffer> GlobalBuffer, RefCountingPtr<RHILinearBuffer> StageBuffer,
+                                    const std::vector<RHIGlobalBufferUploadDesc>& Descriptions) = 0;
+
+    virtual void CopyBufferToImage(RefCountingPtr<RHILinearBuffer> StageBuffer, const RHIBufferImageCopyDesc& Desc) = 0;
+
+    virtual void BindDescriptorSets(RefCountingPtr<RHIPipelineLayout> PipelineLayout, const std::vector<RefCountingPtr<RHI::RHIDescriptorSet>>& DescriptorSets) = 0;
 
     RHICommandListType GetListType() const { return ListType; }
 
 private:
     RHICommandListType ListType = RHICommandListType::Unknown;
+};
+
+struct RHIDescriptorImageInfoDesc
+{
+    RefCountingPtr<RHIImageView> View = nullptr;
+    RefCountingPtr<RHISampler> Sampler = nullptr;
+    RHIImageLayout Layout = RHIImageLayout::None;
+};
+
+struct RHIUpdateDescriptorSetDesc
+{
+    std::vector<RHIDescriptorImageInfoDesc> ImageInfos;
+    RefCountingPtr<RHIDescriptorSet> Set = nullptr;
+    uint32 Binding = 0;
+    uint32 ArrayElement = 0;
+    RHIDescriptorType DescriptorType = RHIDescriptorType::Sampler;
 };
 }

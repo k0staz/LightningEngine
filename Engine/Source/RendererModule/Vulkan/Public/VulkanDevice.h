@@ -21,8 +21,6 @@ public:
 
 	RefCountingPtr<RHIBuffer> CreateBuffer(RHIBufferDescription BufferDesc) override;
 	void DestroyBuffer(RefCountingPtr<RHIBuffer> Buffer) override;
-	void CopyToGlobalBuffer(RefCountingPtr<RHICommandList> CommandList, RefCountingPtr<RHIGlobalBuffer> GlobalBuffer,
-	                        RefCountingPtr<RHILinearBuffer> StageBuffer, const std::vector<RHIGlobalBufferUploadDesc>& Descriptions) override;
 
 	RefCountingPtr<RHICommandList> CreateCommandList(RHICommandListType ListType) override;
 	void SubmitCommandList(RHICommandListType ListType, const std::vector<RefCountingPtr<RHICommandList>>& CommandLists, uint32 SwapchainImageIdx) override;
@@ -48,15 +46,34 @@ public:
 	RefCountingPtr<RHIImageView> CreateImageView(const RHIImageViewDesc& ImageViewDesc) override;
 	void DestroyImageView(RefCountingPtr<RHIImageView> ImageView) override;
 
+	RefCountingPtr<RHISampler> CreateSampler(const RHISamplerType& SamplerType) override;
+	void DestroySampler(RefCountingPtr<RHISampler> Sampler) override;
+
+	RefCountingPtr<RHIDescriptorSetLayout> CreateDescriptorSetLayout(const RHIDescriptorSetLayoutDesc& DescriptorSetLayoutDesc) override;
+	void DestroyDescriptorSetLayout(RefCountingPtr<RHIDescriptorSetLayout> DescriptorSetLayout) override;
+
+	RefCountingPtr<RHIDescriptorSetPool> CreateDescriptorSetPool(const RHIDescriptorSetPoolDesc& DescriptorSetPoolDesc) override;
+	void DestroyDescriptorSetPool(RefCountingPtr<RHIDescriptorSetPool> DescriptorSetPool) override;
+
+	RefCountingPtr<RHIDescriptorSet> CreateDescriptorSet(const RHIDescriptorSetDesc& Desc) override;
+	void FreeDescriptorSet(RefCountingPtr<RHIDescriptorSet> DescriptorSet) override;
+
+	void UpdateDescriptorSet(const RHIUpdateDescriptorSetDesc& Desc) override;
+
+	uint32 GetGraphicsQueueFamilyIndex() const override;
+	uint32 GetTransferQueueFamilyIndex() const override;
+
 private:
 	VkInstance Instance = nullptr;
 	VkDevice Device = nullptr;
 	VkPhysicalDevice PhysicalDevice = nullptr;
 	VkQueue GraphicsQueue = nullptr;
+	uint32 GraphicsQueueFamilyIndex = 0;
 	VkFence GraphicsFrameFences[DEFAULT_FRAMES_IN_FLIGHT];
 	std::array<VkSemaphore, DEFAULT_FRAMES_IN_FLIGHT> RenderCompleteSemaphores;
 	std::array<VkSemaphore, DEFAULT_FRAMES_IN_FLIGHT> SwapchainImageAvailableSemaphores;
 	VkQueue TransferQueue = nullptr;
+	uint32 TransferQueueFamilyIndex = 0;
 	VulkanThreadResources GraphicsThreadResources[DEFAULT_TASK_WORKER_THREADS + 1][DEFAULT_FRAMES_IN_FLIGHT];
 	VulkanThreadResources TransferThreadResources[DEFAULT_TASK_WORKER_THREADS + 1][DEFAULT_FRAMES_IN_FLIGHT];
 	VkSemaphore TransferTimelineSemaphore = nullptr;

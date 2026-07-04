@@ -141,7 +141,9 @@ void RenderSystem::CreateRenderProxy(EcsEntity Entity)
 	Renderer::RenderScene& renderScene = GetModuleRegistry().GetModule<RendererModule>().GetRenderScene();
 	const TransformComponent& transformComponent = GetComponent<TransformComponent>(Entity);
 	const StaticMeshComponent& meshComponent = GetComponent<StaticMeshComponent>(Entity);
+	const MaterialComponent& materialComponent = GetComponent<MaterialComponent>(Entity);
 	
 	renderScene.CreateStaticMeshRenderProxy(Entity, meshComponent.AssetHandle, transformComponent.Transform);
+	renderScene.AddMaterialToRenderProxy(Entity, materialComponent.AssetHandle);
 }
 }

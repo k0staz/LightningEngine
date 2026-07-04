@@ -331,6 +331,7 @@ private:
 
 	void DequeueAssetUnload(IdType Id, AssetTypeId TypeId)
 	{
+		std::lock_guard lock(PendingDeleteMutex);
 		PendingDelete[TypeId].erase(Id);
 	}
 
@@ -342,6 +343,7 @@ private:
 
 	void QueueAssetUnload(IdType Id, AssetTypeId TypeId)
 	{
+		std::lock_guard lock(PendingDeleteMutex);
 		PendingDelete[TypeId].emplace(Id);
 	}
 
@@ -415,6 +417,7 @@ private:
 private:
 	std::unordered_map<AssetTypeId, std::shared_ptr<AssetStorageBase<IdType>>> AssetStorages;
 	std::unordered_map<AssetTypeId, std::unordered_set<AssetId>> PendingDelete;
+	std::mutex PendingDeleteMutex;
 
 	template <DerivedFromAsset AssetType>
 	friend class AssetHandle;

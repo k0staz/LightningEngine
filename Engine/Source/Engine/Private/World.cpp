@@ -54,7 +54,7 @@ void World::InitTestData()
 		LE::EcsEntity entity = Registry.CreateEntity(meshRootEntity);
 		LE::TransformComponent& transformComponent = Registry.AddComponentToEntity<LE::TransformComponent>(entity);
 		transformComponent.Transform.SetPosition(0.0f, 0.0f, 5.0f);
-		transformComponent.Transform.RotateSelfX(1.2f);
+		//transformComponent.Transform.RotateSelfY(1.2f);
 
 		LE::StaticMeshComponent& staticMeshComponent = Registry.AddComponentToEntity<LE::StaticMeshComponent>(entity);
 		staticMeshComponent.AssetHandle = assetHandle;
@@ -68,7 +68,7 @@ void World::InitTestData()
 	{
 		LE::EcsEntity entity = Registry.CreateEntity(rootEntity);
 		LE::TransformComponent& transformComponent = Registry.AddComponentToEntity<LE::TransformComponent>(entity);
-		transformComponent.Transform.SetPosition(0.0f, 0.0f, -10.0f);
+		transformComponent.Transform.SetPosition(0.0f, 0.0f, -3.0f);
 
 		Registry.AddComponentToEntity<LE::CameraComponent>(entity);
 	}

@@ -206,6 +206,10 @@ public:
     void BindPipeline(RefCountingPtr<RHIPipelineObject> PipelineObject) override;
     void PushConstants(const RHIPushConstantsDesc& PushConstantsDesc) override;
     void Draw(uint32 IndexCount, uint32 InstanceCount, uint32 FirstIndex, int32 VertexOffset, uint32 FirstInstance) override;
+    void CopyToGlobalBuffer(RefCountingPtr<RHIGlobalBuffer> GlobalBuffer, RefCountingPtr<RHILinearBuffer> StageBuffer,
+        const std::vector<RHIGlobalBufferUploadDesc>& Descriptions) override;
+    void CopyBufferToImage(RefCountingPtr<RHILinearBuffer> StageBuffer, const RHIBufferImageCopyDesc& Desc) override;
+    void BindDescriptorSets(RefCountingPtr<RHIPipelineLayout> PipelineLayout, const std::vector<RefCountingPtr<RHI::RHIDescriptorSet>>& DescriptorSets) override;
 
 private:
     VkCommandBuffer VulkanCommandBuffer = nullptr;
@@ -303,6 +307,72 @@ private:
     VkSwapchainKHR Swapchain = nullptr;
 };
 
+class VulkanSampler final : public RHISampler
+{
+public:
+    VulkanSampler(VkSampler SamplerIn)
+        : RHISampler()
+        , Sampler(SamplerIn)
+    {
+    }
+
+    VkSampler GetVkSampler() const { return Sampler; }
+    bool IsValid() const override { return Sampler != nullptr; }
+
+private:
+    VkSampler Sampler = nullptr;
+};
+
+class VulkanDescriptorSetLayout final : public RHIDescriptorSetLayout
+{
+public:
+    VulkanDescriptorSetLayout(VkDescriptorSetLayout LayoutIn, const RHIDescriptorSetLayoutDesc& DescIn)
+        : RHIDescriptorSetLayout(DescIn)
+        , Layout(LayoutIn)
+    {
+    }
+
+    bool IsValid() const override { return Layout != nullptr; }
+    VkDescriptorSetLayout GetVkDescriptorSetLayout() const { return Layout; }
+    const VkDescriptorSetLayout* GetVkDescriptorSetLayoutPtr() const { return &Layout; }
+
+private:
+    VkDescriptorSetLayout Layout = nullptr;
+};
+
+class VulkanDescriptorSetPool final : public RHIDescriptorSetPool
+{
+public:
+    VulkanDescriptorSetPool(VkDescriptorPool PoolIn, const RHIDescriptorSetPoolDesc& DescIn)
+        : RHIDescriptorSetPool(DescIn)
+        , Pool(PoolIn)
+    {
+    }
+
+    bool IsValid() const override { return Pool != nullptr; }
+    VkDescriptorPool GetVkDescriptorSetPool() const { return Pool; }
+
+private:
+    VkDescriptorPool Pool = nullptr;
+};
+
+class VulkanDescriptorSet final : public RHIDescriptorSet
+{
+public:
+    VulkanDescriptorSet(VkDescriptorSet DescriptorSetIn, RefCountingPtr<RHIDescriptorSetPool> InPool)
+        : RHIDescriptorSet(InPool)
+        , Set(DescriptorSetIn)
+    {
+    }
+
+    bool IsValid() const override { return Set != nullptr; }
+    VkDescriptorSet GetVkDescriptorSet() const { return Set; }
+    const VkDescriptorSet* GetVkDescriptorSetPtr() const { return &Set; }
+
+private:
+    VkDescriptorSet Set = nullptr;
+};
+
 #define DECLARE_VULKAN_RESOURCE_CASTER(VulkanTypeImplementation, RHIType) \
 	template <> \
 	struct VulkanResourceCaster<RHIType> \
@@ -338,6 +408,14 @@ DECLARE_VULKAN_RESOURCE_CASTER(VulkanImage, RHIImage)
 DECLARE_VULKAN_RESOURCE_CASTER(VulkanImageView, RHIImageView)
 
 DECLARE_VULKAN_RESOURCE_CASTER(VulkanWindow, RHIWindow)
+
+DECLARE_VULKAN_RESOURCE_CASTER(VulkanSampler, RHISampler)
+
+DECLARE_VULKAN_RESOURCE_CASTER(VulkanDescriptorSetLayout, RHIDescriptorSetLayout)
+
+DECLARE_VULKAN_RESOURCE_CASTER(VulkanDescriptorSetPool, RHIDescriptorSetPool)
+
+DECLARE_VULKAN_RESOURCE_CASTER(VulkanDescriptorSet, RHIDescriptorSet)
 
 template <typename RHIType>
 static typename VulkanResourceCaster<RHIType>::VulkanType* ResourceCast(RHIType* Resource)

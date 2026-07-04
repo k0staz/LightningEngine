@@ -2,6 +2,7 @@
 
 #include "RenderCommandList.h"
 #include "RenderContributors/RenderContributorManager.h"
+#include "RenderContributors/MaterialContributer/BaseMaterialContributor.h"
 #include "RenderContributors/MeshContributors/StaticMeshContributor.h"
 #include "RenderResourceManager/RenderResourceManager.h"
 
@@ -32,13 +33,12 @@ void RenderScene::CreateStaticMeshRenderProxy(EcsEntity EntityId, AssetHandle<St
 		
 		RenderResourceManager& resourceManager = GetServiceRegistry().GetService<RenderResourceManager>();
 		auto resourceHandle = resourceManager.RequestStaticMesh(MeshAsset);
-		RenderContributorId contributorId = resourceManager.GetRenderContributor(resourceHandle);
-
 		state.MeshVariationTypeId = RenderContributorTypeIdGetter<StaticMeshContributor>::Value;
-		state.MeshVariationInstanceId = contributorId;
 
 		RenderContributorManager& contributorManager = GetServiceRegistry().GetService<RenderContributorManager>();
-		StaticMeshContributor& contributor = contributorManager.GetRenderContributor<StaticMeshContributor>(contributorId);
+		StaticMeshContributor& contributor = contributorManager.GetCreateContributorForAsset<StaticMeshContributor>(MeshAsset->GetStableId());
+		state.MeshVariationInstanceId = contributor.GetInstanceId();
+		contributor.SetRenderResource(resourceHandle);
 
 		contributor.AddProxy(EntityId);
 		contributor.GetDynamicData(EntityId).LocalToWorld = Transform;
@@ -60,6 +60,37 @@ void RenderScene::UpdateStaticMeshRenderProxy(EcsEntity EntityId, const Matrix4x
 		contributor.GetDynamicData(EntityId).LocalToWorld = Transform;
 	}
 	);
+}
+
+void RenderScene::AddMaterialToRenderProxy(EcsEntity EntityId, AssetHandle<MaterialInstanceAsset> AssetMaterial)
+{
+	RenderCommandList::Get().EnqueueLambdaCommand([this, EntityId, AssetMaterial](RenderCommandList& CmdList)
+	{
+		if (!RenderProxies.Has(EntityId))
+		{
+			return;
+		}
+
+		RenderProxyState& proxyState = RenderProxies.GetProxyState(EntityId);
+		if (proxyState.MaterialVariationInstanceId != NullId{})
+		{
+			return;
+		}
+
+		auto& resourceManager = GetServiceRegistry().GetService<RenderResourceManager>();
+		auto baseColorTextureHandle = resourceManager.RequestTexture(AssetMaterial->BaseColorTexture);
+
+		auto& contributorManager = GetServiceRegistry().GetService<RenderContributorManager>();
+		const bool hasContributor = contributorManager.HasContributorAssetEntry(AssetMaterial->GetStableId());
+		auto& contributor = contributorManager.GetCreateContributorForAsset<BaseMaterialContributor>(AssetMaterial->GetStableId());
+		if (!hasContributor)
+		{
+			contributor.SetBaseColorTexture(baseColorTextureHandle);
+		}
+
+		proxyState.MaterialVariationTypeId = contributor.GetTypeId();
+		proxyState.MaterialVariationInstanceId = contributor.GetInstanceId();
+	});
 }
 
 void RenderScene::DeleteRenderProxy(EcsEntity EntityId)

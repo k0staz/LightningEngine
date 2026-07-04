@@ -51,7 +51,7 @@ public:
 	};
 
 	StaticMeshDynamicData& GetDynamicData(EcsEntity Entity);
-	void SetRenderResourceId(RenderResourceHandle<const StaticMeshRenderResource> Resource);
+	void SetRenderResource(RenderResourceHandle<const StaticMeshRenderResource> Resource);
 
 	bool HasProxy(EcsEntity Entity) override;
 	void AddProxy(EcsEntity Entity) override;

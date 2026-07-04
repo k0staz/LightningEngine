@@ -160,8 +160,9 @@ VkPipelineStageFlags2 MapPipelineStages(RHIPipelineStageFlags flags)
     VkPipelineStageFlags2 vkFlags = 0;
     if (flags & RHIPipelineStageFlags::Top) vkFlags |= VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT;
     if (flags & RHIPipelineStageFlags::ColorTarget) vkFlags |= VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT;
-    if (flags & RHIPipelineStageFlags::DepthTarget) vkFlags |= (VK_PIPELINE_STAGE_2_EARLY_FRAGMENT_TESTS_BIT |
-        VK_PIPELINE_STAGE_2_LATE_FRAGMENT_TESTS_BIT);
+    if (flags & RHIPipelineStageFlags::DepthTarget)
+        vkFlags |= (VK_PIPELINE_STAGE_2_EARLY_FRAGMENT_TESTS_BIT |
+            VK_PIPELINE_STAGE_2_LATE_FRAGMENT_TESTS_BIT);
     if (flags & RHIPipelineStageFlags::ComputeShader) vkFlags |= VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT;
     if (flags & RHIPipelineStageFlags::FragmentShader) vkFlags |= VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT;
     if (flags & RHIPipelineStageFlags::Transfer) vkFlags |= VK_PIPELINE_STAGE_2_TRANSFER_BIT;
@@ -200,6 +201,7 @@ VkImageLayout MapImageLayout(RHIImageLayout layout)
     case RHIImageLayout::ColorAttachment: return VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
     case RHIImageLayout::DepthAttachment: return VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
     case RHIImageLayout::ShaderReadOnly: return VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+    case RHIImageLayout::TransferDst: return VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
     case RHIImageLayout::Present: return VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
     }
     return VK_IMAGE_LAYOUT_UNDEFINED;
@@ -248,6 +250,72 @@ VkRenderingAttachmentInfo MapRenderingAttachmentInfo(const RHIRenderingAttachmen
     std::memcpy(&vkAttachmentInfo.clearValue, &desc.ClearValue, sizeof(vkAttachmentInfo.clearValue));
 
     return vkAttachmentInfo;
+}
+
+VkDescriptorType MapDescriptorType(RHIDescriptorType type)
+{
+    switch (type)
+    {
+    case RHIDescriptorType::Sampler:
+        return VK_DESCRIPTOR_TYPE_SAMPLER;
+    case RHIDescriptorType::SampledImage:
+        return VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
+    default:
+        LE_ASSERT_DESC(false, "Unknown descriptor type");
+        break;
+    }
+
+    return VK_DESCRIPTOR_TYPE_MAX_ENUM;
+}
+
+VkDescriptorBindingFlags MapDescriptorBindingFlags(RHIDescriptorBindingFlags flags)
+{
+    VkDescriptorBindingFlags vkFlags = 0;
+    if (flags == RHIDescriptorBindingFlags::None)
+    {
+        return vkFlags;
+    }
+
+    if (flags & RHIDescriptorBindingFlags::PartiallyBound) vkFlags |= VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT;
+    if (flags & RHIDescriptorBindingFlags::UpdateAfterBind) vkFlags |= VK_DESCRIPTOR_BINDING_UPDATE_AFTER_BIND_BIT;
+
+    return vkFlags;
+}
+
+VkDescriptorSetLayoutCreateFlags MapDescriptorSetLayoutCreateFlags(RHIDescriptorSetLayoutCreateFlags flags)
+{
+    VkDescriptorSetLayoutCreateFlags vkFlags = 0;
+    if (flags == RHIDescriptorSetLayoutCreateFlags::None)
+    {
+        return vkFlags;
+    }
+
+    if (flags & RHIDescriptorSetLayoutCreateFlags::UpdateAfterBindPool) vkFlags |= VK_DESCRIPTOR_SET_LAYOUT_CREATE_UPDATE_AFTER_BIND_POOL_BIT;
+
+    return vkFlags;
+}
+
+VkDescriptorPoolCreateFlags MapDescriptorPoolCreateFlags(RHIPoolCreateFlags flags)
+{
+    VkDescriptorPoolCreateFlags vkFlags = 0;
+    if (flags == RHIPoolCreateFlags::None)
+    {
+        return vkFlags;
+    }
+
+    if (flags & RHIPoolCreateFlags::UpdateAfterBind) vkFlags |= VK_DESCRIPTOR_POOL_CREATE_UPDATE_AFTER_BIND_BIT;
+
+    return vkFlags;
+}
+
+VkImageSubresourceLayers MapSubresourceLayers(const RHIImageSubresourceLayers& layers)
+{
+    VkImageSubresourceLayers Result = {};
+    Result.aspectMask = MapAspectFlags(layers.Aspect);
+    Result.mipLevel = layers.MipLevel;
+    Result.baseArrayLayer = layers.BaseArraySlice;
+    Result.layerCount = layers.NumArraySlices;
+    return Result;
 }
 
 VkImageType GetImageTypeFromImageDesc(const RHIImageDesc& Desc)

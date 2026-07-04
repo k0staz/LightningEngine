@@ -186,7 +186,7 @@ public:
 		}
 	}
 
-	virtual bool Has(IdType) const = 0;
+	virtual bool Has(const IdType OuterId) const = 0;
 
 	virtual BaseResourceType& GetResource(const IdType Id) const noexcept = 0;
 
@@ -454,7 +454,7 @@ public:
 		return static_cast<BaseResourceType&>(GetResourceRef(base_type::GetIndex(base_type::GetSparseRef(Id))));
 	}
 
-	bool Has(const IdType OuterId) const noexcept override
+	bool Has(const IdType OuterId) const override
 	{
 		const IdType* sparsePtr = base_type::GetSparsePointer(OuterId);
 		if (!sparsePtr)

@@ -12,6 +12,12 @@ class RenderContributorManager : public ServiceBase
 	using RenderContributorBaseStorage = ResourceSparseSetBase<RenderContributorId, RenderContributor, RenderContributorTraits<RenderContributorId>>;
 	
 public:
+	struct ContributorEntry
+	{
+		RenderContributorTypeId TypeId;
+		RenderContributorId InstanceId;
+	};
+
 	void Initialize() override;
 	void Shutdown() override;
 	
@@ -53,6 +59,32 @@ public:
 	}
 	
 	void WriteContributorsFrameData(RefCountingPtr<RHI::RHILinearBuffer> FrameBuffer) const;
+
+	[[nodiscard]] bool HasContributorAssetEntry(Uid AssetId) const
+	{
+		return ContributorAssetEntries.contains(AssetId);
+	}
+
+	[[nodiscard]] ContributorEntry GetContributorAssetEntry(Uid AssetId) const
+	{
+		return ContributorAssetEntries.at(AssetId);
+	}
+
+	template<DerivedFromRenderContributor Type>
+	[[nodiscard]] Type& GetCreateContributorForAsset(Uid AssetId)
+	{
+		const RenderContributorTypeId typeId = RenderContributorTypeIdGetter<Type>::Value;
+		if (!HasContributorAssetEntry(AssetId))
+		{
+			Type& contributor = CreateRenderContributor<Type>();
+			ContributorAssetEntries.emplace(AssetId, ContributorEntry{ typeId, contributor.GetInstanceId() });
+			return contributor;
+		}
+
+		ContributorEntry entry = GetContributorAssetEntry(AssetId);
+		LE_ASSERT_DESC(typeId == entry.TypeId, "Requested Contributor Type doesn't match with the entry");
+		return GetRenderContributor<Type>(entry.InstanceId);
+	}
 	
 private:
 	bool HasContributorStorage(RenderContributorTypeId ContributorTypeId) const
@@ -80,6 +112,7 @@ private:
 	}
 	
 private:
+	std::unordered_map<Uid, ContributorEntry> ContributorAssetEntries;
 	std::unordered_map<RenderContributorTypeId, std::shared_ptr<RenderContributorBaseStorage>> ContributorStorages;
 };
 }

@@ -2,25 +2,29 @@ module testEndPoint;
 
 import Globals.Global;
 import Mesh.MeshInterface;
+import Materials.MaterialInterface;
 
-struct PushConstants<G :IGlobal, M : IMeshFetch>
+struct PushConstants<G :IGlobal, M : IMeshFetch, Material : IMaterialInterface>
 {
     G GlobalFrameData;
     M MeshData;
+    Material MaterialData;
 }
 
-struct VertexOutput
+struct VertexOutput<Material : IMaterialInterface>
 {
     float4 Position : SV_Position;
     float3 Normal : NORMAL;
     float2 UV : TEXCOORD0;
     uint32_t InstanceIndex;
+    Material Material;
 }
 
 [shader("vertex")]
-VertexOutput vertexMain<G : IGlobal, M : IMeshFetch>(uint vertexIdx: SV_VulkanVertexID, uint instanceIdx: SV_VulkanInstanceID, uniform PushConstants<G, M> pc)
+VertexOutput<Material> vertexMain<G : IGlobal, M : IMeshFetch, Material : IMaterialInterface>(uint vertexIdx: SV_VulkanVertexID, uint instanceIdx: SV_VulkanInstanceID, uniform PushConstants<G, M, Material> pc)
 {
-    VertexOutput output;
+    VertexOutput<Material> output;
+    output.Material = pc.MaterialData;
     output.Position = mul(pc.MeshData.GetPosition(vertexIdx, instanceIdx), pc.GlobalFrameData.GetWorldToView());
     output.Position = mul(output.Position, pc.GlobalFrameData.GetViewToClip());
 
@@ -33,7 +37,7 @@ VertexOutput vertexMain<G : IGlobal, M : IMeshFetch>(uint vertexIdx: SV_VulkanVe
 }
 
 [shader("fragment")]
-float4 fragmentMain(VertexOutput input)
+float4 fragmentMain<Material : IMaterialInterface>(VertexOutput<Material> input)
 {
-    return float4(1.0f, 0.0f, 0.0f, 1.0f); 
+    return input.Material.GetBaseColor(input.UV); 
 }

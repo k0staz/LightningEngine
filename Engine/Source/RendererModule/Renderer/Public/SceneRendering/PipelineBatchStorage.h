@@ -9,6 +9,9 @@ struct PermutationVariationKey
     RenderContributorTypeId MeshContributorTypeId = NullId{};
     RenderContributorId MeshInstanceId = NullId{};
 
+    RenderContributorTypeId MaterialContributorTypeId = NullId{};
+    RenderContributorId MaterialInstanceId = NullId{};
+
     bool operator==(const PermutationVariationKey&) const = default;
 };
 
@@ -19,6 +22,7 @@ public:
     {
         uint32 InstanceCount = 0;
         RenderContributorId MeshInstanceId = NullId{};
+        RenderContributorId MaterialInstanceId = NullId{};
     };
 
     bool Has(const PermutationVariationKey& PermutationVariationKey) const
@@ -44,6 +48,13 @@ private:
         {
             size_t seed = std::hash<RenderContributorId>{}(key.MeshInstanceId);
 
+            auto hash_combine = [](size_t& s, size_t v)
+            {
+                s ^= v + 0x9e3779b9 + (s << 6) + (s >> 2);
+            };
+
+            hash_combine(seed, std::hash<RenderContributorId>{}(key.MaterialInstanceId));
+
             return seed;
         }
     };
@@ -60,6 +71,8 @@ private:
             };
 
             hash_combine(seed, std::hash<RenderContributorTypeId>{}(key.MeshContributorTypeId));
+            hash_combine(seed, std::hash<RenderContributorTypeId>{}(key.MaterialInstanceId));
+            hash_combine(seed, std::hash<RenderContributorTypeId>{}(key.MaterialContributorTypeId));
             return seed;
         }
     };

@@ -4,6 +4,7 @@ namespace LE
 {
 void AssetManager::OnFrameEnd()
 {
+	std::lock_guard lock(PendingDeleteMutex);
 	if (PendingDelete.empty())
 	{
 		return;

@@ -7,6 +7,7 @@
 #include "RenderContributors/RenderContributorManager.h"
 #include "RenderContributors/GlobalContributors/GlobalContributor.h"
 #include "RenderDynamicDataManager/RenderDynamicDataManager.h"
+#include "RenderResourceManager/RenderResourceManager.h"
 #include "ShaderPass/ShaderPass.h"
 #include "Templates/Alignment.h"
 #include "tracy/Tracy.hpp"
@@ -47,11 +48,14 @@ void SceneRender::ExtractPipelineBatches()
 
         permutationVariationKey.MeshContributorTypeId = proxyState->MeshVariationTypeId;
         permutationVariationKey.MeshInstanceId = proxyState->MeshVariationInstanceId;
+        permutationVariationKey.MaterialContributorTypeId = proxyState->MaterialVariationTypeId;
+        permutationVariationKey.MaterialInstanceId = proxyState->MaterialVariationInstanceId;
         if (!BatchStorage.Has(permutationVariationKey))
         {
             PipelineBatchStorage::PipelineBatchData batchData;
             batchData.InstanceCount = 1;
             batchData.MeshInstanceId = proxyState->MeshVariationInstanceId;
+            batchData.MaterialInstanceId = proxyState->MaterialVariationInstanceId;
             BatchStorage.AddEntrance(permutationVariationKey, batchData);
         }
         else
@@ -83,6 +87,12 @@ void SceneRender::ExecuteTestPass()
     }
 
     commandList->BeginRecording();
+
+    auto& renderResourceManager = GetServiceRegistry().GetService<RenderResourceManager>();
+
+    renderResourceManager.EnqueuePendingBarriers(commandList);
+
+    RefCountingPtr<RHI::RHIDescriptorSet> globalDescriptorSet = renderResourceManager.GetGlobalDescriptorSet();
 
     RHI::RHIDependencyDesc barrierDependencyDesc;
     RHI::RHIImageMemoryBarrierDesc& swapchainBarrier = barrierDependencyDesc.ImageMemoryBarriers.emplace_back();
@@ -155,6 +165,7 @@ void SceneRender::ExecuteTestPass()
         permutationKey.ShaderTypeId = ShaderPassGetter<TestShaderPass>::Value;
         permutationKey.GlobalContributorTypeId = RenderContributorTypeIdGetter<GlobalContributor>::Value;
         permutationKey.MeshContributorTypeId = batchKey.MeshContributorTypeId;
+        permutationKey.MaterialContributorTypeId = batchKey.MaterialContributorTypeId;
 
         RefCountingPtr<RHI::RHIPipelineObject> pipelineObject = pipelineObjectManager.GetPipelineObject(permutationKey);
         if (!pipelineObject)
@@ -163,6 +174,8 @@ void SceneRender::ExecuteTestPass()
         }
 
         commandList->BindPipeline(pipelineObject);
+        commandList->BindDescriptorSets(pipelineObject->GetPipelineLayout(), {globalDescriptorSet});
+
         for (const auto& batchVariation : std::ranges::subrange(BatchStorage.GetPermutationVariationBegin(typeIndex),
                                                                 BatchStorage.GetPermutationVariationEnd(typeIndex)))
         {
@@ -172,10 +185,17 @@ void SceneRender::ExecuteTestPass()
             {
                 continue;
             }
+            RenderContributor& materialContributor = contributorManager.GetRenderContributor(
+                batchKey.MaterialContributorTypeId, batchVariation.MaterialInstanceId);
+            if (!materialContributor.IsReady())
+            {
+                continue;
+            }
 
             ShaderPassGetter<TestShaderPass>::PassConstants testPassConstants = {};
             testPassConstants.GlobalFrameDataGpuAddress = globalContributor.GetThisFrameDataGPUAddress();
             testPassConstants.MeshFrameDataGpuAddress = meshContributor.GetThisFrameDataGPUAddress();
+            testPassConstants.MaterialFrameDataGpuAddress = materialContributor.GetThisFrameDataGPUAddress();
             const uint32 indexCount = meshContributor.GetIndexCount();
 
             RHI::RHIPushConstantsDesc pushConstantsDesc = {};

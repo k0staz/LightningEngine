@@ -55,6 +55,7 @@ struct TestShaderPass : ShaderPassBase
 	{
 		uint64 GlobalFrameDataGpuAddress = 0;
 		uint64 MeshFrameDataGpuAddress = 0;
+		uint64 MaterialFrameDataGpuAddress = 0;
 	};
 };
 

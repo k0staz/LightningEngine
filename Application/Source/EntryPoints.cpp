@@ -72,9 +72,7 @@ int MainImpl()
 int WINAPI WinMain(_In_ HINSTANCE /*hInInstance*/, _In_opt_ HINSTANCE /*hPrevInstance*/, _In_ LPSTR /*launchArgs*/, _In_ int /*nCmdShow*/)
 {
 	//_CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF);
-	//_CrtSetBreakAlloc(2747);
-	//_CrtSetBreakAlloc(2746);
-	//_CrtSetBreakAlloc(28168);
+	//_CrtSetBreakAlloc(2895);
 
 	return MainImpl();
 }
