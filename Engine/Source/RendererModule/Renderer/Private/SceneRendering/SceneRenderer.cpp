@@ -10,6 +10,7 @@
 #include "RenderResourceManager/RenderResourceManager.h"
 #include "ShaderPass/ShaderPass.h"
 #include "Templates/Alignment.h"
+#include "RenderGraph/RenderGraph.h"
 #include "tracy/Tracy.hpp"
 
 namespace LE::RHI
@@ -28,7 +29,17 @@ void SceneRender::Render()
     ExtractPipelineBatches();
     WriteContributorsFrameData();
 
-    ExecuteTestPass();
+    auto& renderGraph = GetServiceRegistry().GetService<RenderGraph>();
+
+    RGTexture color = renderGraph.ImportSwapchainImage(Window);
+    RGTexture depth = renderGraph.ImportDepthImage(Window);
+
+    AddTestPass(renderGraph, color, depth);
+
+    renderGraph.Compile();
+    renderGraph.Execute();
+    renderGraph.Present(Window);
+    renderGraph.Reset();
 }
 
 void SceneRender::ExtractPipelineBatches()
@@ -73,160 +84,78 @@ void SceneRender::WriteContributorsFrameData()
     contributorManager.WriteContributorsFrameData(dynamicDataManager.GetCurrentFrameRingBuffer());
 }
 
-void SceneRender::ExecuteTestPass()
+void SceneRender::AddTestPass(RenderGraph& RGraph, RGTexture Color, RGTexture Depth)
 {
-    ZoneScopedN("Execute Test Pass");
-    RHI::RHIDevice* device = RHI::RHIDevice::Get();
-    RefCountingPtr<RHI::RHICommandList> commandList = device->CreateCommandList(RHI::RHICommandListType::Graphics);
-
-    uint32 swapchainImageIndex;
-    if (!device->GetNextSwapchainImageIndex(Window, swapchainImageIndex))
-    {
-        LE_ASSERT_DESC(false, "Failed to get swapchain image index");
-        return;
-    }
-
-    commandList->BeginRecording();
-
-    auto& renderResourceManager = GetServiceRegistry().GetService<RenderResourceManager>();
-
-    renderResourceManager.EnqueuePendingBarriers(commandList);
-
-    RefCountingPtr<RHI::RHIDescriptorSet> globalDescriptorSet = renderResourceManager.GetGlobalDescriptorSet();
-
-    RHI::RHIDependencyDesc barrierDependencyDesc;
-    RHI::RHIImageMemoryBarrierDesc& swapchainBarrier = barrierDependencyDesc.ImageMemoryBarriers.emplace_back();
-    swapchainBarrier.SrcStageFlags = RHI::RHIPipelineStageFlags::ColorTarget;
-    swapchainBarrier.SrcAccessFlags = RHI::RHIAccessFlags::None;
-    swapchainBarrier.DstStageFlags = RHI::RHIPipelineStageFlags::ColorTarget;
-    swapchainBarrier.DstAccessFlags = RHI::RHIAccessFlags::ColorRead | RHI::RHIAccessFlags::ColorWrite;
-    swapchainBarrier.OldLayout = RHI::RHIImageLayout::None;
-    swapchainBarrier.NewLayout = RHI::RHIImageLayout::Attachment;
-    swapchainBarrier.Image = Window->GetSwapchainImage(swapchainImageIndex);
-    swapchainBarrier.SubresourceRange.Aspect = RHI::RHIImageAspectFlags::Color;
-    swapchainBarrier.SubresourceRange.NumMipLevels = 1;
-    swapchainBarrier.SubresourceRange.NumArraySlices = 1;
-
-    RHI::RHIImageMemoryBarrierDesc& depthBarrier = barrierDependencyDesc.ImageMemoryBarriers.emplace_back();
-    depthBarrier.SrcStageFlags = RHI::RHIPipelineStageFlags::DepthTarget;
-    depthBarrier.SrcAccessFlags = RHI::RHIAccessFlags::DepthWrite;
-    depthBarrier.DstStageFlags = RHI::RHIPipelineStageFlags::DepthTarget;
-    depthBarrier.DstAccessFlags = RHI::RHIAccessFlags::DepthWrite;
-    depthBarrier.OldLayout = RHI::RHIImageLayout::None;
-    depthBarrier.NewLayout = RHI::RHIImageLayout::Attachment;
-    depthBarrier.Image = Window->GetDepthImage();
-    depthBarrier.SubresourceRange.Aspect = RHI::RHIImageAspectFlags::Depth | RHI::RHIImageAspectFlags::Stencil;
-    depthBarrier.SubresourceRange.NumMipLevels = 1;
-    depthBarrier.SubresourceRange.NumArraySlices = 1;
-
-    commandList->PipelineBarrier(barrierDependencyDesc);
-
-    RHI::RHIRenderingAttachmentDesc colorAttachmentDesc = {};
-    colorAttachmentDesc.Attachment = Window->GetSwapchainImageView(swapchainImageIndex);
-    colorAttachmentDesc.LoadOp = RHI::RHILoadOp::Clear;
-    colorAttachmentDesc.StoreOp = RHI::RHIStoreOp::Store;
-    colorAttachmentDesc.ClearValue.ClearColor = LinearColor::Black();
-
-    RHI::RHIRenderingAttachmentDesc depthAttachmentDesc = {};
-    depthAttachmentDesc.Attachment = Window->GetDepthImageView();
-    depthAttachmentDesc.LoadOp = RHI::RHILoadOp::Clear;
-    depthAttachmentDesc.StoreOp = RHI::RHIStoreOp::Ignore;
-    depthAttachmentDesc.ClearValue.DepthStencil.ClearDepth = 1.0f;
-    depthAttachmentDesc.ClearValue.DepthStencil.ClearStencil = 0;
-
-    RHI::RHIRenderingDesc renderingDesc = {};
-    renderingDesc.RectangleExtent = {Window->GetWidth(), Window->GetHeight()};
-    renderingDesc.LayerCount = 1,
-        renderingDesc.ColorAttachments = &colorAttachmentDesc;
-    renderingDesc.ColorAttachmentCount = 1;
-    renderingDesc.DepthAttachment = &depthAttachmentDesc;
-
-    commandList->BeginRendering(renderingDesc);
-
-    RHI::RHIViewportDesc viewport;
-    viewport.Width = Window->GetWidth();
-    viewport.Height = Window->GetHeight();
-    viewport.MinDepth = 0.0f;
-    viewport.MaxDepth = 1.0f;
-    commandList->SetViewport(viewport);
-    commandList->SetScissor(Vector2U(Window->GetWidth(), Window->GetHeight()));
-
-    PipelineObjectManager& pipelineObjectManager = GetServiceRegistry().GetService<PipelineObjectManager>();
-    size_t typeCount = BatchStorage.GetPermutationTypesCount();
-
-    RenderContributorManager& contributorManager = GetServiceRegistry().GetService<RenderContributorManager>();
-    RenderContributor& globalContributor = contributorManager.GetRenderContributor(
-                RenderContributorTypeIdGetter<GlobalContributor>::Value, GlobalFrameDataContributorId);
-    const uint64 alignment = RHI::GlobalStorageAlignment;
-    for (size_t typeIndex = 0; typeIndex < typeCount; ++typeIndex)
-    {
-        const PermutationVariationKey batchKey = BatchStorage.GetPermutationVariationKey(typeIndex);
-        PipelineObjectManager::PipelinePermutationKey permutationKey;
-        permutationKey.ShaderTypeId = ShaderPassGetter<TestShaderPass>::Value;
-        permutationKey.GlobalContributorTypeId = RenderContributorTypeIdGetter<GlobalContributor>::Value;
-        permutationKey.MeshContributorTypeId = batchKey.MeshContributorTypeId;
-        permutationKey.MaterialContributorTypeId = batchKey.MaterialContributorTypeId;
-
-        RefCountingPtr<RHI::RHIPipelineObject> pipelineObject = pipelineObjectManager.GetPipelineObject(permutationKey);
-        if (!pipelineObject)
+    RGraph.AddPass("TestPass",
+        [&](RGBuilder& builder)
         {
-            continue;
-        }
-
-        commandList->BindPipeline(pipelineObject);
-        commandList->BindDescriptorSets(pipelineObject->GetPipelineLayout(), {globalDescriptorSet});
-
-        for (const auto& batchVariation : std::ranges::subrange(BatchStorage.GetPermutationVariationBegin(typeIndex),
-                                                                BatchStorage.GetPermutationVariationEnd(typeIndex)))
+            builder.SetColorAttachment(0, Color, RHI::RHILoadOp::Clear, RHI::RHIStoreOp::Store, LinearColor::Black());
+            builder.SetDepthAttachment(Depth, RHI::RHILoadOp::Clear, RHI::RHIStoreOp::Ignore, 1.0f, 0);
+        },
+        [=, this](RHI::RHICommandList& Cmd, RenderGraph& Graph)
         {
-            RenderContributor& meshContributor = contributorManager.GetRenderContributor(
-                batchKey.MeshContributorTypeId, batchVariation.MeshInstanceId);
-            if (!meshContributor.IsReady())
+            auto& pipelineObjectManager = GetServiceRegistry().GetService<PipelineObjectManager>();
+            auto& contributorManager = GetServiceRegistry().GetService<RenderContributorManager>();
+            auto& globalContributor = contributorManager.GetRenderContributor(RenderContributorTypeIdGetter<GlobalContributor>::Value,
+                GlobalFrameDataContributorId);
+            auto& renderResourceManager = GetServiceRegistry().GetService<RenderResourceManager>();
+            RefCountingPtr<RHI::RHIDescriptorSet> globalDescriptorSet = renderResourceManager.GetGlobalDescriptorSet();
+
+            size_t typeCount = BatchStorage.GetPermutationTypesCount();
+            const uint64 alignment = RHI::GlobalStorageAlignment;
+            for (size_t typeIndex = 0; typeIndex < typeCount; ++typeIndex)
             {
-                continue;
+
+                const PermutationVariationKey batchKey = BatchStorage.GetPermutationVariationKey(typeIndex);
+                PipelineObjectManager::PipelinePermutationKey permutationKey;
+                permutationKey.ShaderTypeId = ShaderPassGetter<TestShaderPass>::Value;
+                permutationKey.GlobalContributorTypeId = RenderContributorTypeIdGetter<GlobalContributor>::Value;
+                permutationKey.MeshContributorTypeId = batchKey.MeshContributorTypeId;
+                permutationKey.MaterialContributorTypeId = batchKey.MaterialContributorTypeId;
+
+                RefCountingPtr<RHI::RHIPipelineObject> pipelineObject = pipelineObjectManager.GetPipelineObject(permutationKey);
+                if (!pipelineObject)
+                {
+                    continue;
+                }
+
+                Cmd.BindPipeline(pipelineObject);
+                Cmd.BindDescriptorSets(pipelineObject->GetPipelineLayout(), {globalDescriptorSet});
+
+                for (const auto& batchVariation : std::ranges::subrange(BatchStorage.GetPermutationVariationBegin(typeIndex),
+                                                                        BatchStorage.GetPermutationVariationEnd(typeIndex)))
+                {
+                    RenderContributor& meshContributor = contributorManager.GetRenderContributor(
+                        batchKey.MeshContributorTypeId, batchVariation.MeshInstanceId);
+                    if (!meshContributor.IsReady())
+                    {
+                        continue;
+                    }
+                    RenderContributor& materialContributor = contributorManager.GetRenderContributor(
+                        batchKey.MaterialContributorTypeId, batchVariation.MaterialInstanceId);
+                    if (!materialContributor.IsReady())
+                    {
+                        continue;
+                    }
+
+                    ShaderPassGetter<TestShaderPass>::PassConstants testPassConstants = {};
+                    testPassConstants.GlobalFrameDataGpuAddress = globalContributor.GetThisFrameDataGPUAddress();
+                    testPassConstants.MeshFrameDataGpuAddress = meshContributor.GetThisFrameDataGPUAddress();
+                    testPassConstants.MaterialFrameDataGpuAddress = materialContributor.GetThisFrameDataGPUAddress();
+                    const uint32 indexCount = meshContributor.GetIndexCount();
+
+                    RHI::RHIPushConstantsDesc pushConstantsDesc = {};
+                    pushConstantsDesc.PipelineLayout = pipelineObject->GetPipelineLayout();
+                    pushConstantsDesc.ShaderStage = RHI::RHIShaderStage::Vertex;
+                    TStructAligned<ShaderPassGetter<TestShaderPass>::PassConstants> alignedPushConstants = testPassConstants;
+                    pushConstantsDesc.Size = Align(sizeof(alignedPushConstants), alignment);
+                    pushConstantsDesc.Data = &alignedPushConstants;
+
+                    Cmd.PushConstants(pushConstantsDesc);
+                    Cmd.Draw(indexCount, batchVariation.InstanceCount);
+                }
             }
-            RenderContributor& materialContributor = contributorManager.GetRenderContributor(
-                batchKey.MaterialContributorTypeId, batchVariation.MaterialInstanceId);
-            if (!materialContributor.IsReady())
-            {
-                continue;
-            }
-
-            ShaderPassGetter<TestShaderPass>::PassConstants testPassConstants = {};
-            testPassConstants.GlobalFrameDataGpuAddress = globalContributor.GetThisFrameDataGPUAddress();
-            testPassConstants.MeshFrameDataGpuAddress = meshContributor.GetThisFrameDataGPUAddress();
-            testPassConstants.MaterialFrameDataGpuAddress = materialContributor.GetThisFrameDataGPUAddress();
-            const uint32 indexCount = meshContributor.GetIndexCount();
-
-            RHI::RHIPushConstantsDesc pushConstantsDesc = {};
-            pushConstantsDesc.PipelineLayout = pipelineObject->GetPipelineLayout();
-            pushConstantsDesc.ShaderStage = RHI::RHIShaderStage::Vertex;
-            TStructAligned<ShaderPassGetter<TestShaderPass>::PassConstants> alignedPushConstants = testPassConstants;
-            pushConstantsDesc.Size = Align(sizeof(alignedPushConstants), alignment);
-            pushConstantsDesc.Data = &alignedPushConstants;
-
-            commandList->PushConstants(pushConstantsDesc);
-            commandList->Draw(indexCount, batchVariation.InstanceCount);
         }
-    }
-    commandList->EndRendering();
-
-    RHI::RHIDependencyDesc presentDependencyDesc;
-    RHI::RHIImageMemoryBarrierDesc& presentBarrier = presentDependencyDesc.ImageMemoryBarriers.emplace_back();
-    presentBarrier.SrcStageFlags = RHI::RHIPipelineStageFlags::ColorTarget;
-    presentBarrier.SrcAccessFlags = RHI::RHIAccessFlags::ColorWrite;
-    presentBarrier.DstStageFlags = RHI::RHIPipelineStageFlags::ColorTarget;
-    presentBarrier.DstAccessFlags = RHI::RHIAccessFlags::None;
-    presentBarrier.OldLayout = RHI::RHIImageLayout::Attachment;
-    presentBarrier.NewLayout = RHI::RHIImageLayout::Present;
-    presentBarrier.Image = Window->GetSwapchainImage(swapchainImageIndex);
-    presentBarrier.SubresourceRange.Aspect = RHI::RHIImageAspectFlags::Color;
-    presentBarrier.SubresourceRange.NumMipLevels = 1;
-    presentBarrier.SubresourceRange.NumArraySlices = 1;
-    commandList->PipelineBarrier(presentDependencyDesc);
-
-    commandList->EndRecording();
-    device->SubmitCommandList(RHI::RHICommandListType::Graphics, {commandList}, swapchainImageIndex);
-    device->Present(Window, swapchainImageIndex);
+    );
 }
 }
