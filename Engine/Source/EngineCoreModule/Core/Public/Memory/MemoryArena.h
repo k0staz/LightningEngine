@@ -46,6 +46,8 @@ public:
         return object;
     }
 
+    void* Allocate(size_t Size, size_t Alignment) noexcept;
+
     void Reset() noexcept;
 
 private:
@@ -66,7 +68,6 @@ private:
 
     void MoveToNextChunk() noexcept;
     MemoryChunk* AllocateNewChunk() noexcept;
-    void* Allocate(size_t Size, size_t Alignment) noexcept;
 
     std::mutex Mutex;
 
@@ -74,5 +75,66 @@ private:
     MemoryChunk* CurrentChunk = nullptr;
     DestroyNode* DestroyHead = nullptr;
     size_t ChunkSize = 0;
+};
+
+template<typename T>
+class ArenaAllocator
+{
+public:
+    using value_type = T;
+    using propagate_on_container_move_assignment = std::true_type;
+    using is_always_equal = std::false_type;
+
+    ArenaAllocator() = delete;
+    explicit ArenaAllocator(MemoryArena& InArena) noexcept
+        : Arena(&InArena)
+    {}
+
+    template <typename U>
+    ArenaAllocator(const ArenaAllocator<U>& Other) noexcept
+        : Arena(Other.Arena)
+    {}
+
+    [[nodiscard]] T* allocate(std::size_t Size)
+    {
+        if (Size == 0)
+        {
+            return nullptr;
+        }
+
+        if (Size > std::size_t(-1) / sizeof(T))
+        {
+            throw std::bad_array_new_length();
+        }
+
+        void* ptr = Arena->Allocate(Size * sizeof(T), alignof(T));
+        if (!ptr)
+        {
+            throw std::bad_alloc();
+        }
+
+        return static_cast<T*>(ptr);
+    }
+
+    void deallocate(T* Ptr, std::size_t N) noexcept
+    {
+    }
+
+    template <typename U>
+    bool operator==(const ArenaAllocator<U>& Other) const noexcept
+    {
+        return Arena == Other.Arena;
+    }
+
+    template <typename U>
+    bool operator!=(const ArenaAllocator<U>& Other) const noexcept
+    {
+        return Arena != Other.Arena;
+    }
+
+private:
+    template <typename U> friend class ArenaAllocator;
+
+    MemoryArena* Arena;
 };
 }
