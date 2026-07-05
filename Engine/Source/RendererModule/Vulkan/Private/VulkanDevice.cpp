@@ -16,6 +16,7 @@
 #include "VulkanResources.h"
 #include "Multithreading/Thread.h"
 #include "VulkanUtils.h"
+#include "tracy/Tracy.hpp"
 
 namespace LE::RHI::Vulkan
 {
@@ -305,6 +306,7 @@ void VulkanDevice::WaitIdle()
 
 void VulkanDevice::BeginFrame()
 {
+    ZoneScopedN("VulkanDevice::BeginFrame");
     if (!Thread::IsRenderThread())
     {
         LE_ASSERT_DESC(false, "Only render thread should begin render frame")

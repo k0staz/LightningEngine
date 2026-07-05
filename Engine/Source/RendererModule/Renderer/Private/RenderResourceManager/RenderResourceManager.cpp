@@ -153,6 +153,12 @@ void RenderResourceManager::OnBeginFrame()
     OnBeginFrameProcessPendingDelete();
 }
 
+bool RenderResourceManager::HasPendingBarriers() const
+{
+    std::lock_guard barrierLock(PendingBarriersMutex);
+    return !PendingBarriers.empty();
+}
+
 void RenderResourceManager::EnqueuePendingBarriers(RefCountingPtr<RHI::RHICommandList> CommandList)
 {
     const uint64 currentTransferValue = RHI::RHIDevice::Get()->GetCurrentTransferTimelineValue();

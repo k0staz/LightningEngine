@@ -1,6 +1,7 @@
 #pragma once
 #include "PipelineBatchStorage.h"
 #include "RenderScene.h"
+#include "RenderGraph/RenderGraph.h"
 #include "Templates/NonCopyable.h"
 
 namespace LE::Renderer
@@ -18,7 +19,7 @@ public:
 private:
     void ExtractPipelineBatches();
     void WriteContributorsFrameData();
-    void ExecuteTestPass();
+    void AddTestPass(RenderGraph& RGraph, RGTexture Color, RGTexture Depth);
 
 private:
     RenderScene* Scene;

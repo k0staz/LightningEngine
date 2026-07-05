@@ -212,6 +212,7 @@ public:
     void Shutdown() override;
     void OnBeginFrame();
 
+    bool HasPendingBarriers() const;
     void EnqueuePendingBarriers(RefCountingPtr<RHI::RHICommandList> CommandList);
 
     void DispatchBatchLoadTasks();
@@ -332,7 +333,7 @@ private:
     FrameTransferContext FrameTransferContexts[DEFAULT_FRAMES_IN_FLIGHT][DEFAULT_TASK_WORKER_THREADS];
 
     std::stack<PendingResourceBarriers> PendingBarriers;
-    std::mutex PendingBarriersMutex;
+    mutable std::mutex PendingBarriersMutex;
 
     template <DerivedFromRenderResource Resource>
     friend class RenderResourceHandle;

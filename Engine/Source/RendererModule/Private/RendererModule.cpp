@@ -18,6 +18,7 @@
 #include "RenderContributors/RenderContributorManager.h"
 #include "RenderContributors/GlobalContributors/GlobalContributor.h"
 #include "RenderDynamicDataManager/RenderDynamicDataManager.h"
+#include "RenderGraph/RenderGraph.h"
 
 namespace LE
 {
@@ -29,6 +30,7 @@ void RendererModule::RegisterServices()
 	GetServiceRegistry().RegisterService<Renderer::RenderDynamicDataManager>();
 	GetServiceRegistry().RegisterService<Renderer::PipelineObjectManager>();
 	GetServiceRegistry().RegisterService<Renderer::ShaderVariationRegistry>();
+	GetServiceRegistry().RegisterService<Renderer::RenderGraph>();
 }
 
 void RendererModule::RegisterReflection()
@@ -46,6 +48,7 @@ void RendererModule::ShutdownServices()
 	GetServiceRegistry().UnregisterService<Renderer::RenderDynamicDataManager>();
 	GetServiceRegistry().UnregisterService<Renderer::PipelineObjectManager>();
 	GetServiceRegistry().UnregisterService<Renderer::ShaderVariationRegistry>();
+	GetServiceRegistry().UnregisterService<Renderer::RenderGraph>();
 }
 
 void RendererModule::InitializeWithVulkanDevice()
