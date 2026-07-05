@@ -34,7 +34,7 @@ public:
     template <typename SetupFunction, typename ExecuteFunction>
     void AddPass(const char* Name, SetupFunction&& SetupFunc, ExecuteFunction&& ExecuteFunc)
     {
-        Passes.emplace_back(Arena.Create<RGPass<ExecuteFunction>>(Name, std::forward<ExecuteFunction>(ExecuteFunc)));
+        Passes.emplace_back(Arena.Create<RGPass<ExecuteFunction>>(Name, std::forward<ExecuteFunction>(ExecuteFunc), Arena));
 
         RGBuilder builder(*Passes.back());
         SetupFunc(builder);
