@@ -504,7 +504,7 @@ void VulkanCommandList::SetViewport(const RHIViewportDesc& ViewportDesc)
     vkViewport.x = ViewportDesc.Coordinates.X;
     vkViewport.y = ViewportDesc.Coordinates.Y;
     vkViewport.width = ViewportDesc.Width;
-    vkViewport.height = ViewportDesc.Height;
+    vkViewport.height = -ViewportDesc.Height;
     vkViewport.minDepth = ViewportDesc.MinDepth;
     vkViewport.maxDepth = ViewportDesc.MaxDepth;
     vkCmdSetViewport(VulkanCommandBuffer, 0, 1, &vkViewport);

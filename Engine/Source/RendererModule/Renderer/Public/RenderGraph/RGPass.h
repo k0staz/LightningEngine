@@ -27,7 +27,7 @@ struct RGAttachment
 
         struct
         {
-            float ClearDepth = 0.0f;
+            float ClearDepth = 1.0f;
             uint32 ClearStencil = 0;
         } DepthStencil;
     } ClearValue = {};
