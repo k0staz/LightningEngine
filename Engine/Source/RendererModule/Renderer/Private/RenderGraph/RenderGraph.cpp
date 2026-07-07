@@ -81,7 +81,7 @@ void RenderGraph::Execute()
         cmd->BeginRendering(Pass->RenderingDesc);
 
         const Vector2U defaultExt = Pass->RenderingDesc.RectangleExtent;
-        cmd->SetViewport({.Width = (float)defaultExt.X, .Height = (float)defaultExt.Y, .MinDepth = 0, .MaxDepth = 1});
+        cmd->SetViewport({.Coordinates = {0.0f, (float)defaultExt.Y}, .Width = (float)defaultExt.X, .Height = (float)defaultExt.Y, .MinDepth = 0, .MaxDepth = 1});
         cmd->SetScissor(defaultExt);
 
         Pass->Execute(*cmd, *this);
