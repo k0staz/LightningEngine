@@ -49,6 +49,7 @@ void StaticMeshContributor::RemoveProxy(EcsEntity Entity)
 
 void StaticMeshContributor::WriteFrameDataDynamicResources(RefCountingPtr<RHI::RHILinearBuffer> FrameBuffer)
 {
+	ThisFrameGpuAddress.clear();
 	if (!RenderResource.IsValid())
 	{
 		return;
@@ -61,31 +62,34 @@ void StaticMeshContributor::WriteFrameDataDynamicResources(RefCountingPtr<RHI::R
 		ThisFrameDynamicData.clear();
 		return;
 	}
-	
-	StaticMeshFrameData thisFrameData = {};
 
 	StaticMeshResources staticMeshResources = {};
 	staticMeshResources.IndicesFetchPtr = staticMeshRenderResource.IndexBuffer->GetGpuAddress();
 	staticMeshResources.PositionsFetchPtr = staticMeshRenderResource.PositionBuffer->GetGpuAddress();
 	staticMeshResources.NormalsFetchPtr = staticMeshRenderResource.NormalBuffer->GetGpuAddress();
 	staticMeshResources.TexCoordsFetchPtr = staticMeshRenderResource.TexCoordsBuffer->GetGpuAddress();
-	
-	thisFrameData.ResourceDataGpuAddress = FrameBuffer->GetCurrentGpuAddress();
+
+	uint64 resourceGpuData = FrameBuffer->GetCurrentGpuAddress();
 	FrameBuffer->Write(&staticMeshResources, sizeof(StaticMeshResources));
-	
-	thisFrameData.DynamicDataGpuAddress = FrameBuffer->GetCurrentGpuAddress();
+
 	for (auto& it : ThisFrameDynamicData)
 	{
-		FrameBuffer->Write(it, sizeof(StaticMeshDynamicData));
+		StaticMeshFrameData thisFrameData = {};
+		thisFrameData.ResourceDataGpuAddress = resourceGpuData;
+		thisFrameData.DynamicDataGpuAddress = FrameBuffer->GetCurrentGpuAddress();
+		for (auto& dynamicData : it.second)
+		{
+			FrameBuffer->Write(dynamicData, sizeof(StaticMeshDynamicData));
+		}
+
+		ThisFrameGpuAddress[it.first] = FrameBuffer->GetCurrentGpuAddress();
+		FrameBuffer->Write(&thisFrameData, sizeof(StaticMeshFrameData));
 	}
-	
-	ThisFrameDataGpuAddress = FrameBuffer->GetCurrentGpuAddress();
-	FrameBuffer->Write(&thisFrameData, sizeof(StaticMeshFrameData));
-	
+
 	ThisFrameDynamicData.clear();
 }
 
-void StaticMeshContributor::AddProxyToThisFrameContribution(EcsEntity Entity)
+void StaticMeshContributor::AddProxyToThisFrameContribution(EcsEntity Entity, PermutationVariationKey BatchKey)
 {
 	if (!ProxyDynamicDataStorage.Has(Entity))
 	{
@@ -93,7 +97,7 @@ void StaticMeshContributor::AddProxyToThisFrameContribution(EcsEntity Entity)
 	}
 
 	auto& dynamicData = ProxyDynamicDataStorage.GetInstance(Entity);
-	ThisFrameDynamicData.push_back(&dynamicData);
+	ThisFrameDynamicData[BatchKey].push_back(&dynamicData);
 }
 
 uint32 StaticMeshContributor::GetIndexCount() const
@@ -125,5 +129,14 @@ bool StaticMeshContributor::IsStaticMeshResourceReady() const
 	}
 
 	return RenderResource.Get().IsLoaded();
+}
+
+uint64 StaticMeshContributor::GetThisFrameDataGPUAddress(PermutationVariationKey BatchKey) const
+{
+	if (!ThisFrameGpuAddress.contains(BatchKey))
+	{
+		return 0;
+	}
+	return ThisFrameGpuAddress.at(BatchKey);
 }
 }

@@ -1,6 +1,7 @@
 module MaterialInterface;
 
 __include "BaseMaterial/BaseMaterial.slang";
+__include "ColorMaterial/ColorMaterial.slang";
 
 public interface IMaterialInterface
 {

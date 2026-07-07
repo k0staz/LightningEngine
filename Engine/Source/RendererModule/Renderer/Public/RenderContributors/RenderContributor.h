@@ -2,6 +2,7 @@
 #include "RenderContributerCore.h"
 #include "RHIResources.h"
 #include "ECS/EcsEntity.h"
+#include "SceneRendering/PipelineBatchStorage.h"
 #include "Templates/NonCopyable.h"
 
 namespace LE::Renderer
@@ -32,7 +33,7 @@ public:
 	 *
 	 * @return The 64-bit GPU virtual address associated with the contributor's frame-specific data.
 	 */
-	uint64 GetThisFrameDataGPUAddress() const { return ThisFrameDataGpuAddress; }
+	[[nodiscard]] virtual uint64 GetThisFrameDataGPUAddress(PermutationVariationKey BatchKey = {}) const { return ThisFrameDataGpuAddress; }
 
 	/**
 	 * @brief Writes frame-specific dynamic resource data to the provided frame buffer.
@@ -47,7 +48,7 @@ public:
 	 */
 	virtual void WriteFrameDataDynamicResources(RefCountingPtr<RHI::RHILinearBuffer> FrameBuffer) = 0;
 
-	virtual void AddProxyToThisFrameContribution(EcsEntity Entity)
+	virtual void AddProxyToThisFrameContribution(EcsEntity Entity, PermutationVariationKey BatchKey)
 	{}
 
 	virtual bool HasProxy(EcsEntity Entity) { return false; }
@@ -56,9 +57,9 @@ public:
 
 	virtual void RemoveProxy(EcsEntity Entity) {}
 
-	virtual uint32 GetIndexCount() const { return 0; }
+	[[nodiscard]] virtual uint32 GetIndexCount() const { return 0; }
 
-	virtual bool IsReady() const { return true; }
+	[[nodiscard]] virtual bool IsReady() const { return true; }
 
 	RenderContributorId GetInstanceId() const
 	{
