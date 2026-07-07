@@ -6,6 +6,7 @@ namespace LE::Renderer
 {
 struct PermutationVariationKey
 {
+    PermutationVariationKey() = default;
     RenderContributorTypeId MeshContributorTypeId = NullId{};
     RenderContributorId MeshInstanceId = NullId{};
 
@@ -13,6 +14,23 @@ struct PermutationVariationKey
     RenderContributorId MaterialInstanceId = NullId{};
 
     bool operator==(const PermutationVariationKey&) const = default;
+};
+
+struct PermutationKeyHash
+{
+    size_t operator()(const PermutationVariationKey& key) const noexcept
+    {
+        size_t seed = std::hash<RenderContributorId>{}(key.MeshInstanceId);
+
+        auto hash_combine = [](size_t& s, size_t v)
+        {
+            s ^= v + 0x9e3779b9 + (s << 6) + (s >> 2);
+        };
+
+        hash_combine(seed, std::hash<RenderContributorId>{}(key.MaterialInstanceId));
+
+        return seed;
+    }
 };
 
 class PipelineBatchStorage : public NonCopyable
@@ -42,22 +60,6 @@ public:
     void Reset();
 
 private:
-    struct PermutationKeyHash
-    {
-        size_t operator()(const PermutationVariationKey& key) const noexcept
-        {
-            size_t seed = std::hash<RenderContributorId>{}(key.MeshInstanceId);
-
-            auto hash_combine = [](size_t& s, size_t v)
-            {
-                s ^= v + 0x9e3779b9 + (s << 6) + (s >> 2);
-            };
-
-            hash_combine(seed, std::hash<RenderContributorId>{}(key.MaterialInstanceId));
-
-            return seed;
-        }
-    };
 
     struct PermutationVariationKeyHash
     {

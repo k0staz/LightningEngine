@@ -58,7 +58,7 @@ public:
 	void RemoveProxy(EcsEntity Entity) override;
 
 	void WriteFrameDataDynamicResources(RefCountingPtr<RHI::RHILinearBuffer> FrameBuffer) override;
-	void AddProxyToThisFrameContribution(EcsEntity Entity) override;
+	void AddProxyToThisFrameContribution(EcsEntity Entity, PermutationVariationKey BatchKey) override;
 
 	uint32 GetIndexCount() const override;
 	bool IsReady() const override;
@@ -66,10 +66,14 @@ public:
 private:
 	bool IsStaticMeshResourceReady() const;
 
+public:
+	[[nodiscard]] uint64 GetThisFrameDataGPUAddress(PermutationVariationKey BatchKey) const override;
+
 private:
 	RenderResourceHandle<const StaticMeshRenderResource> RenderResource = {};
 	RenderContributorInstanceStorage<StaticMeshDynamicData, EcsEntity> ProxyDynamicDataStorage;
-	std::vector<StaticMeshDynamicData*> ThisFrameDynamicData;
+	std::unordered_map<PermutationVariationKey, std::vector<StaticMeshDynamicData*>, PermutationKeyHash> ThisFrameDynamicData;
+	std::unordered_map<PermutationVariationKey, uint64, PermutationKeyHash> ThisFrameGpuAddress;
 };
 
 REGISTER_RENDER_CONTRIBUTOR_TYPE(LE::Renderer::StaticMeshContributor, "StaticMeshFetch", "IMeshFetch", "Mesh/StaticMesh/StaticMesh.slang")

@@ -57,7 +57,7 @@ void RenderSystem::UpdateStaticMeshes(const float DeltaSeconds)
 		}
 
 		const MaterialComponent& materialComponent = view.GetComponents<MaterialComponent>(entity);
-		if(!materialComponent.AssetHandle->IsLoaded())
+		if(!materialComponent.IsColor && !materialComponent.AssetHandle->IsLoaded())
 		{
 			areAssetsLoaded &= false;
 		}
@@ -112,7 +112,7 @@ void RenderSystem::OnAdd(const OnAddObserverType::ObserverType& Observer)
 		}
 
 		MaterialComponent& materialComponent = Observer.GetComponents<MaterialComponent>(entity);
-		if (!materialComponent.AssetHandle->IsLoaded())
+		if (!materialComponent.IsColor && !materialComponent.AssetHandle->IsLoaded())
 		{
 			manager.LoadAssetAsync(materialComponent.AssetHandle);
 			areAssetsLoaded &= false;
@@ -144,6 +144,14 @@ void RenderSystem::CreateRenderProxy(EcsEntity Entity)
 	const MaterialComponent& materialComponent = GetComponent<MaterialComponent>(Entity);
 	
 	renderScene.CreateStaticMeshRenderProxy(Entity, meshComponent.AssetHandle, transformComponent.Transform);
-	renderScene.AddMaterialToRenderProxy(Entity, materialComponent.AssetHandle);
+	if (!materialComponent.IsColor)
+	{
+		renderScene.AddMaterialToRenderProxy(Entity, materialComponent.AssetHandle);
+	}
+	else
+	{
+		renderScene.AddMaterialColorToRenderProxy(Entity, materialComponent.Color);
+	}
+
 }
 }

@@ -217,18 +217,20 @@ void RenderResourceManager::DispatchBatchLoadTasks()
         pendingLoad.ResourceHandle.Get().SetBatchTransferValue(transferValue);
     }
 
-    const uint8 taskMeshCount = thisFrameBatchStaticMesh.size() > 1 ? 2 : 1;
-    const uint8 taskTextureCount = thisFrameBatchTexture.size() > 1 ? 2 : 1;
     std::vector<RefCountingPtr<AsyncTaskNodeBase>> thisFrameTasks;
-    thisFrameTasks.resize(taskMeshCount + taskTextureCount);
+    const uint8 thisFrameTasksCount = thisFrameBatchStaticMesh.size() + thisFrameBatchTexture.size() > 1 ? 2 : 1;
+    thisFrameTasks.resize(thisFrameTasksCount);
 
-    JobScheduler& jobScheduler = GetServiceRegistry().GetService<JobScheduler>();
+    auto& jobScheduler = GetServiceRegistry().GetService<JobScheduler>();
 
-    const uint32 totalMeshRequests = static_cast<uint32>(thisFrameBatchStaticMesh.size());
-    const uint32 totalTextureRequests = static_cast<uint32>(thisFrameBatchTexture.size());
-    const uint32 requestsMeshPerTask = totalMeshRequests / taskMeshCount;
-    const uint32 requestsTexturePerTask = totalTextureRequests / taskTextureCount;
-
+    uint8 taskMeshCount = 0;
+    uint32 requestsMeshPerTask = 0;
+    const auto totalMeshRequests = static_cast<uint32>(thisFrameBatchStaticMesh.size());
+    if (totalMeshRequests > 0)
+    {
+        taskMeshCount = thisFrameBatchTexture.empty() && totalMeshRequests > 1 ? 2 : 1;
+        requestsMeshPerTask = totalMeshRequests / taskMeshCount;
+    }
     uint32 processedRequests = 0;
     for (size_t i = 0; i < taskMeshCount; ++i)
     {
@@ -248,6 +250,15 @@ void RenderResourceManager::DispatchBatchLoadTasks()
             &RenderResourceManager::RecordTransferCommandsStaticMeshTask,
             this,
             std::move(taskPayload));
+    }
+
+    uint8 taskTextureCount = 0;
+    uint32 requestsTexturePerTask = 0;
+    const auto totalTextureRequests = static_cast<uint32>(thisFrameBatchTexture.size());
+    if (totalTextureRequests > 0)
+    {
+        taskTextureCount = thisFrameBatchStaticMesh.empty() && totalTextureRequests > 1 ? 2 : 1;
+        requestsTexturePerTask = totalTextureRequests / taskTextureCount;
     }
 
     processedRequests = 0;

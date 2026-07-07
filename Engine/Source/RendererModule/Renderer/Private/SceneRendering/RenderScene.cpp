@@ -3,6 +3,7 @@
 #include "RenderCommandList.h"
 #include "RenderContributors/RenderContributorManager.h"
 #include "RenderContributors/MaterialContributer/BaseMaterialContributor.h"
+#include "RenderContributors/MaterialContributer/ColorMaterialContributer.h"
 #include "RenderContributors/MeshContributors/StaticMeshContributor.h"
 #include "RenderResourceManager/RenderResourceManager.h"
 
@@ -88,6 +89,32 @@ void RenderScene::AddMaterialToRenderProxy(EcsEntity EntityId, AssetHandle<Mater
 			contributor.SetBaseColorTexture(baseColorTextureHandle);
 		}
 
+		contributor.AddProxy(EntityId);
+
+		proxyState.MaterialVariationTypeId = contributor.GetTypeId();
+		proxyState.MaterialVariationInstanceId = contributor.GetInstanceId();
+	});
+}
+
+void RenderScene::AddMaterialColorToRenderProxy(EcsEntity EntityId, const LinearColor& Color)
+{
+	RenderCommandList::Get().EnqueueLambdaCommand([this, EntityId, Color](RenderCommandList& CmdList)
+	{
+		if (!RenderProxies.Has(EntityId))
+		{
+			return;
+		}
+
+		RenderProxyState& proxyState = RenderProxies.GetProxyState(EntityId);
+		if (proxyState.MaterialVariationInstanceId != NullId{})
+		{
+			return;
+		}
+
+		auto& contributorManager = GetServiceRegistry().GetService<RenderContributorManager>();
+		auto& contributor = contributorManager.CreateRenderContributor<ColorMaterialContributor>();
+		contributor.SetColor(Color);
+
 		proxyState.MaterialVariationTypeId = contributor.GetTypeId();
 		proxyState.MaterialVariationInstanceId = contributor.GetInstanceId();
 	});
@@ -106,6 +133,12 @@ void RenderScene::DeleteRenderProxy(EcsEntity EntityId)
 		RenderContributorManager& contributorManager = GetServiceRegistry().GetService<RenderContributorManager>();
 		RenderContributor& contributor = contributorManager.GetRenderContributor(proxyState.MeshVariationTypeId, proxyState.MeshVariationInstanceId);
 		contributor.RemoveProxy(EntityId);
+
+		if (contributorManager.HasRenderContributor(proxyState.MaterialVariationTypeId, proxyState.MaterialVariationInstanceId))
+		{
+			RenderContributor& materialContributor = contributorManager.GetRenderContributor(proxyState.MaterialVariationTypeId, proxyState.MaterialVariationInstanceId);
+			materialContributor.RemoveProxy(EntityId);
+		}
 	});
 }
 

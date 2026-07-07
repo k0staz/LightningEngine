@@ -30,8 +30,14 @@ public:
 private:
     bool AreResourcesReady() const;
 
+public:
+    void AddProxy(EcsEntity Entity) override { ++ProxyUsersCount; }
+    void RemoveProxy(EcsEntity Entity) override { --ProxyUsersCount; }
+    [[nodiscard]] bool IsReady() const override { return AreResourcesReady();};
+
 private:
     RenderResourceHandle<const TextureRenderResource> BaseColorTexture;
+    uint32 ProxyUsersCount = 0;
 };
 
 REGISTER_RENDER_CONTRIBUTOR_TYPE(LE::Renderer::BaseMaterialContributor, "BaseMaterial", "IMaterialInterface",

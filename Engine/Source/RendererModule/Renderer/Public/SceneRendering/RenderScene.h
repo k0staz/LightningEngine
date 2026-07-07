@@ -28,6 +28,7 @@ public:
 	void UpdateStaticMeshRenderProxy(EcsEntity EntityId, const Matrix4x4F& Transform);
 
 	void AddMaterialToRenderProxy(EcsEntity EntityId, AssetHandle<MaterialInstanceAsset> AssetMaterial);
+	void AddMaterialColorToRenderProxy(EcsEntity EntityId, const LinearColor& Color);
 	
 	void DeleteRenderProxy(EcsEntity EntityId);
 	void SetRenderProxyEnabled(EcsEntity EntityId, bool Enabled);

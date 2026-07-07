@@ -64,6 +64,21 @@ void World::InitTestData()
 
 		Registry.AddComponentToEntity<TestComponent>(entity);
 	}
+
+	{
+		LE::EcsEntity entity = Registry.CreateEntity(meshRootEntity);
+		auto& transformComponent = Registry.AddComponentToEntity<LE::TransformComponent>(entity);
+		transformComponent.Transform.SetPosition(3.0f, 0.0f, 3.0f);
+		transformComponent.Transform.Scale(0.2f);
+
+		auto& staticMeshComponent = Registry.AddComponentToEntity<LE::StaticMeshComponent>(entity);
+		staticMeshComponent.AssetHandle = assetHandle;
+
+		// TODO:: Rework this so this material is loaded from asset instance, and contributor is reused for the same assets
+		auto& materialComponent = Registry.AddComponentToEntity<MaterialComponent>(entity);
+		materialComponent.IsColor = true;
+		materialComponent.Color = LinearColor::White();
+	}
 	
 	{
 		LE::EcsEntity entity = Registry.CreateEntity(rootEntity);

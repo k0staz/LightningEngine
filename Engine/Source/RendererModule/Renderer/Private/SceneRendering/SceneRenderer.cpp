@@ -52,15 +52,15 @@ void SceneRender::ExtractPipelineBatches()
     for (auto& proxyState : enabledProxies)
     {
         PermutationVariationKey permutationVariationKey;
-
-        RenderContributor& meshContributor = contributorManager.GetRenderContributor(
-            proxyState->MeshVariationTypeId, proxyState->MeshVariationInstanceId);
-        meshContributor.AddProxyToThisFrameContribution(proxyState->EntityId);
-
         permutationVariationKey.MeshContributorTypeId = proxyState->MeshVariationTypeId;
         permutationVariationKey.MeshInstanceId = proxyState->MeshVariationInstanceId;
         permutationVariationKey.MaterialContributorTypeId = proxyState->MaterialVariationTypeId;
         permutationVariationKey.MaterialInstanceId = proxyState->MaterialVariationInstanceId;
+
+        RenderContributor& meshContributor = contributorManager.GetRenderContributor(
+            proxyState->MeshVariationTypeId, proxyState->MeshVariationInstanceId);
+        meshContributor.AddProxyToThisFrameContribution(proxyState->EntityId, permutationVariationKey);
+
         if (!BatchStorage.Has(permutationVariationKey))
         {
             PipelineBatchStorage::PipelineBatchData batchData;
@@ -139,9 +139,9 @@ void SceneRender::AddTestPass(RenderGraph& RGraph, RGTexture Color, RGTexture De
                     }
 
                     ShaderPassGetter<TestShaderPass>::PassConstants testPassConstants = {};
-                    testPassConstants.GlobalFrameDataGpuAddress = globalContributor.GetThisFrameDataGPUAddress();
-                    testPassConstants.MeshFrameDataGpuAddress = meshContributor.GetThisFrameDataGPUAddress();
-                    testPassConstants.MaterialFrameDataGpuAddress = materialContributor.GetThisFrameDataGPUAddress();
+                    testPassConstants.GlobalFrameDataGpuAddress = globalContributor.GetThisFrameDataGPUAddress(batchKey);
+                    testPassConstants.MeshFrameDataGpuAddress = meshContributor.GetThisFrameDataGPUAddress(batchKey);
+                    testPassConstants.MaterialFrameDataGpuAddress = materialContributor.GetThisFrameDataGPUAddress(batchKey);
                     const uint32 indexCount = meshContributor.GetIndexCount();
 
                     RHI::RHIPushConstantsDesc pushConstantsDesc = {};
