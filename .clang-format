@@ -1,0 +1,82 @@
+# Lightning Engine code style
+# Derived from the existing codebase: tabs (4 wide), Allman braces, no namespace
+# indentation, unindented case labels, left-aligned pointers/references.
+---
+Language: Cpp
+BasedOnStyle: Microsoft
+Standard: Latest
+
+# Indentation
+UseTab: ForContinuationAndIndentation
+IndentWidth: 4
+TabWidth: 4
+ContinuationIndentWidth: 4
+AccessModifierOffset: -4
+NamespaceIndentation: None
+IndentCaseLabels: false
+IndentCaseBlocks: false
+IndentPPDirectives: None
+IndentWrappedFunctionNames: false
+
+# Braces (Allman)
+BreakBeforeBraces: Custom
+BraceWrapping:
+  AfterCaseLabel: true
+  AfterClass: true
+  AfterControlStatement: Always
+  AfterEnum: true
+  AfterFunction: true
+  AfterNamespace: true
+  AfterStruct: true
+  AfterUnion: true
+  AfterExternBlock: true
+  BeforeCatch: true
+  BeforeElse: true
+  BeforeLambdaBody: true
+  BeforeWhile: false
+  SplitEmptyFunction: true
+  SplitEmptyRecord: true
+  SplitEmptyNamespace: true
+
+# Line length: 0 keeps your own line breaks instead of re-wrapping long lines.
+# Set to e.g. 120 if you want the formatter to wrap aggressively.
+ColumnLimit: 0
+MaxEmptyLinesToKeep: 2
+KeepEmptyLinesAtTheStartOfBlocks: false
+
+# Single-line constructs
+AllowShortBlocksOnASingleLine: Never
+AllowShortCaseLabelsOnASingleLine: false
+AllowShortFunctionsOnASingleLine: InlineOnly
+AllowShortIfStatementsOnASingleLine: Never
+AllowShortLoopsOnASingleLine: false
+AllowShortLambdasOnASingleLine: Empty
+AllowShortEnumsOnASingleLine: false
+
+# Templates / constructors
+AlwaysBreakTemplateDeclarations: Yes
+SpaceAfterTemplateKeyword: true
+BreakConstructorInitializers: BeforeComma
+PackConstructorInitializers: Never
+ConstructorInitializerIndentWidth: 4
+BreakInheritanceList: BeforeColon
+
+# Pointers / spacing
+PointerAlignment: Left
+ReferenceAlignment: Pointer
+DerivePointerAlignment: false
+SpaceBeforeParens: ControlStatements
+SpaceAfterCStyleCast: false
+SpacesInAngles: Never
+Cpp11BracedListStyle: true
+
+# Misc
+FixNamespaceComments: false
+SortIncludes: Never
+IncludeBlocks: Preserve
+ReflowComments: false
+AlignTrailingComments: true
+AlignConsecutiveMacros: None
+AlignEscapedNewlines: Left
+InsertNewlineAtEOF: true
+...

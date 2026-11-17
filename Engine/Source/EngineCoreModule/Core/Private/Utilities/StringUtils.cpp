@@ -1,5 +1,7 @@
 ﻿#include "Utilities/StringUtils.h"
 
+#include <algorithm>
+
 namespace LE
 {
 
@@ -20,5 +22,13 @@ std::wstring CharToWstring(const char* Str)
 	mbstowcs(&wstr[0], Str, sizeNeeded);
     
 	return wstr;
+}
+
+static bool HasAnyNonAsciiCharacters(std::string_view Str)
+{
+	return std::ranges::any_of(Str.begin(), Str.end(), [](const unsigned char c)
+							   {
+								   return !((c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z'));
+							   });
 }
 }
