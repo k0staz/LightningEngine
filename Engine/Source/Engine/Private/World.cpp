@@ -14,6 +14,7 @@
 #include "Misc/Paths.h"
 #include "Archive/Archive.h"
 #include "AssetManager/AssetManager.h"
+#include "AssetManager/AssetPath.h"
 #include "Math/MathUtils.h"
 #include "Time/Clock.h"
 
@@ -36,6 +37,7 @@ void World::Shutdown()
 
 void World::InitTestData()
 {
+	std::optional<AssetPath> testAssetPath = AssetPath::ParseAssetPath("content:/StaticMesh/Sphere.leasset");
     /*Path testModel = GetContentRoot() / "StaticMesh" / "GLTF" /"WallTileMaterial.glb";
 
     auto& importer = GetServiceRegistry().GetService<GLTFImporter>();

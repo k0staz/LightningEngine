@@ -6,12 +6,14 @@
 #include "AssetMasterFile.gen.h"
 #include "ECSMasterFile.gen.h"
 #include "SystemManager.h"
+#include "AssetManager/MountRegistry.h"
 #include "ECS/Ecs.h"
 #include "EventCore/EventManager.h"
 
 void LE::EngineCoreModule::RegisterServices()
 {
 	ServiceRegistry& serviceRegistry = GetServiceRegistry();
+	serviceRegistry.RegisterService<MountRegistry>();
 	serviceRegistry.RegisterService<AssetManager>();
 	serviceRegistry.RegisterService<AssetRegistry>();
 	serviceRegistry.RegisterService<AssetStorageFactory>();
@@ -25,6 +27,7 @@ void LE::EngineCoreModule::ShutdownServices()
 	serviceRegistry.UnregisterService<AssetManager>();
 	serviceRegistry.UnregisterService<AssetRegistry>();
 	serviceRegistry.UnregisterService<AssetStorageFactory>();
+	serviceRegistry.UnregisterService<MountRegistry>();
 	serviceRegistry.UnregisterService<EventManager>();
 	serviceRegistry.UnregisterService<SystemManager>();
 }
